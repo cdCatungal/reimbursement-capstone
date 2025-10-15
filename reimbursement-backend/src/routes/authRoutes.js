@@ -9,13 +9,14 @@ const router = express.Router();
 router.get(
   "/microsoft",
   (req, res, next) => {
-    console.log("🚀 Initiating Microsoft login...");
+    console.log("\n🚀 ====== MICROSOFT LOGIN INITIATED ======");
+    console.log("🔑 Session ID:", req.sessionID);
+    console.log("📦 Session:", req.session);
     next();
   },
   passport.authenticate("azuread-openidconnect", {
     failureRedirect: "/auth/failure",
-    // 👇 Force the Microsoft login screen to show up every time
-    prompt: "select_account"
+    prompt: "select_account",
   })
 );
 
@@ -25,93 +26,77 @@ router.get(
 router.post(
   "/microsoft/callback",
   (req, res, next) => {
-    console.log("📥 Received callback from Microsoft (POST)");
-    console.log("Body params:", Object.keys(req.body));
-
-    if (req.body.error) {
-      console.error("❌ Azure returned error:", req.body.error);
-      console.error("Error description:", req.body.error_description);
-      return res.redirect("/auth/failure");
-    }
+    console.log("\n📥 ====== CALLBACK RECEIVED ======");
+    console.log("🔑 Session ID:", req.sessionID);
+    console.log("📦 Session before passport:", req.session);
     next();
   },
   passport.authenticate("azuread-openidconnect", {
     failureRedirect: "/auth/failure",
-    failureMessage: true,
+    failureFlash: true,
   }),
   (req, res) => {
-    console.log("✅ Microsoft login successful:", req.user);
+    console.log("\n✅ ====== AUTHENTICATION SUCCESS ======");
+    console.log("👤 Authenticated user:", req.user?.email);
+    console.log("🆔 User ID:", req.user?.id);
+    console.log("📦 Session after login:", req.session);
+
     res.redirect(process.env.CLIENT_URL || "http://localhost:3000");
   }
 );
 
 /**
- * STEP 3: Authentication Failure Handler
+ * STEP 3: Failure handler
  */
 router.get("/failure", (req, res) => {
-  console.error("❌ Authentication failed");
-  console.error("Session:", req.session);
-  console.error("Flash messages:", req.session?.messages);
-
-  res.status(401).json({
-    message: "Microsoft authentication failed",
-    details: "Check backend console for error logs",
-    sessionData: req.session?.messages || "No error details available",
-  });
+  res.status(401).json({ success: false, message: "Microsoft authentication failed" });
 });
 
 /**
- * STEP 4: Check Current User Session
+ * STEP 4: Get current user session
  */
 router.get("/me", (req, res) => {
-  console.log("🔍 Checking session, user:", req.user);
-  if (req.user) {
-    res.json({ user: req.user });
+  console.log("\n🔍 ====== AUTH CHECK ======");
+  console.log("🔑 Session ID:", req.sessionID);
+  console.log("👤 User:", req.user?.email || "None");
+
+  if (req.isAuthenticated() && req.user) {
+    res.json({
+      success: true,
+      authenticated: true,
+      user: {
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        role: req.user.role,
+      },
+    });
   } else {
-    res.status(401).json({ user: null });
+    res.status(401).json({ success: false, authenticated: false, user: null });
   }
 });
 
 /**
- * STEP 5: Logout Route
+ * STEP 5: Logout
  */
 router.get("/logout", (req, res, next) => {
-  console.log("👋 Logging out user...");
+  console.log("\n👋 ====== LOGOUT INITIATED ======");
+  console.log("👤 Logging out user:", req.user?.email || "Unknown");
+
+  const tenantId = process.env.AZURE_TENANT_ID || "common";
+  const postLogoutRedirectUri = encodeURIComponent(
+    process.env.CLIENT_URL || "http://localhost:3000"
+  );
 
   req.logout((err) => {
-    if (err) {
-      console.error("Logout error:", err);
-      return next(err);
-    }
+    if (err) return next(err);
 
-    // ✅ Safely destroy session if it exists
-    if (req.session) {
-      req.session.destroy((err) => {
-        if (err) console.error("Session destroy error:", err);
-        res.clearCookie("connect.sid", { path: "/" });
-
-        // ✅ Optional: Redirect to Microsoft logout to end SSO session
-        const tenantId = process.env.AZURE_AD_TENANT_ID;
-        const postLogoutRedirectUri = encodeURIComponent(
-          process.env.CLIENT_URL || "http://localhost:3000/login"
-        );
-
-        const azureLogoutUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${postLogoutRedirectUri}`;
-
-        console.log("🔒 Redirecting to Azure logout:", azureLogoutUrl);
-        res.redirect(azureLogoutUrl);
-      });
-    } else {
-      // No session to destroy, still redirect out
-      const tenantId = process.env.AZURE_AD_TENANT_ID;
-      const postLogoutRedirectUri = encodeURIComponent(
-        process.env.CLIENT_URL || "http://localhost:3000/login"
-      );
-      const azureLogoutUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${postLogoutRedirectUri}`;
-
-      console.log("⚠️ No session found, redirecting anyway");
-      res.redirect(azureLogoutUrl);
-    }
+    req.session.destroy(() => {
+      res.clearCookie("connect.sid", { path: "/" });
+      const logoutUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${postLogoutRedirectUri}`;
+      console.log("🔒 Redirecting to Azure logout");
+      res.redirect(logoutUrl);
+    });
   });
 });
 

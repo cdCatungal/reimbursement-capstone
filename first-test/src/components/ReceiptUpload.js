@@ -23,7 +23,7 @@ import {
 } from '@mui/icons-material';
 
 function ReceiptUpload() {
-  const { showNotification } = useAppContext();
+  const { showNotification, user } = useAppContext(); // ⬅️ Add user from context
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [extractedText, setExtractedText] = useState('');
@@ -181,50 +181,58 @@ function ReceiptUpload() {
   };
 
   // Submit reimbursement request
-const handleSubmit = async () => {
-  if (!validateForm()) {
-    showNotification('Please fill in all required fields', 'error');
-    return;
-  }
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      showNotification('Please fill in all required fields', 'error');
+      return;
+    }
 
-  const formDataToSend = new FormData();
-  formDataToSend.append('category', formData.category);
-  formDataToSend.append('type', formData.category);
-  formDataToSend.append('description', formData.description);
-  formDataToSend.append('total', parseFloat(formData.total));
-  if (image) formDataToSend.append('receipt', image);
+    if (!user) { // ⬅️ Check if user is authenticated
+      showNotification('Please log in first', 'error');
+      return;
+    }
 
-  try {
-    const res = await fetch('http://localhost:5000/api/reimbursements', {
-      method: 'POST',
-      body: formDataToSend,
-    });
+    const formDataToSend = new FormData();
+    formDataToSend.append('category', formData.category);
+    formDataToSend.append('type', formData.category);
+    formDataToSend.append('description', formData.description);
+    formDataToSend.append('total', parseFloat(formData.total));
+    if (image) formDataToSend.append('receipt', image);
 
-    if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-    const data = await res.json();
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, { // ⬅️ Use env variable
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${user.token}`, // ⬅️ Add authorization header
+        },
+        body: formDataToSend,
+        credentials: 'include',
+      });
 
-    showNotification('Reimbursement submitted successfully!', 'success');
-    console.log('Created reimbursement:', data);
+      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+      const data = await res.json();
 
-    // ✅ Reset all fields after successful submission
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      items: '',
-      total: '',
-      description: '',
-      category: 'Transportation',
-      merchant: '',
-    });
-    setImage(null);
-    setImagePreview(null);
-    setExtractedText('');
-    setErrors({});
-  } catch (err) {
-    console.error('Error submitting reimbursement:', err);
-    showNotification('Failed to submit reimbursement', 'error');
-  }
-};
+      showNotification('Reimbursement submitted successfully!', 'success');
+      console.log('Created reimbursement:', data);
 
+      // ✅ Reset all fields after successful submission
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        items: '',
+        total: '',
+        description: '',
+        category: 'Transportation',
+        merchant: '',
+      });
+      setImage(null);
+      setImagePreview(null);
+      setExtractedText('');
+      setErrors({});
+    } catch (err) {
+      console.error('Error submitting reimbursement:', err);
+      showNotification('Failed to submit reimbursement', 'error');
+    }
+  };
 
   // Clear uploaded image
   const handleClearImage = () => {

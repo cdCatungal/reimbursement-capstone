@@ -1,3 +1,4 @@
+// src/controllers/reimbursementController.js
 import Reimbursement from '../models/Reimbursement.js';
 import { User, Approval } from "../models/index.js";
 import { sendEmail } from '../utils/sendEmail.js';
@@ -6,13 +7,13 @@ import { getNextApprover } from '../utils/approvalFlow.js';
 // 📤 Create new reimbursement
 export async function createReimbursement(req, res) {
   try {
-    const user = req.user;
-    if (!user) {
-      return res.status(401).json({ error: 'User not authenticated' });
+    if (!req.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
     }
+    const user = req.user;
 
     const payload = req.body;
-    const firstApprover = getNextApprover(null);
+    const firstApprover = getNextApprover(null); // e.g., returns 'Manager'
 
     const r = await Reimbursement.create({
       user_id: user.id,
@@ -25,9 +26,17 @@ export async function createReimbursement(req, res) {
       receipt_url: req.file ? `/uploads/${req.file.filename}` : null,
     });
 
+    // Optional: notify manager by email (disabled by default)
     const manager = await User.findOne({ where: { role: 'Manager' } });
     if (manager) {
-      // Email notification can be enabled later
+      /*
+      await sendEmail(manager.email, 'Reimbursement pending your approval', `
+        <p>Hello ${manager.name},</p>
+        <p>A reimbursement (#${r.id}) from ${user.name} requires your approval.</p>
+        <p>Amount: ₱${r.total}</p>
+        <p><a href="${process.env.CLIENT_URL || 'http://localhost:3000'}">Open Reimbursement Tool</a></p>
+      `);
+      */
     }
 
     res.json({ reimbursement: r });
@@ -60,7 +69,7 @@ export async function getUserReimbursements(req, res) {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email']
+          attributes: ['id', 'name', 'email', 'role']
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -97,20 +106,17 @@ export async function getUserReimbursements(req, res) {
 // 📝 Update reimbursement status (approve/reject)
 export async function updateReimbursementStatus(req, res) {
   try {
-    const user = req.user;
-    if (!user) {
+    if (!req.user) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
     const { id } = req.params;
     const { status } = req.body;
 
-    // Validate status
     if (!['Approved', 'Rejected', 'Pending'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    // Find the reimbursement
     const reimbursement = await Reimbursement.findByPk(id, {
       include: [
         {
@@ -125,8 +131,8 @@ export async function updateReimbursementStatus(req, res) {
       return res.status(404).json({ error: 'Reimbursement not found' });
     }
 
-    // Update the status
     reimbursement.status = status;
+
     if (status === 'Approved') {
       reimbursement.approved_at = new Date();
       reimbursement.current_approver = null;
@@ -136,24 +142,28 @@ export async function updateReimbursementStatus(req, res) {
 
     await reimbursement.save();
 
-    // Optionally send email to user about approval/rejection
+    // Optional: notify user via email
     if (reimbursement.user) {
-      const subject = status === 'Approved' 
-        ? 'Your Reimbursement Has Been Approved' 
+      const subject = status === 'Approved'
+        ? 'Your Reimbursement Has Been Approved'
         : 'Your Reimbursement Has Been Rejected';
-      
+
       const message = status === 'Approved'
         ? `Hi ${reimbursement.user.name}, your reimbursement request for ₱${reimbursement.total} has been approved.`
         : `Hi ${reimbursement.user.name}, your reimbursement request for ₱${reimbursement.total} has been rejected.`;
-      
-      // Uncomment to enable email notifications
-      // await sendEmail(reimbursement.user.email, subject, message);
+
+      /*
+      await sendEmail(reimbursement.user.email, subject, `
+        <p>${message}</p>
+        <p>You can view it in the reimbursement portal.</p>
+      `);
+      */
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `Reimbursement ${status.toLowerCase()} successfully`,
-      reimbursement 
+      reimbursement
     });
   } catch (err) {
     console.error('❌ Error updating reimbursement:', err);

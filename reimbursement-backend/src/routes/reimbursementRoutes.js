@@ -1,7 +1,7 @@
 import express from 'express';
-import { createReimbursement, getUserReimbursements } from '../controllers/reimbursementController.js';
+import { createReimbursement, getUserReimbursements, updateReimbursementStatus } from '../controllers/reimbursementController.js';
 import { upload } from '../middlewares/upload.js';
-import { verifyToken } from '../middlewares/authMiddleware.js'; // ⬅️ Import auth middleware
+import { verifyToken } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
@@ -10,5 +10,8 @@ router.post('/', verifyToken, upload.single('receipt'), createReimbursement);
 
 // 📥 Get reimbursements (optionally filtered by userId - requires authentication)
 router.get('/', verifyToken, getUserReimbursements);
+
+// 📝 Update reimbursement status (approve/reject - requires authentication)
+router.put('/:id', verifyToken, updateReimbursementStatus);
 
 export default router;

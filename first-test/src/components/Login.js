@@ -3,21 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
-  TextField,
   Button,
   Paper,
-  Link,
   Box,
-  Divider,
   CircularProgress,
 } from '@mui/material';
-import { Login as MicrosoftIcon } from '@mui/icons-material';
+import { Login as MicrosoftIcon, CheckCircleOutline } from '@mui/icons-material';
 import { useAppContext } from '../App';
 
 function Login() {
   const { setIsAdmin, setIsAuthenticated, setUser, showNotification } = useAppContext();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [checking, setChecking] = useState(true);
   const navigate = useNavigate();
 
@@ -66,161 +61,126 @@ function Login() {
     checkAuth();
   }, [navigate, setIsAdmin, setIsAuthenticated, setUser, showNotification]);
 
-  const handleLogin = () => {
-    if (!username || !password) {
-      showNotification('Please enter both username and password', 'error');
-      return;
-    }
-
-    if (username === 'admin' && password === 'admin123') {
-      setIsAdmin(true);
-      setIsAuthenticated(true);
-      setUser({ uid: 'admin', username: 'Admin' });
-      navigate('/admin');
-      showNotification('Logged in as Admin', 'success');
-    } else {
-      setIsAdmin(false);
-      setIsAuthenticated(true);
-      setUser({ uid: username, username: username || 'User' });
-      navigate('/user');
-      showNotification(`Logged in as ${username || 'User'}`, 'success');
-    }
-  };
-
   const handleMicrosoftLogin = () => {
     window.location.href = 'http://localhost:5000/auth/microsoft';
   };
 
-  const handleForgotPassword = () => {
-    showNotification('Forgot Password functionality is not implemented yet.', 'info');
-  };
-
   if (checking) {
     return (
-      <Container
-        maxWidth="sm"
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Box sx={{ textAlign: 'center' }}>
-          <CircularProgress />
-          <Typography sx={{ mt: 2 }}>Checking authentication...</Typography>
-        </Box>
-      </Container>
+      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
     );
   }
 
   return (
-    <Container
-      maxWidth="sm"
+    <Box
       sx={{
         minHeight: '100vh',
+        background: 'linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        py: 4,
       }}
     >
-      <Paper
-        elevation={6}
-        sx={{
-          p: 4,
-          maxWidth: 400,
-          borderRadius: 3,
-          transition: 'transform 0.3s',
-          '&:hover': { transform: 'scale(1.03)' },
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-          <img
-            src="/erni-logo.png"
-            alt="ERNI Logo"
-            style={{ height: '60px', objectFit: 'contain' }}
-            onError={(e) => (e.target.style.display = 'none')}
-          />
-        </Box>
-
-        <Typography
-          variant="h4"
-          sx={{ textAlign: 'center', fontWeight: 'bold', mb: 3 }}
-        >
-          Reimbursement Tool
-        </Typography>
-
-        <TextField
-          label="Email"
-          fullWidth
-          margin="normal"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-          sx={{ mb: 2 }}
-          variant="outlined"
-        />
-        <TextField
-          label="Password"
-          type="password"
-          fullWidth
-          margin="normal"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-          sx={{ mb: 1 }}
-          variant="outlined"
-        />
-
-        <Link
-          component="button"
-          variant="body2"
-          onClick={handleForgotPassword}
+      <Container maxWidth="xs">
+        <Paper
           sx={{
-            color: 'primary.main',
-            mb: 2,
-            display: 'block',
-            textAlign: 'left',
-            textDecoration: 'none',
-            '&:hover': { textDecoration: 'underline' },
+            p: 5,
+            borderRadius: 3,
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.08)',
+            border: '1px solid rgba(0, 0, 0, 0.05)',
           }}
         >
-          Forgot Password?
-        </Link>
+          {/* Header */}
+          <Box sx={{ mb: 5, textAlign: 'center' }}>
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
+              <img
+                src="/erni-logo.png"
+                alt="Logo"
+                style={{ height: '50px' }}
+                onError={(e) => (e.target.style.display = 'none')}
+              />
+            </Box>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 700,
+                color: '#1a1a1a',
+                mb: 0,
+              }}
+            >
+              Reimbursement Tool
+            </Typography>
+          </Box>
 
-        <Button
-          variant="contained"
-          onClick={handleLogin}
-          color="secondary"
-          sx={{ width: 128, mx: 'auto', display: 'block', mb: 2 }}
-        >
-          Login
-        </Button>
+          {/* Features */}
+          <Box sx={{ mb: 4, display: 'flex', flexDirection: 'column', gap: 2, pl: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+              <CheckCircleOutline sx={{ color: '#0078D4', fontSize: 20, mt: 0.3, flexShrink: 0 }} />
+              <Typography variant="body2" sx={{ color: '#555', fontSize: '0.9rem' }}>
+                Quick submission and tracking
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+              <CheckCircleOutline sx={{ color: '#0078D4', fontSize: 20, mt: 0.3, flexShrink: 0 }} />
+              <Typography variant="body2" sx={{ color: '#555', fontSize: '0.9rem' }}>
+                Secure document uploads
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+              <CheckCircleOutline sx={{ color: '#0078D4', fontSize: 20, mt: 0.3, flexShrink: 0 }} />
+              <Typography variant="body2" sx={{ color: '#555', fontSize: '0.9rem' }}>
+                Real-time approval updates
+              </Typography>
+            </Box>
+          </Box>
 
-        <Divider sx={{ my: 2 }}>or</Divider>
+          {/* Divider */}
+          <Box sx={{ borderTop: '1px solid #e0e0e0', mb: 4 }} />
 
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<MicrosoftIcon />}
-          onClick={handleMicrosoftLogin}
-          sx={{
-            textTransform: 'none',
-            fontWeight: 'bold',
-            borderColor: '#2F2F2F',
-            color: '#2F2F2F',
-            backgroundColor: '#fff',
-            '&:hover': {
-              borderColor: '#0078D4',
-              backgroundColor: 'rgba(0,120,212,0.1)',
-              color: '#0078D4',
-            },
-          }}
-        >
-          Sign in with Microsoft
-        </Button>
-      </Paper>
-    </Container>
+          {/* Login Button */}
+          <Button
+            fullWidth
+            variant="contained"
+            size="large"
+            startIcon={<MicrosoftIcon />}
+            onClick={handleMicrosoftLogin}
+            sx={{
+              py: 1.6,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+              backgroundColor: '#0078D4',
+              borderRadius: 1.5,
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                backgroundColor: '#106EBE',
+                boxShadow: '0 6px 20px rgba(0, 120, 212, 0.3)',
+                transform: 'translateY(-2px)',
+              },
+            }}
+          >
+            Sign in with Microsoft
+          </Button>
+
+          {/* Footer */}
+          <Typography
+            variant="caption"
+            sx={{
+              display: 'block',
+              textAlign: 'center',
+              color: '#999',
+              fontSize: '0.8rem',
+              mt: 3,
+            }}
+          >
+            Use your corporate Microsoft account
+          </Typography>
+        </Paper>
+      </Container>
+    </Box>
   );
 }
 

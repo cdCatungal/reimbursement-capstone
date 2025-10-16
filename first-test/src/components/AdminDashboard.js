@@ -298,7 +298,7 @@ function AdminDashboard() {
                   <Box>
                     <Typography><strong>Receipt:</strong></Typography>
                     <img
-                      src={selectedTicket.receipt}
+                      src={`${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`}
                       alt="Receipt"
                       style={{ maxWidth: '100%', height: 'auto', marginTop: '8px' }}
                       onError={() => showNotification('Failed to load receipt image', 'error')}

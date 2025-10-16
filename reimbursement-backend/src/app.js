@@ -51,7 +51,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // ✅ Static files
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static('uploads'));
 
 // ✅ Initialize Passport (now uses session)
 app.use(passport.initialize());

@@ -48,14 +48,11 @@ export async function getUserReimbursements(req, res) {
     const { userId } = req.query;
     let where = {};
 
-    // If userId is provided, fetch only that user's reimbursements
     if (userId) {
       where.user_id = userId;
     } else if (!user.isAdmin) {
-      // Non-admin users can only see their own
       where.user_id = user.id;
     }
-    // Admin users see all if no userId specified
 
     const reimbursements = await Reimbursement.findAll({
       where,
@@ -63,7 +60,7 @@ export async function getUserReimbursements(req, res) {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email'] // ✅ Fixed: use 'name' instead of 'username' and 'displayName'
+          attributes: ['id', 'name', 'email']
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -73,7 +70,7 @@ export async function getUserReimbursements(req, res) {
       id: r.id,
       userId: r.user_id,
       user: r.user ? {
-        displayName: r.user.name || r.user.email // ✅ Use 'name' field from User model
+        displayName: r.user.name || r.user.email
       } : null,
       category: r.category,
       type: r.type,
@@ -94,5 +91,72 @@ export async function getUserReimbursements(req, res) {
   } catch (err) {
     console.error('❌ Error fetching reimbursements:', err);
     res.status(500).json({ error: 'Failed to fetch reimbursements' });
+  }
+}
+
+// 📝 Update reimbursement status (approve/reject)
+export async function updateReimbursementStatus(req, res) {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate status
+    if (!['Approved', 'Rejected', 'Pending'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // Find the reimbursement
+    const reimbursement = await Reimbursement.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'email']
+        }
+      ]
+    });
+
+    if (!reimbursement) {
+      return res.status(404).json({ error: 'Reimbursement not found' });
+    }
+
+    // Update the status
+    reimbursement.status = status;
+    if (status === 'Approved') {
+      reimbursement.approved_at = new Date();
+      reimbursement.current_approver = null;
+    } else if (status === 'Rejected') {
+      reimbursement.current_approver = null;
+    }
+
+    await reimbursement.save();
+
+    // Optionally send email to user about approval/rejection
+    if (reimbursement.user) {
+      const subject = status === 'Approved' 
+        ? 'Your Reimbursement Has Been Approved' 
+        : 'Your Reimbursement Has Been Rejected';
+      
+      const message = status === 'Approved'
+        ? `Hi ${reimbursement.user.name}, your reimbursement request for ₱${reimbursement.total} has been approved.`
+        : `Hi ${reimbursement.user.name}, your reimbursement request for ₱${reimbursement.total} has been rejected.`;
+      
+      // Uncomment to enable email notifications
+      // await sendEmail(reimbursement.user.email, subject, message);
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Reimbursement ${status.toLowerCase()} successfully`,
+      reimbursement 
+    });
+  } catch (err) {
+    console.error('❌ Error updating reimbursement:', err);
+    res.status(500).json({ error: 'Failed to update reimbursement' });
   }
 }

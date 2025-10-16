@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // ⬅️ Add this
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container, Box, Typography, List, ListItem, ListItemText,
   Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -12,14 +12,15 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 
 function AdminDashboard() {
-  const { user, setIsAuthenticated, setIsAdmin, setUser, showNotification } = useAppContext(); // ⬆️ Updated
-  const navigate = useNavigate(); // ⬅️ Add this
+  const { user, setIsAuthenticated, setIsAdmin, setUser, showNotification } = useAppContext();
+  const navigate = useNavigate();
   const [pendings, setPendings] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasFetched = useRef(false);
 
   useEffect(() => {
     const fetchReimbursements = async () => {
@@ -30,15 +31,16 @@ function AdminDashboard() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${user?.token}`,
+            // ✅ Removed Authorization header - session cookies handle auth
           },
-          credentials: 'include',
+          credentials: 'include', // ✅ This sends session cookies automatically
         });
         if (!response.ok) {
           throw new Error('Failed to fetch reimbursements');
         }
         const data = await response.json();
         setPendings(data);
+        hasFetched.current = true;
       } catch (err) {
         setError(err.message);
         showNotification('Failed to load reimbursements', 'error');
@@ -47,7 +49,7 @@ function AdminDashboard() {
       }
     };
 
-    if (user) {
+    if (user && !hasFetched.current) {
       fetchReimbursements();
     }
   }, [user, showNotification]);
@@ -58,9 +60,9 @@ function AdminDashboard() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${user?.token}`,
+          // ✅ Removed Authorization header
         },
-        credentials: 'include',
+        credentials: 'include', // ✅ Sends session cookies
         body: JSON.stringify({ status: 'Approved' }),
       });
       if (!response.ok) {
@@ -79,9 +81,9 @@ function AdminDashboard() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${user?.token}`,
+          // ✅ Removed Authorization header
         },
-        credentials: 'include',
+        credentials: 'include', // ✅ Sends session cookies
         body: JSON.stringify({ status: 'Rejected' }),
       });
       if (!response.ok) {
@@ -125,12 +127,11 @@ function AdminDashboard() {
     setAnchorEl(null);
   };
 
-  // ⬇️ Updated logout function
   const handleLogoutClick = async () => {
     try {
       const response = await fetch('http://localhost:5000/auth/logout', {
         method: 'GET',
-        credentials: 'include',
+        credentials: 'include', // ✅ Send cookies for session
       });
 
       if (response.ok) {
@@ -144,7 +145,6 @@ function AdminDashboard() {
       }
     } catch (error) {
       console.error('Logout error:', error);
-      // Even if backend fails, clear local state
       setIsAuthenticated(false);
       setIsAdmin(false);
       setUser(null);
@@ -153,7 +153,6 @@ function AdminDashboard() {
     handleProfileClose();
   };
 
-  // ⬇️ Extract first name
   const firstName = user?.username?.split(' ')[0] || user?.username || 'Admin';
 
   return (
@@ -174,7 +173,7 @@ function AdminDashboard() {
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h6">
-            Welcome, {firstName} {/* ⬅️ Updated to use firstName */}
+            Welcome, {firstName}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <ThemeToggle />

@@ -16,5 +16,12 @@ const Reimbursement = sequelize.define('Reimbursement', {
   approved_at: { type: DataTypes.DATE, allowNull: true }
 });
 
+// Define association with User
+Reimbursement.associate = (models) => {
+  Reimbursement.belongsTo(models.User, {
+    foreignKey: 'user_id',
+    as: 'user'
+  });
+};
 
 export default Reimbursement;

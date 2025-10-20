@@ -3,12 +3,10 @@ import { useNavigate } from 'react-router-dom'; // ⬅️ Add this
 import { Container, Box, Typography, Drawer, List, ListItemButton, ListItemText, ListItemIcon, IconButton, Menu, MenuItem } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ReceiptIcon from '@mui/icons-material/Receipt';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import TrackChangesIcon from '@mui/icons-material/TrackChanges';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import ReceiptUpload from './ReceiptUpload';
-import OTForm from './OTForm';
 import StatusTracker from './StatusTracker';
 import ThemeToggle from './ThemeToggle';
 import { useAppContext } from '../App';
@@ -66,7 +64,6 @@ function UserDashboard() {
 
   const tabs = [
     { label: 'Upload Receipt', component: <ReceiptUpload />, icon: <ReceiptIcon /> },
-    { label: 'OT Request', component: <OTForm />, icon: <AccessTimeIcon /> },
     { label: 'Track Status', component: <StatusTracker />, icon: <TrackChangesIcon /> },
   ];
 

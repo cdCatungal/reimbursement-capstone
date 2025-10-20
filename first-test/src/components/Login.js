@@ -7,6 +7,7 @@ import {
   Paper,
   Box,
   CircularProgress,
+  useTheme,
 } from '@mui/material';
 import { Login as MicrosoftIcon, CheckCircleOutline } from '@mui/icons-material';
 import { useAppContext } from '../App';
@@ -15,6 +16,7 @@ function Login() {
   const { setIsAdmin, setIsAuthenticated, setUser, showNotification } = useAppContext();
   const [checking, setChecking] = useState(true);
   const navigate = useNavigate();
+  const theme = useTheme(); // ⬅️ Get current theme
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -77,7 +79,10 @@ function Login() {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%)',
+        // ⬅️ Adapt background based on theme
+        background: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+          : 'linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -90,7 +95,9 @@ function Login() {
             p: 5,
             borderRadius: 3,
             boxShadow: '0 10px 40px rgba(0, 0, 0, 0.08)',
-            border: '1px solid rgba(0, 0, 0, 0.05)',
+            border: theme.palette.mode === 'dark'
+              ? '1px solid rgba(255, 255, 255, 0.1)'
+              : '1px solid rgba(0, 0, 0, 0.05)',
           }}
         >
           {/* Header */}
@@ -107,7 +114,8 @@ function Login() {
               variant="h5"
               sx={{
                 fontWeight: 700,
-                color: '#1a1a1a',
+                // ⬅️ Adapt text color based on theme
+                color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a',
                 mb: 0,
               }}
             >
@@ -119,26 +127,52 @@ function Login() {
           <Box sx={{ mb: 4, display: 'flex', flexDirection: 'column', gap: 2, pl: 2 }}>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
               <CheckCircleOutline sx={{ color: '#0078D4', fontSize: 20, mt: 0.3, flexShrink: 0 }} />
-              <Typography variant="body2" sx={{ color: '#555', fontSize: '0.9rem' }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  // ⬅️ Adapt text color based on theme
+                  color: theme.palette.mode === 'dark' ? '#ccc' : '#555',
+                  fontSize: '0.9rem',
+                }}
+              >
                 Quick submission and tracking
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
               <CheckCircleOutline sx={{ color: '#0078D4', fontSize: 20, mt: 0.3, flexShrink: 0 }} />
-              <Typography variant="body2" sx={{ color: '#555', fontSize: '0.9rem' }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.mode === 'dark' ? '#ccc' : '#555',
+                  fontSize: '0.9rem',
+                }}
+              >
                 Secure document uploads
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
               <CheckCircleOutline sx={{ color: '#0078D4', fontSize: 20, mt: 0.3, flexShrink: 0 }} />
-              <Typography variant="body2" sx={{ color: '#555', fontSize: '0.9rem' }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.mode === 'dark' ? '#ccc' : '#555',
+                  fontSize: '0.9rem',
+                }}
+              >
                 Real-time approval updates
               </Typography>
             </Box>
           </Box>
 
           {/* Divider */}
-          <Box sx={{ borderTop: '1px solid #e0e0e0', mb: 4 }} />
+          <Box
+            sx={{
+              borderTop: theme.palette.mode === 'dark'
+                ? '1px solid rgba(255, 255, 255, 0.1)'
+                : '1px solid #e0e0e0',
+              mb: 4,
+            }}
+          />
 
           {/* Login Button */}
           <Button
@@ -171,7 +205,8 @@ function Login() {
             sx={{
               display: 'block',
               textAlign: 'center',
-              color: '#999',
+              // ⬅️ Adapt footer text color based on theme
+              color: theme.palette.mode === 'dark' ? '#999' : '#999',
               fontSize: '0.8rem',
               mt: 3,
             }}

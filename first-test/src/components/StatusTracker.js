@@ -1,80 +1,83 @@
-import React, { useState, useEffect } from 'react';
-import { useAppContext } from '../App';
+import React, { useState, useEffect } from "react";
 import {
-  Typography,
-  Card,
-  CardContent,
   Box,
+  Typography,
+  TextField,
+  Select,
+  MenuItem,
+  InputAdornment,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
   Chip,
   IconButton,
+  CircularProgress,
+  Tooltip,
+  Button,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  TextField,
-  Tabs,
-  Tab,
   Grid,
-  Paper,
-  Avatar,
-  CircularProgress,
-} from '@mui/material';
+  Card,
+  Divider,
+} from "@mui/material";
 import {
-  CheckCircle,
-  HourglassEmpty,
-  Cancel,
+  Menu as MenuIcon,
+  HourglassEmpty as HourglassEmptyIcon,
+  Autorenew as AutorenewIcon,
+  Cancel as CancelIcon,
+  CheckCircle as CheckCircleIcon,
+  Search,
   Visibility,
-  Timeline,
-  FilterList,
-} from '@mui/icons-material';
+  Assignment as AssignmentIcon,
+} from "@mui/icons-material";
+import { useAppContext } from "../App";
 
 function StatusTracker() {
   const { user, showNotification } = useAppContext();
   const [reimbursements, setReimbursements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFilter, setSelectedFilter] = useState('All');
-  const [openDialog, setOpenDialog] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [openDialog, setOpenDialog] = useState(false);
 
-  // 🟩 Fetch reimbursements from backend
   useEffect(() => {
     if (!user?.uid) return;
-    const fetchReimbursements = async () => {
-      setLoading(true);
+    const fetchData = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/reimbursements?userId=${user.uid}`, {
-          credentials: 'include',
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const res = await fetch(
+          `http://localhost:5000/api/reimbursements?userId=${user.uid}`,
+          { credentials: "include" }
+        );
         const data = await res.json();
         setReimbursements(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error('Error fetching reimbursements:', err);
-        showNotification?.('Failed to load reimbursements', 'error');
+        console.error("Error fetching reimbursements:", err);
+        showNotification?.("Failed to load reimbursements", "error");
       } finally {
         setLoading(false);
       }
     };
-    fetchReimbursements();
+    fetchData();
   }, [user?.uid, showNotification]);
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Pending': return 'warning.main';
-      case 'Approved': return 'success.main';
-      case 'Rejected': return 'error.main';
-      default: return 'text.secondary';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'Pending': return <HourglassEmpty />;
-      case 'Approved': return <CheckCircle />;
-      case 'Rejected': return <Cancel />;
-      default: return <HourglassEmpty />;
+      case "Approved":
+        return "success";
+      case "Pending":
+        return "warning";
+      case "Rejected":
+        return "error";
+      default:
+        return "default";
     }
   };
 
@@ -88,294 +91,372 @@ function StatusTracker() {
     setSelectedItem(null);
   };
 
-  const filterOptions = ['All', 'Pending', 'Approved', 'Rejected'];
-
-  const filteredReimbursements = reimbursements.filter((item) => {
-    const matchesFilter = selectedFilter === 'All' || item.status === selectedFilter;
-    const matchesSearch =
-      searchQuery === '' ||
-      item.type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
+  const filteredData = reimbursements.filter((r) => {
+    const matchStatus = statusFilter === "All" || r.status === statusFilter;
+    const matchCategory =
+      categoryFilter === "All" || r.category === categoryFilter;
+    const matchSearch =
+      searchQuery === "" ||
+      r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.type?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchStatus && matchCategory && matchSearch;
   });
 
-  const stats = {
-    total: reimbursements.length,
-    pending: reimbursements.filter(r => r.status === 'Pending').length,
-    approved: reimbursements.filter(r => r.status === 'Approved').length,
-    rejected: reimbursements.filter(r => r.status === 'Rejected').length,
-  };
-
-  const StatCard = ({ label, count, color, icon }) => (
-    <Paper 
-      sx={{ 
-        p: 2, 
-        textAlign: 'center', 
-        bgcolor: 'background.paper',
-        border: 2,
-        borderColor: color,
-        borderRadius: 2,
-      }}
-    >
-      <Box sx={{ color, mb: 1 }}>{icon}</Box>
-      <Typography variant="h4" sx={{ fontWeight: 'bold', color }}>
-        {count}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {label}
-      </Typography>
-    </Paper>
-  );
-
   return (
-    <Card>
-      <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Timeline sx={{ fontSize: 32, color: 'primary.main', mr: 2 }} />
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                Reimbursement Status Tracker
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Track all your submitted requests
-              </Typography>
-            </Box>
-          </Box>
+    <Card elevation={3} sx={{ borderRadius: 3, p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+        <AssignmentIcon sx={{ fontSize: 36, color: "primary.main", mr: 1 }} />
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: "bold" }}>
+            My Requests
+          </Typography>
+          <Typography color="text.secondary">
+            Track all your submitted reimbursement requests
+          </Typography>
         </Box>
+      </Box>
 
-        {/* Loading state */}
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <>
-            {/* Statistics */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={6} md={3}>
-                <StatCard label="Total" count={stats.total} color="primary.main" icon={<FilterList />} />
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <StatCard label="Pending" count={stats.pending} color="warning.main" icon={<HourglassEmpty />} />
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <StatCard label="Approved" count={stats.approved} color="success.main" icon={<CheckCircle />} />
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <StatCard label="Rejected" count={stats.rejected} color="error.main" icon={<Cancel />} />
-              </Grid>
-            </Grid>
+      <Divider sx={{ mb: 3 }} />
 
-            {/* Filters */}
-            <Box sx={{ mb: 3 }}>
-              <TextField
-                placeholder="Search by type, category, or description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                fullWidth
-                size="small"
-                sx={{ mb: 2 }}
-              />
-              <Tabs
-                value={selectedFilter}
-                onChange={(e, newValue) => setSelectedFilter(newValue)}
-                variant="scrollable"
-                scrollButtons="auto"
-              >
-                {filterOptions.map((filter) => (
-                  <Tab
-                    key={filter}
-                    label={filter}
-                    value={filter}
-                    sx={{ fontWeight: 600 }}
-                  />
-                ))}
-              </Tabs>
-            </Box>
+      {/* Summary Cards */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+  {[
+    {
+      label: "Total",
+      value: reimbursements.length,
+      color: "#424242",
+      icon: <MenuIcon sx={{ fontSize: 32, color: "#424242" }} />,
+    },
+    {
+      label: "Pending",
+      value: reimbursements.filter((r) => r.status === "Pending").length,
+      color: "#fbc02d",
+      icon: <HourglassEmptyIcon sx={{ fontSize: 32, color: "#fbc02d" }} />,
+    },
+    {
+      label: "In Progress",
+      value: reimbursements.filter((r) => r.status === "In Progress").length,
+      color: "#1976d2",
+      icon: <AutorenewIcon sx={{ fontSize: 32, color: "#1976d2" }} />,
+    },
+    {
+      label: "Rejected",
+      value: reimbursements.filter((r) => r.status === "Rejected").length,
+      color: "#d32f2f",
+      icon: <CancelIcon sx={{ fontSize: 32, color: "#d32f2f" }} />,
+    },
+    {
+      label: "Done",
+      value: reimbursements.filter((r) => r.status === "Approved").length,
+      color: "#2e7d32",
+      icon: <CheckCircleIcon sx={{ fontSize: 32, color: "#2e7d32" }} />,
+    },
+  ].map((card) => (
+    <Grid item xs={12} sm={6} md={2.4} key={card.label}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          textAlign: "center",
+          borderRadius: 2,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 0.5,
+          border: `2px solid ${card.color}`,
+        }}
+      >
+        {card.icon}
+        <Typography
+          sx={{
+            fontSize: 26,
+            fontWeight: 700,
+            color: card.color,
+            lineHeight: 1.2,
+          }}
+        >
+          {card.value}
+        </Typography>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ fontWeight: 500 }}
+        >
+          {card.label}
+        </Typography>
+      </Paper>
+    </Grid>
+  ))}
+</Grid>
 
-            {/* Reimbursement List */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {filteredReimbursements.length === 0 ? (
-                <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'action.hover' }}>
-                  <Typography variant="body1" color="text.secondary">
-                    No reimbursements found
-                  </Typography>
-                </Paper>
+      {/* Filters */}
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          alignItems: "center",
+          mb: 2,
+          flexWrap: "wrap",
+        }}
+      >
+        <TextField
+          placeholder="Search requests..."
+          size="small"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search color="action" />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ flex: 1, minWidth: 220 }}
+        />
+
+        <Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          size="small"
+        >
+          {["All", "Approved", "Pending", "Rejected"].map((status) => (
+            <MenuItem key={status} value={status}>
+              {status}
+            </MenuItem>
+          ))}
+        </Select>
+
+        <Select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          size="small"
+        >
+          {["All", "Meals", "Supplies", "Transportation", "Tools"].map((cat) => (
+            <MenuItem key={cat} value={cat}>
+              {cat}
+            </MenuItem>
+          ))}
+        </Select>
+
+        <Typography variant="body2" color="text.secondary" sx={{ ml: "auto" }}>
+          {filteredData.length} request/s found
+        </Typography>
+      </Box>
+
+      {/* Table */}
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ bgcolor: "grey.50" }}>
+                <TableCell sx={{ fontWeight: 600 }}>Request</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Amount</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Dates</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Approver</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {filteredData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <Typography color="text.secondary">
+                      No requests found
+                    </Typography>
+                  </TableCell>
+                </TableRow>
               ) : (
-                filteredReimbursements.map((item) => (
-                  <Paper
+                filteredData.map((item) => (
+                  <TableRow
                     key={item._id || item.id}
+                    hover
                     sx={{
-                      p: 2.5,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        boxShadow: 4,
-                        transform: 'translateY(-2px)',
-                      },
+                      "&:hover": { bgcolor: "action.hover" },
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
-                      <Avatar sx={{ bgcolor: getStatusColor(item.status), width: 48, height: 48 }}>
-                        {getStatusIcon(item.status)}
-                      </Avatar>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-                          {item.category || item.type} - ₱{parseFloat(item.total).toFixed(2)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                          {item.description?.substring(0, 80)}
-                          {item.description?.length > 80 ? '...' : ''}
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                          <Typography variant="caption" color="text.disabled">
-                            {new Date(item.submittedAt).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </Typography>
-                          {item.approvedAt && (
-                            <Typography variant="caption" color="text.disabled">
-                              • Processed: {new Date(item.approvedAt).toLocaleDateString()}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <TableCell>
+                      <Typography sx={{ fontWeight: 600 }}>
+                        {item.title || item.type}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {item.description}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography sx={{ fontWeight: 600 }}>
+                        ₱{parseFloat(item.total).toFixed(2)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {new Date(item.submittedAt || item.date).toLocaleDateString()}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
                       <Chip
                         label={item.status}
-                        color={
-                          item.status === 'Approved'
-                            ? 'success'
-                            : item.status === 'Pending'
-                            ? 'warning'
-                            : 'error'
-                        }
-                        sx={{ fontWeight: 600, minWidth: 90 }}
+                        color={getStatusColor(item.status)}
+                        size="small"
+                        sx={{ fontWeight: 600, textTransform: "capitalize" }}
                       />
-                      <IconButton
-                        onClick={() => handleOpenDetails(item)}
-                        color="primary"
-                        sx={{
-                          bgcolor: 'action.selected',
-                          '&:hover': { bgcolor: 'action.hover' },
-                        }}
-                      >
-                        <Visibility />
-                      </IconButton>
-                    </Box>
-                  </Paper>
+                    </TableCell>
+                    <TableCell>{item.approver || "—"}</TableCell>
+                    <TableCell>
+                      <Tooltip title="View">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleOpenDetails(item)}
+                        >
+                          <Visibility />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </Box>
-          </>
-        )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
-        {/* Details Dialog */}
-        <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-          <DialogTitle sx={{ fontWeight: 'bold', pb: 1 }}>
-            Reimbursement Details
-          </DialogTitle>
-          <DialogContent dividers>
-            {selectedItem && (
-              <Grid container spacing={2}>
+      {/* Details Dialog */}
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: "bold", pb: 1 }}>
+          Reimbursement Details
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedItem && (
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Category
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
+                  {selectedItem.category || selectedItem.type}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Amount
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
+                  ₱{parseFloat(selectedItem.total).toFixed(2)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Date
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
+                  {selectedItem.date}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Status
+                </Typography>
+                <Chip
+                  label={selectedItem.status}
+                  color={getStatusColor(selectedItem.status)}
+                  sx={{ fontWeight: 600, mt: 0.5 }}
+                />
+              </Grid>
+              {selectedItem.approver && (
                 <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">Category</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Approver
+                  </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
-                    {selectedItem.category || selectedItem.type}
+                    {selectedItem.approver}
                   </Typography>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">Amount</Typography>
+              )}
+              {selectedItem.merchant && (
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">
+                    Merchant/Vendor
+                  </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
-                    ₱{parseFloat(selectedItem.total).toFixed(2)}
+                    {selectedItem.merchant}
                   </Typography>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">Date</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
-                    {selectedItem.date}
+              )}
+              <Grid item xs={12}>
+                <Typography variant="caption" color="text.secondary">
+                  Description
+                </Typography>
+                <Typography variant="body1" sx={{ mb: 2 }}>
+                  {selectedItem.description}
+                </Typography>
+              </Grid>
+              {selectedItem.items && (
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">
+                    Items/Details
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      whiteSpace: "pre-wrap",
+                      bgcolor: "action.hover",
+                      p: 1.5,
+                      borderRadius: 1,
+                      mt: 0.5,
+                    }}
+                  >
+                    {selectedItem.items}
                   </Typography>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">Status</Typography>
-                  <Chip
-                    label={selectedItem.status}
-                    color={
-                      selectedItem.status === 'Approved'
-                        ? 'success'
-                        : selectedItem.status === 'Pending'
-                        ? 'warning'
-                        : 'error'
-                    }
-                    sx={{ fontWeight: 600, mt: 0.5 }}
+              )}
+              {selectedItem.receipt && (
+                <Grid item xs={12}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mb: 1, display: "block" }}
+                  >
+                    Receipt Image
+                  </Typography>
+                  <img
+                    src={selectedItem.receipt}
+                    alt="Receipt"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "400px",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                    }}
                   />
                 </Grid>
-                {selectedItem.merchant && (
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="text.secondary">Merchant/Vendor</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
-                      {selectedItem.merchant}
-                    </Typography>
-                  </Grid>
-                )}
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">Description</Typography>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    {selectedItem.description}
-                  </Typography>
-                </Grid>
-                {selectedItem.items && (
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="text.secondary">Items/Details</Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        whiteSpace: 'pre-wrap',
-                        bgcolor: 'action.hover',
-                        p: 1.5,
-                        borderRadius: 1,
-                        mt: 0.5,
-                      }}
-                    >
-                      {selectedItem.items}
-                    </Typography>
-                  </Grid>
-                )}
-                {selectedItem.receipt && (
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                      Receipt Image
-                    </Typography>
-                    <img
-                      src={selectedItem.receipt}
-                      alt="Receipt"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '400px',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      }}
-                    />
-                  </Grid>
-                )}
-              </Grid>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDialog} color="primary">
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </CardContent>
+              )}
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }

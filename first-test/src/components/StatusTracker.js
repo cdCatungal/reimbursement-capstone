@@ -25,6 +25,7 @@ import {
   Grid,
   Card,
   Divider,
+  Avatar,
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -35,6 +36,8 @@ import {
   Search,
   Visibility,
   Assignment as AssignmentIcon,
+  Close as CloseIcon,
+  Person as PersonIcon,
 } from "@mui/icons-material";
 import { useAppContext } from "../App";
 
@@ -45,7 +48,7 @@ function StatusTracker() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedTicket, setSelectedItem] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
 
   useEffect(() => {
@@ -76,6 +79,8 @@ function StatusTracker() {
         return "warning";
       case "Rejected":
         return "error";
+      case "Validated":
+        return "success";
       default:
         return "default";
     }
@@ -103,6 +108,49 @@ function StatusTracker() {
     return matchStatus && matchCategory && matchSearch;
   });
 
+  // Mock approval flow data
+  const getApprovalFlow = (ticket) => {
+    return [
+      {
+        role: "Finance Officer",
+        status: ticket.status === "Pending" ? "Pending" : "Approved",
+        name: "Finance Department",
+        date: ticket.status !== "Pending" ? new Date(ticket.submittedAt).toLocaleString() : null,
+        message: ticket.status === "Pending" 
+          ? "The Finance Officer is currently processing your reimbursement payment. You will be notified once the transaction is completed."
+          : "Finance Officer has approved the reimbursement."
+      },
+      {
+        role: "Invoice Specialist",
+        status: ticket.status === "Approved" ? "Validated" : "Pending",
+        name: "Michelle Mendoza",
+        date: ticket.status === "Approved" ? new Date(ticket.approvedAt || ticket.submittedAt).toLocaleString() : null,
+        message: "The Invoice Specialist has checked all attached receipts and documents to ensure compliance and completeness. The request is now forwarded to Finance for payment processing."
+      },
+      {
+        role: "Account Manager",
+        status: ticket.status === "Approved" ? "Approved" : "Pending",
+        name: "Jane Doe",
+        date: ticket.status === "Approved" ? new Date(ticket.approvedAt || ticket.submittedAt).toLocaleString() : null,
+        message: "The Account Manager has verified and approved your reimbursement request for budget compliance and accuracy."
+      },
+      {
+        role: "Service Unit Leader",
+        status: ticket.status === "Approved" ? "Approved" : "Pending",
+        name: "Adriel Martiano",
+        date: ticket.status === "Approved" ? new Date(ticket.approvedAt || ticket.submittedAt).toLocaleString() : null,
+        message: "The Service Unit Leader (SUL) has reviewed your reimbursement request and confirmed its validity."
+      },
+      {
+        role: "Submitted Reimbursement Application",
+        status: "Completed",
+        name: null,
+        date: new Date(ticket.submittedAt).toLocaleString(),
+        message: null
+      }
+    ];
+  };
+
   return (
     <Card elevation={3} sx={{ borderRadius: 3, p: 3 }}>
       {/* Header */}
@@ -122,76 +170,76 @@ function StatusTracker() {
 
       {/* Summary Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-  {[
-    {
-      label: "Total",
-      value: reimbursements.length,
-      color: "#424242",
-      icon: <MenuIcon sx={{ fontSize: 32, color: "#424242" }} />,
-    },
-    {
-      label: "Pending",
-      value: reimbursements.filter((r) => r.status === "Pending").length,
-      color: "#fbc02d",
-      icon: <HourglassEmptyIcon sx={{ fontSize: 32, color: "#fbc02d" }} />,
-    },
-    {
-      label: "In Progress",
-      value: reimbursements.filter((r) => r.status === "In Progress").length,
-      color: "#1976d2",
-      icon: <AutorenewIcon sx={{ fontSize: 32, color: "#1976d2" }} />,
-    },
-    {
-      label: "Rejected",
-      value: reimbursements.filter((r) => r.status === "Rejected").length,
-      color: "#d32f2f",
-      icon: <CancelIcon sx={{ fontSize: 32, color: "#d32f2f" }} />,
-    },
-    {
-      label: "Done",
-      value: reimbursements.filter((r) => r.status === "Approved").length,
-      color: "#2e7d32",
-      icon: <CheckCircleIcon sx={{ fontSize: 32, color: "#2e7d32" }} />,
-    },
-  ].map((card) => (
-    <Grid item xs={12} sm={6} md={2.4} key={card.label}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2,
-          textAlign: "center",
-          borderRadius: 2,
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 0.5,
-          border: `2px solid ${card.color}`,
-        }}
-      >
-        {card.icon}
-        <Typography
-          sx={{
-            fontSize: 26,
-            fontWeight: 700,
-            color: card.color,
-            lineHeight: 1.2,
-          }}
-        >
-          {card.value}
-        </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ fontWeight: 500 }}
-        >
-          {card.label}
-        </Typography>
-      </Paper>
-    </Grid>
-  ))}
-</Grid>
+        {[
+          {
+            label: "Total",
+            value: reimbursements.length,
+            color: "#424242",
+            icon: <MenuIcon sx={{ fontSize: 32, color: "#424242" }} />,
+          },
+          {
+            label: "Pending",
+            value: reimbursements.filter((r) => r.status === "Pending").length,
+            color: "#fbc02d",
+            icon: <HourglassEmptyIcon sx={{ fontSize: 32, color: "#fbc02d" }} />,
+          },
+          {
+            label: "In Progress",
+            value: reimbursements.filter((r) => r.status === "In Progress").length,
+            color: "#1976d2",
+            icon: <AutorenewIcon sx={{ fontSize: 32, color: "#1976d2" }} />,
+          },
+          {
+            label: "Rejected",
+            value: reimbursements.filter((r) => r.status === "Rejected").length,
+            color: "#d32f2f",
+            icon: <CancelIcon sx={{ fontSize: 32, color: "#d32f2f" }} />,
+          },
+          {
+            label: "Done",
+            value: reimbursements.filter((r) => r.status === "Approved").length,
+            color: "#2e7d32",
+            icon: <CheckCircleIcon sx={{ fontSize: 32, color: "#2e7d32" }} />,
+          },
+        ].map((card) => (
+          <Grid item xs={12} sm={6} md={2.4} key={card.label}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                textAlign: "center",
+                borderRadius: 2,
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 0.5,
+                border: `2px solid ${card.color}`,
+              }}
+            >
+              {card.icon}
+              <Typography
+                sx={{
+                  fontSize: 26,
+                  fontWeight: 700,
+                  color: card.color,
+                  lineHeight: 1.2,
+                }}
+              >
+                {card.value}
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ fontWeight: 500 }}
+              >
+                {card.label}
+              </Typography>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
 
       {/* Filters */}
       <Box
@@ -336,126 +384,243 @@ function StatusTracker() {
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
-        maxWidth="md"
+        maxWidth="xl"
         fullWidth
+        PaperProps={{
+          sx: { borderRadius: 2, minHeight: '80vh', maxWidth: '1400px' }
+        }}
       >
-        <DialogTitle sx={{ fontWeight: "bold", pb: 1 }}>
-          Reimbursement Details
+        <DialogTitle 
+          sx={{ 
+            fontWeight: "bold", 
+            pb: 1,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: 1,
+            borderColor: 'divider'
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+            REIMBURSEMENT DETAILS
+          </Typography>
+          <IconButton onClick={handleCloseDialog} size="small">
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent dividers>
-          {selectedItem && (
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Category
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
-                  {selectedItem.category || selectedItem.type}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Amount
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
-                  ₱{parseFloat(selectedItem.total).toFixed(2)}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Date
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
-                  {selectedItem.date}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Status
-                </Typography>
-                <Chip
-                  label={selectedItem.status}
-                  color={getStatusColor(selectedItem.status)}
-                  sx={{ fontWeight: 600, mt: 0.5 }}
-                />
-              </Grid>
-              {selectedItem.approver && (
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Approver
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
-                    {selectedItem.approver}
-                  </Typography>
+        
+        <DialogContent sx={{ p: 0 }}>
+          {selectedTicket && (
+            <>
+              {/* Employee Info Header */}
+              <Box sx={{ p: 3, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main' }}>
+                    <PersonIcon sx={{ fontSize: 32 }} />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Employee Name: {selectedTicket.user?.displayName || user?.displayName || 'N/A'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      SAP Code: PRJ-2025-IT-DEV-001-{(selectedTicket.user?.displayName || 'USER').toUpperCase()}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Two Column Content */}
+              <Grid container spacing={3} wrap="nowrap" sx={{ p: 3 }}>
+                {/* Left Column - Details */}
+                <Grid item sx={{ width: '650px', flexShrink: 0 }}>
+                  <Box sx={{ 
+                    p: 3, 
+                    height: '100%',
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    bgcolor: 'background.paper'
+                  }}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Reimbursement Type:
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                      {selectedTicket.category || selectedTicket.type}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Amount:
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                      ₱{parseFloat(selectedTicket.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Purpose:
+                    </Typography>
+                    <Typography variant="body2">
+                      {selectedTicket.description}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Description:
+                    </Typography>
+                    <Typography variant="body2">
+                      {selectedTicket.items || selectedTicket.description}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Date:
+                    </Typography>
+                    <Typography variant="body2">
+                      {new Date(selectedTicket.date || selectedTicket.submittedAt).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Submitted At:
+                    </Typography>
+                    <Typography variant="body2">
+                      {new Date(selectedTicket.submittedAt).toLocaleString()}
+                    </Typography>
+                  </Box>
+
+                  {selectedTicket.merchant && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        Expense Source:
+                      </Typography>
+                      <Typography variant="body2">
+                        {selectedTicket.merchant}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {selectedTicket.receipt && (
+                    <Box sx={{ mt: 3 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1 }}>
+                        Receipt:
+                      </Typography>
+                      <Box
+                        component="img"
+                        src={`http://localhost:5000${selectedTicket.receipt}`}
+                        alt="Receipt"
+                        sx={{
+                          width: '100%',
+                          maxHeight: '500px',
+                          objectFit: 'contain',
+                          borderRadius: 1,
+                          border: 1,
+                          borderColor: 'divider',
+                          display: 'block'
+                        }}
+                        onError={(e) => {
+                          console.error('Failed to load receipt:', selectedTicket.receipt);
+                          showNotification?.('Failed to load receipt image', 'error');
+                        }}
+                      />
+                    </Box>
+                  )}
+                  </Box>
                 </Grid>
-              )}
-              {selectedItem.merchant && (
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">
-                    Merchant/Vendor
+
+                {/* Right Column - Approval Status */}
+                <Grid item sx={{ width: '450px', flexShrink: 0 }}>
+                  <Box sx={{ 
+                    p: 3, 
+                    height: '100%',
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    bgcolor: 'background.paper'
+                  }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
+                    Reimbursement Status
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600, mb: 2 }}>
-                    {selectedItem.merchant}
-                  </Typography>
+
+                  {/* Approval Flow Timeline */}
+                  <Box sx={{ position: 'relative' }}>
+                    {getApprovalFlow(selectedTicket).map((step, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: 'flex',
+                          mb: 3,
+                          position: 'relative',
+                          '&:not(:last-child)::before': {
+                            content: '""',
+                            position: 'absolute',
+                            left: '15px',
+                            top: '32px',
+                            bottom: '-24px',
+                            width: '2px',
+                            bgcolor: step.status === 'Pending' ? 'grey.300' : 'success.main'
+                          }
+                        }}
+                      >
+                        <Box sx={{ mr: 2 }}>
+                          <CheckCircleIcon
+                            sx={{
+                              fontSize: 32,
+                              color: step.status === 'Pending' ? 'grey.400' : 'success.main'
+                            }}
+                          />
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              {step.role}:
+                            </Typography>
+                            <Chip
+                              label={step.status}
+                              size="small"
+                              color={getStatusColor(step.status)}
+                              sx={{ fontWeight: 600, height: 20 }}
+                            />
+                          </Box>
+                          {step.name && (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                              {step.name}
+                            </Typography>
+                          )}
+                          {step.date && (
+                            <Typography variant="caption" color="text.secondary">
+                              Approved at: {step.date}
+                            </Typography>
+                          )}
+                          {step.message && (
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{
+                                mt: 1,
+                                fontStyle: 'italic',
+                                fontSize: '0.813rem'
+                              }}
+                            >
+                              {step.message}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                  </Box>
                 </Grid>
-              )}
-              <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">
-                  Description
-                </Typography>
-                <Typography variant="body1" sx={{ mb: 2 }}>
-                  {selectedItem.description}
-                </Typography>
               </Grid>
-              {selectedItem.items && (
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">
-                    Items/Details
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      whiteSpace: "pre-wrap",
-                      bgcolor: "action.hover",
-                      p: 1.5,
-                      borderRadius: 1,
-                      mt: 0.5,
-                    }}
-                  >
-                    {selectedItem.items}
-                  </Typography>
-                </Grid>
-              )}
-              {selectedItem.receipt && (
-                <Grid item xs={12}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mb: 1, display: "block" }}
-                  >
-                    Receipt Image
-                  </Typography>
-                  <img
-                    src={selectedItem.receipt}
-                    alt="Receipt"
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: "400px",
-                      borderRadius: "8px",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                    }}
-                  />
-                </Grid>
-              )}
-            </Grid>
+            </>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog} color="primary">
-            Close
-          </Button>
-        </DialogActions>
       </Dialog>
     </Card>
   );

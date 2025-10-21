@@ -13,7 +13,7 @@ export async function createReimbursement(req, res) {
     const user = req.user;
 
     const payload = req.body;
-    const firstApprover = getNextApprover(null); // e.g., returns 'Manager'
+    const firstApprover = getNextApprover(null);
 
     const r = await Reimbursement.create({
       user_id: user.id,
@@ -26,7 +26,6 @@ export async function createReimbursement(req, res) {
       receipt_url: req.file ? `/uploads/${req.file.filename}` : null,
     });
 
-    // Optional: notify manager by email (disabled by default)
     const manager = await User.findOne({ where: { role: 'Manager' } });
     if (manager) {
       /*
@@ -57,11 +56,13 @@ export async function getUserReimbursements(req, res) {
     const { userId } = req.query;
     let where = {};
 
+    // ✅ FIX: Check user.role instead of user.isAdmin
     if (userId) {
       where.user_id = userId;
-    } else if (!user.isAdmin) {
+    } else if (user.role !== 'Admin') {
       where.user_id = user.id;
     }
+    // If user.role === 'admin' and no userId, where remains empty = fetch all
 
     const reimbursements = await Reimbursement.findAll({
       where,
@@ -142,7 +143,6 @@ export async function updateReimbursementStatus(req, res) {
 
     await reimbursement.save();
 
-    // Optional: notify user via email
     if (reimbursement.user) {
       const subject = status === 'Approved'
         ? 'Your Reimbursement Has Been Approved'

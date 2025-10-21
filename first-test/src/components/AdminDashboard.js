@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Container, Box, Typography, List, ListItem, ListItemText,
-  Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
-  Menu, MenuItem, IconButton, CircularProgress, Alert, Drawer,
-  ListItemButton, ListItemIcon
+  Container, Box, Typography, Menu, MenuItem, IconButton, Drawer,
+  ListItemButton, ListItemIcon, List, ListItemText
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ListAltIcon from '@mui/icons-material/ListAlt';
@@ -16,115 +14,16 @@ import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import ReportExport from './ReportExport';
 import ReceiptUpload from './ReceiptUpload';
 import StatusTracker from './StatusTracker';
+import ReimbursementList from './ReimbursementList';
 import ThemeToggle from './ThemeToggle';
 import { useAppContext } from '../App';
 
 function AdminDashboard() {
   const { user, setIsAuthenticated, setIsAdmin, setUser, showNotification } = useAppContext();
   const navigate = useNavigate();
-  const [pendings, setPendings] = useState([]);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(true);
-  const hasFetched = useRef(false);
-
-  useEffect(() => {
-    const fetchReimbursements = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-        });
-        if (!response.ok) {
-          throw new Error('Failed to fetch reimbursements');
-        }
-        const data = await response.json();
-        setPendings(data);
-        hasFetched.current = true;
-      } catch (err) {
-        setError(err.message);
-        showNotification('Failed to load reimbursements', 'error');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user && !hasFetched.current && tabValue === 0) {
-      fetchReimbursements();
-    }
-  }, [user, showNotification, tabValue]);
-
-  const handleApprove = async (id) => {
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ status: 'Approved' }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to approve reimbursement');
-      }
-      setPendings(pendings.map(p => p.id === id ? { ...p, status: 'Approved' } : p));
-      showNotification('Reimbursement approved successfully', 'success');
-    } catch (err) {
-      showNotification(err.message || 'Failed to approve reimbursement', 'error');
-    }
-  };
-
-  const handleReject = async (id) => {
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ status: 'Rejected' }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to reject reimbursement');
-      }
-      setPendings(pendings.map(p => p.id === id ? { ...p, status: 'Rejected' } : p));
-      showNotification('Reimbursement rejected successfully', 'success');
-    } catch (err) {
-      showNotification(err.message || 'Failed to reject reimbursement', 'error');
-    }
-  };
-
-  const handleOpenDetails = (ticket) => {
-    setSelectedTicket(ticket);
-    setOpenDialog(true);
-  };
-
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setSelectedTicket(null);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Pending':
-        return 'warning.main';
-      case 'Approved':
-        return 'success.main';
-      case 'Rejected':
-        return 'error.main';
-      default:
-        return 'text.secondary';
-    }
-  };
 
   const handleProfileClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -192,79 +91,7 @@ function AdminDashboard() {
   const renderContent = () => {
     switch (tabValue) {
       case 0:
-        return (
-          <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 'medium', mb: 2 }}>
-              Pending Approvals
-            </Typography>
-            {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                <CircularProgress />
-              </Box>
-            ) : error ? (
-              <Alert severity="error">{error}</Alert>
-            ) : pendings.length === 0 ? (
-              <Typography>No pending reimbursements</Typography>
-            ) : (
-              <List>
-                {pendings.map((item) => (
-                  <ListItem
-                    key={item.id}
-                    divider
-                    sx={{ py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  >
-                    <ListItemText
-                      primary={`${item.category} Reimbursement`}
-                      secondary={
-                        <>
-                          <Typography component="span" variant="body2" color="text.secondary">
-                            User: {item.user?.displayName || item.userId || 'Unknown'}
-                          </Typography>
-                          <br />
-                          <Typography component="span" variant="body2" sx={{ color: getStatusColor(item.status) }}>
-                            Status: {item.status}
-                          </Typography>
-                          <br />
-                          <Typography component="span" variant="body2" color="text.secondary">
-                            Amount: ₱{item.total}
-                          </Typography>
-                        </>
-                      }
-                      primaryTypographyProps={{ fontWeight: 'medium' }}
-                    />
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => handleOpenDetails(item)}
-                      >
-                        See Details
-                      </Button>
-                      {item.status === 'Pending' && (
-                        <>
-                          <Button
-                            variant="contained"
-                            color="success"
-                            onClick={() => handleApprove(item.id)}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            variant="contained"
-                            color="error"
-                            onClick={() => handleReject(item.id)}
-                          >
-                            Reject
-                          </Button>
-                        </>
-                      )}
-                    </Box>
-                  </ListItem>
-                ))}
-              </List>
-            )}
-          </Paper>
-        );
+        return <ReimbursementList />;
       case 1:
         return <ReportExport />;
       case 2:
@@ -377,49 +204,6 @@ function AdminDashboard() {
           </Box>
 
           {renderContent()}
-
-          <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-            <DialogTitle sx={{ fontWeight: 'bold' }}>
-              {selectedTicket ? `${selectedTicket.category} Reimbursement Details` : 'Details'}
-            </DialogTitle>
-            <DialogContent>
-              {selectedTicket ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Typography><strong>User:</strong> {selectedTicket.user?.displayName || selectedTicket.userId || 'Unknown'}</Typography>
-                  <Typography><strong>Amount:</strong> ₱{selectedTicket.total}</Typography>
-                  <Typography sx={{ color: getStatusColor(selectedTicket.status) }}>
-                    <strong>Status:</strong> {selectedTicket.status}
-                  </Typography>
-                  <Typography><strong>Description:</strong> {selectedTicket.description || 'No description provided'}</Typography>
-                  <Typography><strong>Merchant:</strong> {selectedTicket.merchant || 'N/A'}</Typography>
-                  <Typography><strong>Items:</strong> {selectedTicket.items || 'N/A'}</Typography>
-                  <Typography><strong>Date:</strong> {new Date(selectedTicket.date).toLocaleDateString() || 'N/A'}</Typography>
-                  <Typography><strong>Submitted At:</strong> {new Date(selectedTicket.submittedAt).toLocaleString() || 'N/A'}</Typography>
-                  {selectedTicket.extractedText && (
-                    <Typography><strong>Extracted Text:</strong> <pre>{selectedTicket.extractedText}</pre></Typography>
-                  )}
-                  {selectedTicket.receipt ? (
-                    <Box>
-                      <Typography><strong>Receipt:</strong></Typography>
-                      <img
-                        src={`${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`}
-                        alt="Receipt"
-                        style={{ maxWidth: '100%', height: 'auto', marginTop: '8px' }}
-                        onError={() => showNotification('Failed to load receipt image', 'error')}
-                      />
-                    </Box>
-                  ) : (
-                    <Typography><strong>Receipt:</strong> No receipt uploaded</Typography>
-                  )}
-                </Box>
-              ) : (
-                <Typography>No ticket selected</Typography>
-              )}
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleCloseDialog}>Close</Button>
-            </DialogActions>
-          </Dialog>
         </Box>
       </Box>
     </Container>

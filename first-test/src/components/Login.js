@@ -32,8 +32,6 @@ function Login() {
         if (response.ok) {
           const data = await response.json();
           if (data.user) {
-            console.log("✅ User data received:", data.user);
-
             setUser({
               uid: data.user.id,
               username: data.user.name,

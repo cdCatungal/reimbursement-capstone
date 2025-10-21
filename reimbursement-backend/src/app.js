@@ -10,6 +10,7 @@ import sequelize from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import reimbursementRoutes from "./routes/reimbursementRoutes.js";
 import approvalRoutes from "./routes/approvalRoutes.js";
+import userRoutes from "./routes/user.routes.js";
 
 dotenv.config();
 
@@ -51,7 +52,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // ✅ Static files
-app.use("/uploads", express.static('uploads'));
+app.use("/uploads", express.static("uploads"));
 
 // ✅ Initialize Passport (now uses session)
 app.use(passport.initialize());
@@ -70,6 +71,7 @@ app.use((req, res, next) => {
 app.use("/auth", authRoutes);
 app.use("/api/reimbursements", reimbursementRoutes);
 app.use("/api/approvals", approvalRoutes);
+app.use("/api/users", userRoutes);
 
 // ✅ Health check
 app.get("/", (req, res) => {
@@ -96,7 +98,9 @@ const PORT = process.env.PORT || 5000;
     console.log("✅ Database synced successfully");
     app.listen(PORT, () => {
       console.log(`🚀 Server running: http://localhost:${PORT}`);
-      console.log(`🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`);
+      console.log(
+        `🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`
+      );
     });
   } catch (err) {
     console.error("❌ DB sync error:", err);

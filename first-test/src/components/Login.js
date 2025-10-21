@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Typography,
@@ -8,12 +8,16 @@ import {
   Box,
   CircularProgress,
   useTheme,
-} from '@mui/material';
-import { Login as MicrosoftIcon, CheckCircleOutline } from '@mui/icons-material';
-import { useAppContext } from '../App';
+} from "@mui/material";
+import {
+  Login as MicrosoftIcon,
+  CheckCircleOutline,
+} from "@mui/icons-material";
+import { useAppContext } from "../App";
 
 function Login() {
-  const { setIsAdmin, setIsAuthenticated, setUser, showNotification } = useAppContext();
+  const { setIsAdmin, setIsAuthenticated, setUser, showNotification } =
+    useAppContext();
   const [checking, setChecking] = useState(true);
   const navigate = useNavigate();
   const theme = useTheme(); // ⬅️ Get current theme
@@ -21,15 +25,15 @@ function Login() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('http://localhost:5000/auth/me', {
-          credentials: 'include',
+        const response = await fetch("http://localhost:5000/auth/me", {
+          credentials: "include",
         });
 
         if (response.ok) {
           const data = await response.json();
           if (data.user) {
-            console.log('✅ User data received:', data.user);
-            
+            console.log("✅ User data received:", data.user);
+
             setUser({
               uid: data.user.id,
               username: data.user.name,
@@ -38,16 +42,16 @@ function Login() {
               authProvider: data.user.authProvider,
             });
             setIsAuthenticated(true);
-            setIsAdmin(data.user.role === 'Admin');
+            setIsAdmin(data.user.role === "Admin");
 
-            if (data.user.role === 'Admin') {
-              navigate('/admin');
+            if (data.user.role === "Admin") {
+              navigate("/admin");
             } else {
-              navigate('/user');
+              navigate("/user");
             }
-            
-            const firstName = data.user.name.split(' ')[0];
-            showNotification(`Welcome back, ${firstName}!`, 'success');
+
+            const firstName = data.user.name.split(" ")[0];
+            showNotification(`Welcome back, ${firstName}!`, "success");
           } else {
             setChecking(false);
           }
@@ -55,7 +59,7 @@ function Login() {
           setChecking(false);
         }
       } catch (error) {
-        console.log('Not authenticated, showing login form');
+        console.log("Not authenticated, showing login form");
         setChecking(false);
       }
     };
@@ -64,12 +68,19 @@ function Login() {
   }, [navigate, setIsAdmin, setIsAuthenticated, setUser, showNotification]);
 
   const handleMicrosoftLogin = () => {
-    window.location.href = 'http://localhost:5000/auth/microsoft';
+    window.location.href = "http://localhost:5000/auth/microsoft";
   };
 
   if (checking) {
     return (
-      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <CircularProgress />
       </Box>
     );
@@ -78,14 +89,15 @@ function Login() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        minHeight: "100vh",
         // ⬅️ Adapt background based on theme
-        background: theme.palette.mode === 'dark'
-          ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
-          : 'linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        background:
+          theme.palette.mode === "dark"
+            ? "linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)"
+            : "linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         py: 4,
       }}
     >
@@ -94,20 +106,21 @@ function Login() {
           sx={{
             p: 5,
             borderRadius: 3,
-            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.08)',
-            border: theme.palette.mode === 'dark'
-              ? '1px solid rgba(255, 255, 255, 0.1)'
-              : '1px solid rgba(0, 0, 0, 0.05)',
+            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.08)",
+            border:
+              theme.palette.mode === "dark"
+                ? "1px solid rgba(255, 255, 255, 0.1)"
+                : "1px solid rgba(0, 0, 0, 0.05)",
           }}
         >
           {/* Header */}
-          <Box sx={{ mb: 5, textAlign: 'center' }}>
-            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ mb: 5, textAlign: "center" }}>
+            <Box sx={{ mb: 3, display: "flex", justifyContent: "center" }}>
               <img
                 src="/erni-logo.png"
                 alt="Logo"
-                style={{ height: '50px' }}
-                onError={(e) => (e.target.style.display = 'none')}
+                style={{ height: "50px" }}
+                onError={(e) => (e.target.style.display = "none")}
               />
             </Box>
             <Typography
@@ -115,7 +128,7 @@ function Login() {
               sx={{
                 fontWeight: 700,
                 // ⬅️ Adapt text color based on theme
-                color: theme.palette.mode === 'dark' ? '#ffffff' : '#1a1a1a',
+                color: theme.palette.mode === "dark" ? "#ffffff" : "#1a1a1a",
                 mb: 0,
               }}
             >
@@ -124,39 +137,53 @@ function Login() {
           </Box>
 
           {/* Features */}
-          <Box sx={{ mb: 4, display: 'flex', flexDirection: 'column', gap: 2, pl: 2 }}>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-              <CheckCircleOutline sx={{ color: '#0078D4', fontSize: 20, mt: 0.3, flexShrink: 0 }} />
+          <Box
+            sx={{
+              mb: 4,
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              pl: 2,
+            }}
+          >
+            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+              <CheckCircleOutline
+                sx={{ color: "#0078D4", fontSize: 20, mt: 0.3, flexShrink: 0 }}
+              />
               <Typography
                 variant="body2"
                 sx={{
                   // ⬅️ Adapt text color based on theme
-                  color: theme.palette.mode === 'dark' ? '#ccc' : '#555',
-                  fontSize: '0.9rem',
+                  color: theme.palette.mode === "dark" ? "#ccc" : "#555",
+                  fontSize: "0.9rem",
                 }}
               >
                 Quick submission and tracking
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-              <CheckCircleOutline sx={{ color: '#0078D4', fontSize: 20, mt: 0.3, flexShrink: 0 }} />
+            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+              <CheckCircleOutline
+                sx={{ color: "#0078D4", fontSize: 20, mt: 0.3, flexShrink: 0 }}
+              />
               <Typography
                 variant="body2"
                 sx={{
-                  color: theme.palette.mode === 'dark' ? '#ccc' : '#555',
-                  fontSize: '0.9rem',
+                  color: theme.palette.mode === "dark" ? "#ccc" : "#555",
+                  fontSize: "0.9rem",
                 }}
               >
                 Secure document uploads
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-              <CheckCircleOutline sx={{ color: '#0078D4', fontSize: 20, mt: 0.3, flexShrink: 0 }} />
+            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+              <CheckCircleOutline
+                sx={{ color: "#0078D4", fontSize: 20, mt: 0.3, flexShrink: 0 }}
+              />
               <Typography
                 variant="body2"
                 sx={{
-                  color: theme.palette.mode === 'dark' ? '#ccc' : '#555',
-                  fontSize: '0.9rem',
+                  color: theme.palette.mode === "dark" ? "#ccc" : "#555",
+                  fontSize: "0.9rem",
                 }}
               >
                 Real-time approval updates
@@ -167,9 +194,10 @@ function Login() {
           {/* Divider */}
           <Box
             sx={{
-              borderTop: theme.palette.mode === 'dark'
-                ? '1px solid rgba(255, 255, 255, 0.1)'
-                : '1px solid #e0e0e0',
+              borderTop:
+                theme.palette.mode === "dark"
+                  ? "1px solid rgba(255, 255, 255, 0.1)"
+                  : "1px solid #e0e0e0",
               mb: 4,
             }}
           />
@@ -183,16 +211,16 @@ function Login() {
             onClick={handleMicrosoftLogin}
             sx={{
               py: 1.6,
-              textTransform: 'none',
+              textTransform: "none",
               fontWeight: 600,
-              fontSize: '0.95rem',
-              backgroundColor: '#0078D4',
+              fontSize: "0.95rem",
+              backgroundColor: "#0078D4",
               borderRadius: 1.5,
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                backgroundColor: '#106EBE',
-                boxShadow: '0 6px 20px rgba(0, 120, 212, 0.3)',
-                transform: 'translateY(-2px)',
+              transition: "all 0.2s ease",
+              "&:hover": {
+                backgroundColor: "#106EBE",
+                boxShadow: "0 6px 20px rgba(0, 120, 212, 0.3)",
+                transform: "translateY(-2px)",
               },
             }}
           >
@@ -203,11 +231,11 @@ function Login() {
           <Typography
             variant="caption"
             sx={{
-              display: 'block',
-              textAlign: 'center',
+              display: "block",
+              textAlign: "center",
               // ⬅️ Adapt footer text color based on theme
-              color: theme.palette.mode === 'dark' ? '#999' : '#999',
-              fontSize: '0.8rem',
+              color: theme.palette.mode === "dark" ? "#999" : "#999",
+              fontSize: "0.8rem",
               mt: 3,
             }}
           >

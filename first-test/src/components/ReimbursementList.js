@@ -12,6 +12,7 @@ import {
   Close as CloseIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { useAppContext } from '../App';
 
 function ReimbursementList() {
@@ -203,6 +204,9 @@ function ReimbursementList() {
     return nextPending && nextPending.approver_role === user.role;
   };
 
+  const theme = useTheme();
+  const { darkMode } = useAppContext();
+
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: 'medium', mb: 3 }}>
@@ -340,9 +344,14 @@ function ReimbursementList() {
           {selectedTicket && (
             <>
               {/* Employee Info Header */}
-              <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
+              <Box sx={{ p: 3, 
+                bgcolor: darkMode 
+                  ? theme.palette.background.paper  // darker surface in dark mode
+                  : theme.palette.grey[50], 
+                borderBottom: 1, 
+                borderColor: 'divider' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ width: 56, height: 56 }}>
+                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main' }}>
                     <PersonIcon sx={{ fontSize: 32 }} />
                   </Avatar>
                   <Box>

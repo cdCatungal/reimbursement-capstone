@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Button,
   Typography,
@@ -24,12 +24,15 @@ import { useAdminStore } from "../store/useAdminStore";
 // import { data } from "react-router-dom";
 
 function ReportExport() {
-  const { getReport, reportData } = useAdminStore();
+  const { getReport, reportData, resetReportData } = useAdminStore();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [showPreview, setShowPreview] = useState(false);
 
+  useEffect(() => {
+    resetReportData();
+  }, []);
   const filterData = () => {
     if (!Array.isArray(reportData)) return [];
 

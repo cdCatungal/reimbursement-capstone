@@ -6,12 +6,15 @@ export const useAdminStore = create((set, get) => ({
 
   getReport: async (data) => {
     try {
-      console.log("123");
+      if (!data) return;
       const response = await axiosInstance.post("/admin/reports", data);
       console.log("Response reports:", response.data.reports);
       set({ reportData: response.data.reports });
     } catch (error) {
       console.error("Failed to fetch user data:", error);
     }
+  },
+  resetReportData: () => {
+    set({ reportData: null });
   },
 }));

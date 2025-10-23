@@ -340,9 +340,9 @@ function ReimbursementList() {
           {selectedTicket && (
             <>
               {/* Employee Info Header */}
-              <Box sx={{ p: 3, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}>
+              <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main' }}>
+                  <Avatar sx={{ width: 56, height: 56 }}>
                     <PersonIcon sx={{ fontSize: 32 }} />
                   </Avatar>
                   <Box>

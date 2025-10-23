@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Typography, List, ListItem, ListItemText,
-  Button, Paper, Dialog, DialogTitle, DialogContent, DialogActions,
+  Button, Paper, Dialog, DialogTitle, DialogContent,
   CircularProgress, Alert, TextField, InputAdornment, Select,
-  MenuItem, Chip
+  MenuItem, Chip, Grid, Avatar, IconButton,
 } from '@mui/material';
 import {
   Search,
+  CheckCircle as CheckCircleIcon,
+  Person as PersonIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useAppContext } from '../App';
 
@@ -106,13 +109,15 @@ function ReimbursementList() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Pending':
-        return 'warning.main';
+        return 'warning';
       case 'Approved':
-        return 'success.main';
+        return 'success';
       case 'Rejected':
-        return 'error.main';
+        return 'error';
+      case 'Validated':
+        return 'success';
       default:
-        return 'text.secondary';
+        return 'default';
     }
   };
 
@@ -129,6 +134,49 @@ function ReimbursementList() {
       r.items?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchStatus && matchCategory && matchSearch;
   });
+
+  // Mock approval flow data
+  const getApprovalFlow = (ticket) => {
+    return [
+      {
+        role: "Finance Officer",
+        status: ticket.status === "Pending" ? "Pending" : "Approved",
+        name: "Finance Department",
+        date: ticket.status !== "Pending" ? new Date(ticket.submittedAt).toLocaleString() : null,
+        message: ticket.status === "Pending" 
+          ? "The Finance Officer is currently processing your reimbursement payment. You will be notified once the transaction is completed."
+          : "Finance Officer has approved the reimbursement."
+      },
+      {
+        role: "Invoice Specialist",
+        status: ticket.status === "Approved" ? "Validated" : "Pending",
+        name: "Michelle Mendoza",
+        date: ticket.status === "Approved" ? new Date(ticket.approvedAt || ticket.submittedAt).toLocaleString() : null,
+        message: "The Invoice Specialist has checked all attached receipts and documents to ensure compliance and completeness. The request is now forwarded to Finance for payment processing."
+      },
+      {
+        role: "Account Manager",
+        status: ticket.status === "Approved" ? "Approved" : "Pending",
+        name: "Jane Doe",
+        date: ticket.status === "Approved" ? new Date(ticket.approvedAt || ticket.submittedAt).toLocaleString() : null,
+        message: "The Account Manager has verified and approved your reimbursement request for budget compliance and accuracy."
+      },
+      {
+        role: "Service Unit Leader",
+        status: ticket.status === "Approved" ? "Approved" : "Pending",
+        name: "Adriel Martiano",
+        date: ticket.status === "Approved" ? new Date(ticket.approvedAt || ticket.submittedAt).toLocaleString() : null,
+        message: "The Service Unit Leader (SUL) has reviewed your reimbursement request and confirmed its validity."
+      },
+      {
+        role: "Submitted Reimbursement Application",
+        status: "Completed",
+        name: null,
+        date: new Date(ticket.submittedAt).toLocaleString(),
+        message: null
+      }
+    ];
+  };
 
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
@@ -225,10 +273,9 @@ function ReimbursementList() {
                     <Chip
                       label={item.status}
                       size="small"
+                      color={getStatusColor(item.status)}
                       sx={{
                         mt: 0.5,
-                        bgcolor: getStatusColor(item.status),
-                        color: 'white',
                         fontWeight: 600,
                       }}
                     />
@@ -272,48 +319,265 @@ function ReimbursementList() {
         </List>
       )}
 
-      {/* Details Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>
-          {selectedTicket ? `${selectedTicket.category} Reimbursement Details` : 'Details'}
+      {/* Details Dialog - Similar to StatusTracker */}
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        maxWidth="xl"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 2, minHeight: '80vh', maxWidth: '1400px' }
+        }}
+      >
+        <DialogTitle 
+          sx={{ 
+            fontWeight: "bold", 
+            pb: 1,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: 1,
+            borderColor: 'divider'
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+            REIMBURSEMENT DETAILS
+          </Typography>
+          <IconButton onClick={handleCloseDialog} size="small">
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent>
-          {selectedTicket ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography><strong>User:</strong> {selectedTicket.user?.displayName || selectedTicket.userId || 'Unknown'}</Typography>
-              <Typography><strong>Amount:</strong> ₱{selectedTicket.total}</Typography>
-              <Typography sx={{ color: getStatusColor(selectedTicket.status) }}>
-                <strong>Status:</strong> {selectedTicket.status}
-              </Typography>
-              <Typography><strong>Description:</strong> {selectedTicket.description || 'No description provided'}</Typography>
-              <Typography><strong>Merchant:</strong> {selectedTicket.merchant || 'N/A'}</Typography>
-              <Typography><strong>Items:</strong> {selectedTicket.items || 'N/A'}</Typography>
-              <Typography><strong>Date:</strong> {new Date(selectedTicket.date).toLocaleDateString() || 'N/A'}</Typography>
-              <Typography><strong>Submitted At:</strong> {new Date(selectedTicket.submittedAt).toLocaleString() || 'N/A'}</Typography>
-              {selectedTicket.extractedText && (
-                <Typography><strong>Extracted Text:</strong> <pre>{selectedTicket.extractedText}</pre></Typography>
-              )}
-              {selectedTicket.receipt ? (
-                <Box>
-                  <Typography><strong>Receipt:</strong></Typography>
-                  <img
-                    src={`${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`}
-                    alt="Receipt"
-                    style={{ maxWidth: '100%', height: 'auto', marginTop: '8px' }}
-                    onError={() => showNotification('Failed to load receipt image', 'error')}
-                  />
+        
+        <DialogContent sx={{ p: 0 }}>
+          {selectedTicket && (
+            <>
+              {/* Employee Info Header */}
+              <Box sx={{ p: 3, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main' }}>
+                    <PersonIcon sx={{ fontSize: 32 }} />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Employee Name: {selectedTicket.user?.displayName || 'N/A'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      SAP Code: PRJ-2025-IT-DEV-001-{(selectedTicket.user?.displayName || 'USER').toUpperCase()}
+                    </Typography>
+                  </Box>
                 </Box>
-              ) : (
-                <Typography><strong>Receipt:</strong> No receipt uploaded</Typography>
-              )}
-            </Box>
-          ) : (
-            <Typography>No ticket selected</Typography>
+              </Box>
+
+              {/* Two Column Content */}
+              <Grid container spacing={3} wrap="nowrap" sx={{ p: 3 }}>
+                {/* Left Column - Details */}
+                <Grid item sx={{ width: '650px', flexShrink: 0 }}>
+                  <Box sx={{ 
+                    p: 3, 
+                    height: '100%',
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    bgcolor: 'background.paper'
+                  }}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        Reimbursement Type:
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        {selectedTicket.category}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        Amount:
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                        ₱{parseFloat(selectedTicket.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        Purpose:
+                      </Typography>
+                      <Typography variant="body2">
+                        {selectedTicket.description || 'No description provided'}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        Description:
+                      </Typography>
+                      <Typography variant="body2">
+                        {selectedTicket.items || selectedTicket.description || 'N/A'}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        Date:
+                      </Typography>
+                      <Typography variant="body2">
+                        {new Date(selectedTicket.date || selectedTicket.submittedAt).toLocaleDateString()}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        Submitted At:
+                      </Typography>
+                      <Typography variant="body2">
+                        {new Date(selectedTicket.submittedAt).toLocaleString()}
+                      </Typography>
+                    </Box>
+
+                    {selectedTicket.merchant && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                          Expense Source:
+                        </Typography>
+                        <Typography variant="body2">
+                          {selectedTicket.merchant}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {selectedTicket.extractedText && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                          Extracted Text:
+                        </Typography>
+                        <Typography variant="body2" component="pre" sx={{ 
+                          whiteSpace: 'pre-wrap', 
+                          wordBreak: 'break-word',
+                          fontSize: '0.875rem',
+                          bgcolor: 'grey.50',
+                          p: 1,
+                          borderRadius: 1
+                        }}>
+                          {selectedTicket.extractedText}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {selectedTicket.receipt && (
+                      <Box sx={{ mt: 3 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1 }}>
+                          Receipt:
+                        </Typography>
+                        <Box
+                          component="img"
+                          src={`${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`}
+                          alt="Receipt"
+                          sx={{
+                            width: '100%',
+                            maxHeight: '500px',
+                            objectFit: 'contain',
+                            borderRadius: 1,
+                            border: 1,
+                            borderColor: 'divider',
+                            display: 'block'
+                          }}
+                          onError={(e) => {
+                            console.error('Failed to load receipt:', selectedTicket.receipt);
+                            showNotification('Failed to load receipt image', 'error');
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                </Grid>
+
+                {/* Right Column - Approval Status */}
+                <Grid item sx={{ width: '450px', flexShrink: 0 }}>
+                  <Box sx={{ 
+                    p: 3, 
+                    height: '100%',
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    bgcolor: 'background.paper'
+                  }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
+                      Reimbursement Status
+                    </Typography>
+
+                    {/* Approval Flow Timeline */}
+                    <Box sx={{ position: 'relative' }}>
+                      {getApprovalFlow(selectedTicket).map((step, index) => (
+                        <Box
+                          key={index}
+                          sx={{
+                            display: 'flex',
+                            mb: 3,
+                            position: 'relative',
+                            '&:not(:last-child)::before': {
+                              content: '""',
+                              position: 'absolute',
+                              left: '15px',
+                              top: '32px',
+                              bottom: '-24px',
+                              width: '2px',
+                              bgcolor: step.status === 'Pending' ? 'grey.300' : 'success.main'
+                            }
+                          }}
+                        >
+                          <Box sx={{ mr: 2 }}>
+                            <CheckCircleIcon
+                              sx={{
+                                fontSize: 32,
+                                color: step.status === 'Pending' ? 'grey.400' : 'success.main'
+                              }}
+                            />
+                          </Box>
+                          <Box sx={{ flex: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                {step.role}:
+                              </Typography>
+                              <Chip
+                                label={step.status}
+                                size="small"
+                                color={getStatusColor(step.status)}
+                                sx={{ fontWeight: 600, height: 20 }}
+                              />
+                            </Box>
+                            {step.name && (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                {step.name}
+                              </Typography>
+                            )}
+                            {step.date && (
+                              <Typography variant="caption" color="text.secondary">
+                                Approved at: {step.date}
+                              </Typography>
+                            )}
+                            {step.message && (
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{
+                                  mt: 1,
+                                  fontStyle: 'italic',
+                                  fontSize: '0.813rem'
+                                }}
+                              >
+                                {step.message}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                </Grid>
+              </Grid>
+            </>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Close</Button>
-        </DialogActions>
       </Dialog>
     </Paper>
   );

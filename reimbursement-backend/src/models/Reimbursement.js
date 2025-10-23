@@ -8,6 +8,8 @@ const Reimbursement = sequelize.define('Reimbursement', {
   category: { type: DataTypes.STRING },
   type: { type: DataTypes.STRING },
   description: { type: DataTypes.TEXT },
+  items: { type: DataTypes.TEXT },
+  merchant: { type: DataTypes.STRING },
   total: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
   status: { type: DataTypes.ENUM('Pending','Manager Approved','Michelle Approved','Approved','Rejected'), defaultValue: 'Pending' },
   current_approver: { type: DataTypes.STRING }, // role string like 'Manager' / 'Michelle' / 'Grace'

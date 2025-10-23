@@ -42,9 +42,15 @@ function Login() {
               authProvider: data.user.authProvider,
             });
             setIsAuthenticated(true);
-            setIsAdmin(data.user.role === "Admin");
+            setIsAdmin(
+            ["Admin", "SUL", "Account Manager", "Invoice Specialist", "Finance Officer"].includes(data.user.role)
+              );
 
-            if (data.user.role === "Admin") {
+            if (data.user.role === "Admin"|| 
+                data.user.role === "SUL" || 
+                data.user.role === "Account Manager" || 
+                data.user.role === "Invoice Specialist" || 
+                data.user.role === "Finance Officer") {
               navigate("/admin");
             } else {
               navigate("/user");

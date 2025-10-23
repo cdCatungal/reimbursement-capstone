@@ -6,7 +6,10 @@ const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, proces
   host: process.env.DB_HOST,
   dialect: 'postgres',
   logging: false,
-  define: { timestamps: true, underscored: true }
+  define: { timestamps: true, underscored: true },
+  dialectOptions: {
+      ssl: process.env.DB_SSL === "true" ? { require: true, rejectUnauthorized: false } : false,
+    },
 });
 
 export default sequelize;

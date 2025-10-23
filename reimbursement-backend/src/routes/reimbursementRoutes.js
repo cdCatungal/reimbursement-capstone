@@ -1,5 +1,10 @@
 import express from 'express';
-import { createReimbursement, getUserReimbursements, updateReimbursementStatus } from '../controllers/reimbursementController.js';
+import { 
+  createReimbursement, 
+  getUserReimbursements, 
+  updateReimbursementStatus, 
+  getPendingApprovals 
+} from '../controllers/reimbursementController.js';
 import { upload } from '../middlewares/upload.js';
 
 const router = express.Router();
@@ -12,13 +17,16 @@ const isAuthenticated = (req, res, next) => {
   return res.status(401).json({ message: 'Not authenticated' });
 };
 
-// 📤 Submit a new reimbursement request (requires authentication)
+// 📤 Submit a new reimbursement request
 router.post('/', isAuthenticated, upload.single('receipt'), createReimbursement);
 
-// 📥 Get reimbursements (optionally filtered by userId - requires authentication)
-router.get('/', isAuthenticated, getUserReimbursements);
+// 📥 Get current user's reimbursements (for Status Tracker)
+router.get('/my-reimbursements', isAuthenticated, getUserReimbursements);  // ⬅️ ADDED
 
-// 📝 Update reimbursement status (approve/reject - requires authentication)
+// 📋 Get reimbursements pending current user's approval (for Approval Dashboard)
+router.get('/pending-approvals', isAuthenticated, getPendingApprovals);  // ⬅️ FIXED
+
+// 📝 Update reimbursement status (approve/reject)
 router.put('/:id', isAuthenticated, updateReimbursementStatus);
 
 export default router;

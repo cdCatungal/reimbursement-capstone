@@ -32,7 +32,7 @@ function ReceiptUpload() {
     items: '',
     total: '',
     description: '',
-    category: 'Transportation',
+    category: 'Meal with Client',
     merchant: '',
   });
   const [loading, setLoading] = useState(false);
@@ -41,11 +41,11 @@ function ReceiptUpload() {
 
   // Categories for the dropdown
   const categories = [
-    'Transportation',
-    'Meals & Entertainment',
-    'Office Supplies',
-    'Travel',
-    'Utilities',
+    'Transportation (Commute)',
+    'Transportation (Drive)',
+    'Meal with Client',
+    'Overtime Meal',
+    'Accomodation',
     'Other',
   ];
 
@@ -221,7 +221,7 @@ function ReceiptUpload() {
         items: '',
         total: '',
         description: '',
-        category: 'Transportation',
+        category: 'Transportation (Drive)',
         merchant: '',
       });
       setImage(null);

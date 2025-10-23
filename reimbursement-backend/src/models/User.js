@@ -21,19 +21,26 @@ const User = sequelize.define('User', {
   },
   password: {
     type: DataTypes.STRING,
-    allowNull: true, // ⬅️ Changed from false to true (allow null for OAuth users)
+    allowNull: true,
   },
   role: {
-    type: DataTypes.ENUM('Admin', 'Employee', 'Manager'),
+    type: DataTypes.ENUM(
+      'Admin',           // SuperAdmin - highest level
+      'Employee',        // Regular employee
+      'SUL',            // Service Unit Leader
+      'Account Manager',
+      'Invoice Specialist',
+      'Finance Officer'
+    ),
     defaultValue: 'Employee',
   },
   authProvider: {
-    type: DataTypes.ENUM('local', 'microsoft'), // ⬅️ Add this field
+    type: DataTypes.ENUM('local', 'microsoft'),
     defaultValue: 'local',
     allowNull: false,
   },
   microsoftId: {
-    type: DataTypes.STRING, // ⬅️ Add this to store Microsoft OID
+    type: DataTypes.STRING,
     allowNull: true,
     unique: true,
   },

@@ -13,6 +13,7 @@ import {
   Pending as PendingIcon,
 } from '@mui/icons-material';
 import { useAppContext } from '../App';
+import { useTheme } from '@mui/material/styles';
 
 function StatusTracker() {
   const { user, showNotification } = useAppContext();
@@ -122,6 +123,9 @@ function StatusTracker() {
     }
   };
 
+  const theme = useTheme();
+  const { darkMode } = useAppContext();
+
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: 'medium', mb: 3 }}>
@@ -220,7 +224,12 @@ function StatusTracker() {
           {selectedTicket && (
             <>
               {/* Header with Status */}
-              <Box sx={{ p: 3, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}>
+              <Box sx={{ p: 3, 
+                bgcolor: darkMode 
+                  ? theme.palette.background.paper
+                  : theme.palette.grey[50],
+                borderBottom: 1, 
+                borderColor: 'divider' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main' }}>

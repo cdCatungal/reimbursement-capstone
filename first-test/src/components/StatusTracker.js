@@ -273,16 +273,16 @@ function StatusTracker() {
                         Purpose:
                       </Typography>
                       <Typography variant="body2">
-                        {selectedTicket.description || 'No description provided'}
+                        {selectedTicket.items || 'No purpose provided'}
                       </Typography>
                     </Box>
 
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                        Items/Description:
+                        Description:
                       </Typography>
                       <Typography variant="body2">
-                        {selectedTicket.items || selectedTicket.description || 'N/A'}
+                        {selectedTicket.description || 'No description provided.'}
                       </Typography>
                     </Box>
 

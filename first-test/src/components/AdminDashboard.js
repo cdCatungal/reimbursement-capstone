@@ -1,15 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container, Box, Typography, Menu, MenuItem, IconButton, Drawer,
-  ListItemButton, ListItemIcon, List, ListItemText
+  ListItemButton, ListItemIcon, List, ListItemText, Avatar
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import TrackChangesIcon from '@mui/icons-material/TrackChanges';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import ReportExport from './ReportExport';
 import ReceiptUpload from './ReceiptUpload';
@@ -17,6 +16,8 @@ import StatusTracker from './StatusTracker';
 import ReimbursementList from './ReimbursementList';
 import ThemeToggle from './ThemeToggle';
 import { useAppContext } from '../App';
+import UserSettings from "./UserSettings";
+import { userUserStore } from "../store/userUserStore.js";
 
 function AdminDashboard() {
   const { user, setIsAuthenticated, setIsAdmin, setUser, showNotification } = useAppContext();
@@ -67,6 +68,12 @@ function AdminDashboard() {
     setDrawerOpen(!drawerOpen);
   };
 
+  const { getUser, user: storeUser } = userUserStore();
+
+useEffect(() => {
+  getUser(); // fetches Microsoft profile info (including profilePicture)
+}, []);
+
   const tabs = [
     {
       label: 'Reimbursement Lists',
@@ -86,9 +93,19 @@ function AdminDashboard() {
     },
   ];
 
+  const settingsTab = {
+    label: "Settings",
+    component: <UserSettings />,
+  };
+
   const firstName = user?.username?.split(' ')[0] || user?.username || 'Admin';
 
+  // ✅ Updated to handle -1 for settings
   const renderContent = () => {
+    if (tabValue === -1) {
+      return settingsTab.component;
+    }
+    
     switch (tabValue) {
       case 0:
         return <ReimbursementList />;
@@ -181,11 +198,32 @@ function AdminDashboard() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <ThemeToggle />
               <IconButton onClick={handleProfileClick} color="inherit" size="large">
-                <AccountCircleIcon />
+                <Avatar
+  src={storeUser?.profilePicture}
+  alt={storeUser?.name || storeUser?.username}
+  sx={{
+    width: 32,
+    height: 32,
+    bgcolor: "primary.main",
+    fontSize: "0.9rem",
+  }}
+>
+  {!storeUser?.profilePicture &&
+    (storeUser?.name?.charAt(0).toUpperCase() ||
+      storeUser?.username?.charAt(0).toUpperCase())}
+</Avatar>
               </IconButton>
             </Box>
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleProfileClose}>
-              <MenuItem onClick={handleProfileClose}>User Profile</MenuItem>
+              {/* ✅ Fixed to use handleTabChange(-1) */}
+              <MenuItem
+                onClick={() => {
+                  handleTabChange(-1);
+                  handleProfileClose();
+                }}
+              >
+                User Profile
+              </MenuItem>
               <MenuItem onClick={handleLogoutClick}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <span>Logout</span>
@@ -203,6 +241,7 @@ function AdminDashboard() {
             </Typography>
           </Box>
 
+          {/* ✅ Only use renderContent() - removed duplicate */}
           {renderContent()}
         </Box>
       </Box>

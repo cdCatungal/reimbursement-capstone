@@ -44,6 +44,10 @@ const User = sequelize.define('User', {
     allowNull: true,
     unique: true,
   },
+  profilePicture: {
+    type: DataTypes.TEXT,  // Using TEXT to store base64 or URL
+    allowNull: true,
+  },
 });
 
 export default User;

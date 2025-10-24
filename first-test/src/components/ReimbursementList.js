@@ -403,7 +403,7 @@ function ReimbursementList() {
                         Purpose:
                       </Typography>
                       <Typography variant="body2">
-                        {selectedTicket.description || 'No description provided'}
+                        {selectedTicket.items || 'No purpose provided.'}
                       </Typography>
                     </Box>
 
@@ -412,7 +412,7 @@ function ReimbursementList() {
                         Description:
                       </Typography>
                       <Typography variant="body2">
-                        {selectedTicket.items || selectedTicket.description || 'N/A'}
+                        {selectedTicket.description || 'No description provided.'}
                       </Typography>
                     </Box>
 

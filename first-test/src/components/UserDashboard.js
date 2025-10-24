@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // ⬅️ Add this
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Box,
@@ -12,22 +12,23 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  Avatar,  // ✅ Add this
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import TrackChangesIcon from "@mui/icons-material/TrackChanges";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import ReceiptUpload from "./ReceiptUpload";
 import StatusTracker from "./StatusTracker";
 import ThemeToggle from "./ThemeToggle";
 import { useAppContext } from "../App";
 import UserSettings from "./UserSettings";
+import { userUserStore } from "../store/userUserStore.js";
 
 function UserDashboard() {
   const { user, setIsAuthenticated, setIsAdmin, setUser, showNotification } =
-    useAppContext(); // ⬆️ Updated
-  const navigate = useNavigate(); // ⬅️ Add this
+    useAppContext();
+  const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -48,7 +49,6 @@ function UserDashboard() {
     setAnchorEl(null);
   };
 
-  // ⬇️ Updated logout function
   const handleLogoutClick = async () => {
     try {
       const response = await fetch("http://localhost:5000/auth/logout", {
@@ -67,7 +67,6 @@ function UserDashboard() {
       }
     } catch (error) {
       console.error("Logout error:", error);
-      // Even if backend fails, clear local state
       setIsAuthenticated(false);
       setIsAdmin(false);
       setUser(null);
@@ -75,6 +74,12 @@ function UserDashboard() {
     }
     handleProfileClose();
   };
+
+  const { getUser, user: storeUser } = userUserStore();
+
+useEffect(() => {
+  getUser(); // fetches Microsoft profile info (including profilePicture)
+}, []);
 
   const tabs = [
     {
@@ -94,7 +99,6 @@ function UserDashboard() {
     component: <UserSettings />,
   };
 
-  // ⬇️ Extract first name
   const firstName = user?.username?.split(" ")[0] || user?.username || "User";
 
   return (
@@ -177,18 +181,30 @@ function UserDashboard() {
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Typography variant="h6">
-              Welcome, {firstName} {/* ⬅️ Updated to use firstName */}
-            </Typography>
+            <Typography variant="h6">Welcome, {firstName}</Typography>
 
             <Box sx={{ display: "flex", alignItems: "center", gap: -0.5 }}>
               <ThemeToggle />
+              {/* ✅ Replace AccountCircleIcon with Avatar */}
               <IconButton
                 onClick={handleProfileClick}
                 color="inherit"
                 size="large"
               >
-                <AccountCircleIcon />
+                <Avatar
+  src={storeUser?.profilePicture}
+  alt={storeUser?.name || storeUser?.username}
+  sx={{
+    width: 32,
+    height: 32,
+    bgcolor: "primary.main",
+    fontSize: "0.9rem",
+  }}
+>
+  {!storeUser?.profilePicture &&
+    (storeUser?.name?.charAt(0).toUpperCase() ||
+      storeUser?.username?.charAt(0).toUpperCase())}
+</Avatar>
               </IconButton>
             </Box>
 
@@ -197,7 +213,6 @@ function UserDashboard() {
               open={Boolean(anchorEl)}
               onClose={handleProfileClose}
             >
-              {/* <MenuItem onClick={handleProfileClose}>User Profile</MenuItem> */}
               <MenuItem
                 onClick={() => {
                   handleTabChange(-1);
@@ -229,7 +244,6 @@ function UserDashboard() {
               User Dashboard
             </Typography>
           </Box>
-          {/* <Box sx={{ px: 0.5 }}>{tabs[tabValue].component}</Box> */}
           <Box sx={{ px: 0.5 }}>
             {tabValue === -1
               ? settingsTab.component

@@ -35,7 +35,7 @@ export async function createReimbursement(req, res) {
       category: payload.category,
       type: payload.type || payload.merchant || payload.category, // merchant or category as type
       description: payload.description, // purpose/description
-      items: payload.items || payload.description, // items if provided, else description
+      items: payload.items, // items if provided, else description
       merchant: payload.merchant || null,
       date: payload.date || new Date(),
       total: payload.total,
@@ -146,7 +146,7 @@ export async function getUserReimbursements(req, res) {
       submittedAt: r.submitted_at || r.createdAt,
       approvedAt: r.approved_at,
       merchant: r.type,
-      items: r.description,
+      items: r.items,
       extractedText: null,
       approvals: r.approvals || []
     }));
@@ -215,8 +215,8 @@ export async function getPendingApprovals(req, res) {
       receipt: r.receipt_url,
       date: r.createdAt,
       submittedAt: r.submitted_at || r.createdAt,
-      merchant: r.type,
-      items: r.description,
+      merchant: r.merchant,
+      items: r.items,
       extractedText: null,
       approvals: r.approvals || []
     }));

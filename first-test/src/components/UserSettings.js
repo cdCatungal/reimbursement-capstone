@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { Box, Paper, Typography, useTheme, useMediaQuery } from "@mui/material";
+import { Box, Paper, Typography, Avatar } from "@mui/material";
 import { Mail, User } from "lucide-react";
 import { userUserStore } from "../store/userUserStore.js";
 
 const UserSettings = () => {
   const { getUser, user } = userUserStore();
-  const theme = useTheme();
 
   useEffect(() => {
     getUser();
@@ -30,6 +29,22 @@ const UserSettings = () => {
           }}
         >
           <Box sx={{ textAlign: "center", mb: 4 }}>
+            {/* Profile Picture */}
+            <Avatar
+              src={user?.profilePicture}
+              alt={user?.name}
+              sx={{
+                width: 120,
+                height: 120,
+                mx: "auto",
+                mb: 2,
+                fontSize: "3rem",
+                bgcolor: "primary.main",
+              }}
+            >
+              {!user?.profilePicture && user?.name?.charAt(0).toUpperCase()}
+            </Avatar>
+
             <Typography
               variant="h4"
               sx={{

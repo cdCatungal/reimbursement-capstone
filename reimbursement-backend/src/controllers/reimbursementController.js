@@ -146,7 +146,7 @@ export async function getUserReimbursements(req, res) {
       submittedAt: r.submitted_at || r.createdAt,
       approvedAt: r.approved_at,
       merchant: r.type,
-      items: r.description,
+      items: r.items,
       extractedText: null,
       approvals: r.approvals || []
     }));
@@ -216,7 +216,7 @@ export async function getPendingApprovals(req, res) {
       date: r.createdAt,
       submittedAt: r.submitted_at || r.createdAt,
       merchant: r.type,
-      items: r.description,
+      items: r.items,
       extractedText: null,
       approvals: r.approvals || []
     }));

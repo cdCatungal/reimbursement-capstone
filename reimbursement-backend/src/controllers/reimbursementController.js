@@ -36,7 +36,7 @@ export async function createReimbursement(req, res) {
       type: payload.type || payload.merchant || payload.category, // merchant or category as type
       description: payload.description, // purpose/description
       items: payload.items, // items if provided, else description
-      merchant: payload.merchant || null,
+      merchant: payload.merchant,
       date: payload.date || new Date(),
       total: payload.total,
       status: "Pending",
@@ -145,7 +145,7 @@ export async function getUserReimbursements(req, res) {
       receipt: r.receipt_url,
       submittedAt: r.submitted_at || r.createdAt,
       approvedAt: r.approved_at,
-      merchant: r.type,
+      merchant: r.merchant,  // ✅ CORRECT - use the actual merchant field
       items: r.items,
       extractedText: null,
       approvals: r.approvals || []

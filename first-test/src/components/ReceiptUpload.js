@@ -1,3 +1,4 @@
+import { useTheme } from '@mui/material/styles';
 import React, { useState } from 'react';
 import Tesseract from 'tesseract.js';
 import { useAppContext } from '../App';
@@ -23,6 +24,7 @@ import {
 } from '@mui/icons-material';
 
 function ReceiptUpload() {
+  const theme = useTheme();
   const { showNotification, user } = useAppContext(); // ⬅️ Add user from context
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -182,57 +184,64 @@ function ReceiptUpload() {
 
   // Submit reimbursement request
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      showNotification('Please fill in all required fields', 'error');
-      return;
-    }
+  if (!validateForm()) {
+    showNotification('Please fill in all required fields', 'error');
+    return;
+  }
 
-    if (!user) { // ⬅️ Check if user is authenticated
-      showNotification('Please log in first', 'error');
-      return;
-    }
+  if (!user) {
+    showNotification('Please log in first', 'error');
+    return;
+  }
 
-    const formDataToSend = new FormData();
-    formDataToSend.append('category', formData.category);
-    formDataToSend.append('type', formData.category);
-    formDataToSend.append('description', formData.description);
-    formDataToSend.append('total', parseFloat(formData.total));
-    if (image) formDataToSend.append('receipt', image);
+  const formDataToSend = new FormData();
+  formDataToSend.append('category', formData.category);
+  formDataToSend.append('type', formData.category);
+  
+  // 🔄 Swap logic:
+  formDataToSend.append('description', formData.items);   // ⬅️ send Description field content here
+  formDataToSend.append('items', formData.description);   // ⬅️ send Purpose field content here
+  
+  formDataToSend.append('total', parseFloat(formData.total));
+  formDataToSend.append('merchant', formData.merchant);   // ⬅️ ADDED: Merchant was missing!
+  formDataToSend.append('date', formData.date);           // ⬅️ Also adding date for completeness
+  
+  if (image) formDataToSend.append('receipt', image);
 
-    try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, { // ⬅️ Use env variable
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${user.token}`, // ⬅️ Add authorization header
-        },
-        body: formDataToSend,
-        credentials: 'include',
-      });
+  try {
+    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${user.token}`,
+      },
+      body: formDataToSend,
+      credentials: 'include',
+    });
 
-      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-      const data = await res.json();
+    if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+    const data = await res.json();
 
-      showNotification('Reimbursement submitted successfully!', 'success');
-      console.log('Created reimbursement:', data);
+    showNotification('Reimbursement submitted successfully!', 'success');
+    console.log('Created reimbursement:', data);
 
-      // ✅ Reset all fields after successful submission
-      setFormData({
-        date: new Date().toISOString().split('T')[0],
-        items: '',
-        total: '',
-        description: '',
-        category: 'Transportation (Drive)',
-        merchant: '',
-      });
-      setImage(null);
-      setImagePreview(null);
-      setExtractedText('');
-      setErrors({});
-    } catch (err) {
-      console.error('Error submitting reimbursement:', err);
-      showNotification('Failed to submit reimbursement', 'error');
-    }
-  };
+    // ✅ Reset fields
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      items: '',
+      total: '',
+      description: '',
+      category: 'Meal with Client', // Fixed: was 'Transportation (Drive)' but your initial state uses 'Meal with Client'
+      merchant: '',
+    });
+    setImage(null);
+    setImagePreview(null);
+    setExtractedText('');
+    setErrors({});
+  } catch (err) {
+    console.error('Error submitting reimbursement:', err);
+    showNotification('Failed to submit reimbursement', 'error');
+  }
+};
 
   // Clear uploaded image
   const handleClearImage = () => {
@@ -245,7 +254,7 @@ function ReceiptUpload() {
   return (
     <Card>
       <CardContent sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
           Upload Receipt for Reimbursement
         </Typography>
 
@@ -325,7 +334,11 @@ function ReceiptUpload() {
                     onChange={handleImageChange}
                     style={{ display: 'none' }}
                   />
-                  <CloudUpload sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+                  <CloudUpload sx={{ 
+                    fontSize: 64, 
+                    color: theme.palette.mode === 'dark' ? theme.palette.primary.light : '#00387e', 
+                    mb: 2 
+                  }} />
                   <Typography variant="h6" sx={{ mb: 1 }}>
                     Click to Upload Receipt
                   </Typography>
@@ -393,6 +406,13 @@ function ReceiptUpload() {
                 InputLabelProps={{ shrink: true }}
                 error={!!errors.date}
                 helperText={errors.date}
+                InputProps={{
+                  sx: {
+                    '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                      filter: theme.palette.mode === 'dark' ? 'invert(1)' : 'none'
+                    }
+                  }
+                }}
               />
 
               <TextField
@@ -417,38 +437,46 @@ function ReceiptUpload() {
               />
 
               <TextField
-                label="Items/Details"
-                name="items"
-                value={formData.items}
-                onChange={handleChange}
-                fullWidth
-                multiline
-                rows={3}
-                placeholder="List of items purchased..."
-              />
-
-              <TextField
-                label="Description/Purpose *"
+                label="Purpose *"
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
                 fullWidth
                 multiline
                 rows={3}
-                placeholder="Brief description of the expense purpose..."
+                placeholder="Purpose of the expense..."
                 error={!!errors.description}
                 helperText={errors.description || 'Explain the business purpose of this expense'}
               />
 
+              <TextField
+                label="Description *"
+                name="items"
+                value={formData.items}
+                onChange={handleChange}
+                fullWidth
+                multiline
+                rows={3}
+                placeholder="Description of this reimbursement application..."
+              />
+
               <Button
                 variant="contained"
-                color="success"
                 onClick={handleSubmit}
                 size="large"
                 startIcon={<CheckCircle />}
                 sx={{
                   py: 1.5,
                   fontWeight: 600,
+                  bgcolor: '#2e7d32',
+                  color: '#fafafa',
+                  '&:hover': {
+                    bgcolor: '#1b5e20', // Darker green on hover
+                  },
+                  '&:disabled': {
+                    bgcolor: 'action.disabledBackground',
+                    color: 'action.disabled',
+                  },
                 }}
                 disabled={loading}
               >

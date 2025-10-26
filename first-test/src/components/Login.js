@@ -119,13 +119,13 @@ function Login() {
                 : "1px solid rgba(0, 0, 0, 0.05)",
           }}
         >
-          {/* Header */}
-          <Box sx={{ mb: 5, textAlign: "center" }}>
-            <Box sx={{ mb: 3, display: "flex", justifyContent: "center" }}>
+          {/* Header - Updated with closer spacing */}
+          <Box sx={{ mb: 3, textAlign: "center" }}>
+            <Box sx={{ mb: 1.5, display: "flex", justifyContent: "center" }}>
               <img
-                src="/erni-logo.png"
+                src={theme.palette.mode === "dark" ? "/erni-logo-darkmode.png" : "/erni-logo.png"}
                 alt="Logo"
-                style={{ height: "50px" }}
+                style={{ height: "60px" }}
                 onError={(e) => (e.target.style.display = "none")}
               />
             </Box>
@@ -134,8 +134,9 @@ function Login() {
               sx={{
                 fontWeight: 700,
                 // ⬅️ Adapt text color based on theme
-                color: theme.palette.mode === "dark" ? "#ffffff" : "#1a1a1a",
+                color: theme.palette.mode === "dark" ? "#ffffff" : "#4f5455",
                 mb: 0,
+                lineHeight: 1.2, // Tighter line height
               }}
             >
               Reimbursement Tool
@@ -221,12 +222,18 @@ function Login() {
               fontWeight: 600,
               fontSize: "0.95rem",
               backgroundColor: "#0078D4",
+              color: "white", // ✅ always white text
               borderRadius: 1.5,
               transition: "all 0.2s ease",
               "&:hover": {
                 backgroundColor: "#106EBE",
                 boxShadow: "0 6px 20px rgba(0, 120, 212, 0.3)",
                 transform: "translateY(-2px)",
+                color: "white", // ✅ stays white even on hover
+              },
+              "&:disabled": {
+                backgroundColor: "#a0c4f4",
+                color: "white", // ✅ white text even when disabled
               },
             }}
           >

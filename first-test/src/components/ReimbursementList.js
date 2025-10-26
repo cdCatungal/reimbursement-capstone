@@ -209,7 +209,7 @@ function ReimbursementList() {
 
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
-      <Typography variant="h6" sx={{ fontWeight: 'medium', mb: 3 }}>
+      <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
         Pending Approvals - {user?.role}
       </Typography>
 

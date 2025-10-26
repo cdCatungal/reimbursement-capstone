@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '@mui/material/styles'; // Add this import
 import {
   Container, Box, Typography, Menu, MenuItem, IconButton, Drawer,
   ListItemButton, ListItemIcon, List, ListItemText, Avatar
@@ -20,6 +21,7 @@ import UserSettings from "./UserSettings";
 import { userUserStore } from "../store/userUserStore.js";
 
 function AdminDashboard() {
+  const theme = useTheme(); // Add this hook to get the current theme
   const { user, setIsAuthenticated, setIsAdmin, setUser, showNotification } = useAppContext();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -70,9 +72,9 @@ function AdminDashboard() {
 
   const { getUser, user: storeUser } = userUserStore();
 
-useEffect(() => {
-  getUser(); // fetches Microsoft profile info (including profilePicture)
-}, []);
+  useEffect(() => {
+    getUser(); // fetches Microsoft profile info (including profilePicture)
+  }, [getUser]);
 
   const tabs = [
     {
@@ -189,33 +191,37 @@ useEffect(() => {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <img src="/erni-logo.png" alt="ERNI Logo" style={{ height: '40px' }} />
+            {/* Conditionally render logo based on theme mode */}
+            <img 
+              src={theme.palette.mode === 'dark' ? "/erni-logo-darkmode.png" : "/erni-logo.png"} 
+              alt="ERNI Logo" 
+              style={{ height: '40px' }} 
+            />
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="h6">
-              Welcome, {firstName}
+              Welcome back, {firstName}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <ThemeToggle />
               <IconButton onClick={handleProfileClick} color="inherit" size="large">
                 <Avatar
-  src={storeUser?.profilePicture}
-  alt={storeUser?.name || storeUser?.username}
-  sx={{
-    width: 32,
-    height: 32,
-    bgcolor: "primary.main",
-    fontSize: "0.9rem",
-  }}
->
-  {!storeUser?.profilePicture &&
-    (storeUser?.name?.charAt(0).toUpperCase() ||
-      storeUser?.username?.charAt(0).toUpperCase())}
-</Avatar>
+                  src={storeUser?.profilePicture}
+                  alt={storeUser?.name || storeUser?.username}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    bgcolor: "primary.main",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {!storeUser?.profilePicture &&
+                    (storeUser?.name?.charAt(0).toUpperCase() ||
+                      storeUser?.username?.charAt(0).toUpperCase())}
+                </Avatar>
               </IconButton>
             </Box>
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleProfileClose}>
-              {/* ✅ Fixed to use handleTabChange(-1) */}
               <MenuItem
                 onClick={() => {
                   handleTabChange(-1);
@@ -235,13 +241,6 @@ useEffect(() => {
         </Box>
 
         <Box sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-              Admin Dashboard
-            </Typography>
-          </Box>
-
-          {/* ✅ Only use renderContent() - removed duplicate */}
           {renderContent()}
         </Box>
       </Box>

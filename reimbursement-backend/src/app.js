@@ -11,6 +11,7 @@ import authRoutes from "./routes/authRoutes.js";
 import reimbursementRoutes from "./routes/reimbursementRoutes.js";
 import approvalRoutes from "./routes/approvalRoutes.js";
 import userRoutes from "./routes/user.routes.js";
+import ocrRoutes from "./routes/ocrRoutes.js";
 
 dotenv.config();
 
@@ -72,6 +73,7 @@ app.use("/auth", authRoutes);
 app.use("/api/reimbursements", reimbursementRoutes);
 app.use("/api/approvals", approvalRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/ocr", ocrRoutes);
 
 // ✅ Health check
 app.get("/", (req, res) => {

@@ -50,25 +50,45 @@ function ReceiptUpload() {
   ];
 
   // Handle image selection and validation
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        showNotification('File size must be less than 5MB', 'error');
-        return;
-      }
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        showNotification('Please upload an image file', 'error');
-        return;
-      }
-      setImage(file);
-      setImagePreview(URL.createObjectURL(file));
-      setExtractedText('');
-      setErrors((prev) => ({ ...prev, image: '' }));
+const handleImageChange = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification('File size must be less than 5MB', 'error');
+      return;
     }
-  };
+    if (!file.type.startsWith('image/')) {
+      showNotification('Please upload an image file', 'error');
+      return;
+    }
+
+    setImage(file);
+    setExtractedText('');
+    setErrors((prev) => ({ ...prev, image: '' }));
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const scaleFactor = 2.5;
+        canvas.width = img.width * scaleFactor;
+        canvas.height = img.height * scaleFactor;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const processedUrl = canvas.toDataURL('image/png');
+        setImagePreview(processedUrl);
+      };
+    };
+
+    reader.readAsDataURL(file);
+  }
+};
+
+
 
   // Parse OCR-extracted text to extract relevant fields
   const parseReceiptText = (text) => {
@@ -115,46 +135,52 @@ function ReceiptUpload() {
   };
 
   // Perform OCR on the uploaded image
-  const handleOCR = async () => {
-    if (!image) {
-      showNotification('Please select an image first', 'warning');
-      return;
-    }
+  // Perform OCR using backend instead of browser
+const handleOCR = async () => {
+  if (!image) {
+    showNotification('Please select an image first', 'warning');
+    return;
+  }
 
-    setLoading(true);
-    setOcrProgress(0);
+  setLoading(true);
 
-    try {
-      const result = await Tesseract.recognize(
-        imagePreview,
-        'eng',
-        {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              setOcrProgress(Math.round(m.progress * 100));
-            }
-          },
-        }
-      );
+  try {
+    const formDataToSend = new FormData();
+    formDataToSend.append('image', image);
 
-      const text = result.data.text;
-      setExtractedText(text);
+    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/ocr/structured`, {
+      method: 'POST',
+      body: formDataToSend,
+      credentials: 'include',
+    });
 
-      const parsed = parseReceiptText(text);
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'OCR failed');
+
+    // Save both raw and structured
+    setExtractedText(data.cleanedText || data.rawText);
+
+    if (data.structured) {
       setFormData((prev) => ({
         ...prev,
-        ...parsed,
+        date: data.structured.date || prev.date,
+        total: data.structured.total || prev.total,
+        merchant: data.structured.merchant || prev.merchant,
+        items: data.structured.items || prev.items,
       }));
-
-      showNotification('Text extracted successfully! Please verify the details.', 'success');
-    } catch (error) {
-      showNotification('OCR failed. Please try again or enter manually.', 'error');
-      console.error('OCR Error:', error);
-    } finally {
-      setLoading(false);
-      setOcrProgress(0);
     }
-  };
+
+    showNotification('AI OCR extracted receipt details successfully!', 'success');
+  } catch (error) {
+    console.error(error);
+    showNotification('OCR failed. Please try again.', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   // Handle form input changes
   const handleChange = (e) => {

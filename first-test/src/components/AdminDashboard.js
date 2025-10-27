@@ -240,18 +240,13 @@ function AdminDashboard() {
 
         <Box sx={{ p: 2 }}>
           <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mb: 3,
-            }}
-          >
-            <Typography variant="h4" sx={{ fontWeight: "bold" }}>
-              Admin Dashboard
-            </Typography>
-          </Box>
-
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 3,
+                      }}
+                    ></Box>
           {renderContent()}
         </Box>
       </Box>

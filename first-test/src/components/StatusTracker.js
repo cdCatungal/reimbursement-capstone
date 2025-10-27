@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Typography, List, ListItem, ListItemText,
-  Button, Paper, Dialog, DialogTitle, DialogContent,
+  Box, Typography, Button, Paper, Dialog, DialogTitle, DialogContent,
   CircularProgress, Alert, Chip, Grid, Avatar, IconButton,
-  Stepper, Step, StepLabel, StepContent,
+  Stepper, Step, StepLabel, StepContent, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -11,6 +11,10 @@ import {
   Close as CloseIcon,
   Cancel as CancelIcon,
   Pending as PendingIcon,
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon,
+  Download as DownloadIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { useAppContext } from '../App';
 import { useTheme } from '@mui/material/styles';
@@ -22,6 +26,10 @@ function StatusTracker() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // 🆕 Receipt viewer state
+  const [receiptZoom, setReceiptZoom] = useState(1);
+  const [receiptLoading, setReceiptLoading] = useState(false);
 
   useEffect(() => {
     fetchUserReimbursements();
@@ -47,6 +55,7 @@ function StatusTracker() {
       }
       
       const data = await response.json();
+      console.log('📋 Fetched reimbursements:', data);
       setReimbursements(data);
     } catch (err) {
       setError(err.message);
@@ -59,11 +68,50 @@ function StatusTracker() {
   const handleOpenDetails = (ticket) => {
     setSelectedTicket(ticket);
     setOpenDialog(true);
+    setReceiptZoom(1); // Reset zoom
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setSelectedTicket(null);
+    setReceiptZoom(1);
+  };
+
+  // 🆕 Receipt zoom controls
+  const handleZoomIn = () => setReceiptZoom((prev) => Math.min(prev + 0.25, 3));
+  const handleZoomOut = () => setReceiptZoom((prev) => Math.max(prev - 0.25, 0.5));
+
+  // 🆕 Download receipt
+  const handleDownloadReceipt = () => {
+    if (!selectedTicket?.receipt) return;
+
+    try {
+      const { data, mimetype, filename } = selectedTicket.receipt;
+      
+      // Convert base64 to blob
+      const byteCharacters = atob(data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mimetype });
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `receipt-${selectedTicket.id}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      showNotification('Receipt downloaded successfully', 'success');
+    } catch (error) {
+      console.error('Download failed:', error);
+      showNotification('Failed to download receipt', 'error');
+    }
   };
 
   const getStatusColor = (status) => {
@@ -126,6 +174,12 @@ function StatusTracker() {
   const theme = useTheme();
   const { darkMode } = useAppContext();
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+  };
+
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
@@ -145,50 +199,75 @@ function StatusTracker() {
           </Typography>
         </Box>
       ) : (
-        <List>
-          {reimbursements.map((item) => (
-            <ListItem
-              key={item.id}
-              divider
-              sx={{ py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-            >
-              <ListItemText
-                primary={`${item.category} Reimbursement`}
-                secondary={
-                  <>
-                    <Typography component="span" variant="body2" color="text.secondary">
-                      Submitted: {new Date(item.submittedAt).toLocaleDateString()}
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold' }}>REQUEST</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>AMOUNT</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>CATEGORY</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>DATES</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>STATUS</TableCell>
+                <TableCell></TableCell> {/* Empty header for actions */}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {reimbursements.map((item) => (
+                <TableRow key={item.id} hover>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                        {item.items || `${item.category} Reimbursement`}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.description || 'No description provided'}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                      ₱{parseFloat(item.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
-                    <br />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {item.category}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2">
+                        {item.date ? formatDate(item.date) : 'N/A'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Submitted: {formatDate(item.submittedAt)}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
                     <Chip
                       label={item.status}
                       size="small"
                       color={getStatusColor(item.status)}
                       sx={{
-                        mt: 0.5,
                         fontWeight: 600,
                       }}
                     />
-                    <br />
-                    <Typography component="span" variant="body2" color="text.secondary" sx={{ mt: 0.5, display: 'inline-block' }}>
-                      Amount: ₱{parseFloat(item.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </Typography>
-                  </>
-                }
-                primaryTypographyProps={{ fontWeight: 'medium' }}
-              />
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => handleOpenDetails(item)}
-                >
-                  Track Status
-                </Button>
-              </Box>
-            </ListItem>
-          ))}
-        </List>
+                  </TableCell>
+                  <TableCell>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleOpenDetails(item)}
+                      title="See Details"
+                    >
+                      <VisibilityIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
       {/* Details Dialog */}
@@ -297,7 +376,7 @@ function StatusTracker() {
 
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                        Date:
+                        Date of Expense:
                       </Typography>
                       <Typography variant="body2">
                         {new Date(selectedTicket.date || selectedTicket.submittedAt).toLocaleDateString()}
@@ -333,28 +412,97 @@ function StatusTracker() {
                       </Box>
                     )}
 
+                    {/* 🆕 Updated Receipt Display with Base64 Support */}
                     {selectedTicket.receipt && (
                       <Box sx={{ mt: 3 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1 }}>
-                          Receipt:
-                        </Typography>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          mb: 1 
+                        }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            Receipt:
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <IconButton 
+                              size="small" 
+                              onClick={handleZoomOut} 
+                              disabled={receiptZoom <= 0.5}
+                              title="Zoom Out"
+                            >
+                              <ZoomOutIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton 
+                              size="small" 
+                              onClick={handleZoomIn} 
+                              disabled={receiptZoom >= 3}
+                              title="Zoom In"
+                            >
+                              <ZoomInIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton 
+                              size="small" 
+                              onClick={handleDownloadReceipt}
+                              title="Download Receipt"
+                            >
+                              <DownloadIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </Box>
+                        
                         <Box
-                          component="img"
-                          src={`${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`}
-                          alt="Receipt"
                           sx={{
+                            position: 'relative',
                             width: '100%',
                             maxHeight: '500px',
-                            objectFit: 'contain',
-                            borderRadius: 1,
+                            overflow: 'auto',
                             border: 1,
                             borderColor: 'divider',
-                            display: 'block'
+                            borderRadius: 1,
+                            bgcolor: darkMode ? 'grey.900' : 'grey.100',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            p: 2
                           }}
-                          onError={(e) => {
-                            console.error('Failed to load receipt:', selectedTicket.receipt);
-                          }}
-                        />
+                        >
+                          {receiptLoading && (
+                            <CircularProgress 
+                              sx={{ position: 'absolute' }} 
+                            />
+                          )}
+                          <Box
+                            component="img"
+                            src={`data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`}
+                            alt="Receipt"
+                            sx={{
+                              maxWidth: '100%',
+                              maxHeight: '480px',
+                              objectFit: 'contain',
+                              transform: `scale(${receiptZoom})`,
+                              transition: 'transform 0.2s ease-in-out',
+                              display: receiptLoading ? 'none' : 'block'
+                            }}
+                            onLoad={() => setReceiptLoading(false)}
+                            onLoadStart={() => setReceiptLoading(true)}
+                            onError={(e) => {
+                              console.error('Failed to load receipt');
+                              setReceiptLoading(false);
+                              showNotification('Failed to load receipt image', 'error');
+                            }}
+                          />
+                        </Box>
+                        
+                        {selectedTicket.receipt.filename && (
+                          <Typography 
+                            variant="caption" 
+                            color="text.secondary" 
+                            sx={{ display: 'block', mt: 1, textAlign: 'center' }}
+                          >
+                            {selectedTicket.receipt.filename}
+                          </Typography>
+                        )}
                       </Box>
                     )}
                   </Box>

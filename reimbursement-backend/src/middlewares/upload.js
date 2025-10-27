@@ -1,26 +1,12 @@
 // src/middleware/upload.js
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 
-const uploadDir = './uploads';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, Date.now() + '-' + file.fieldname + ext);
-  },
-});
+// 🆕 Use memory storage instead of disk storage
+const storage = multer.memoryStorage();
 
 export const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) {
       return cb(new Error('Only image files are allowed!'));
@@ -28,3 +14,13 @@ export const upload = multer({
     cb(null, true);
   },
 });
+
+// 🆕 Helper function to convert buffer to base64
+export function bufferToBase64(buffer) {
+  return buffer.toString('base64');
+}
+
+// 🆕 Helper function to convert base64 to buffer (for serving images)
+export function base64ToBuffer(base64String) {
+  return Buffer.from(base64String, 'base64');
+}

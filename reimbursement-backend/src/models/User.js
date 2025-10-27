@@ -25,12 +25,13 @@ const User = sequelize.define('User', {
   },
   role: {
     type: DataTypes.ENUM(
-      'Admin',           // SuperAdmin - highest level
-      'Employee',        // Regular employee
-      'SUL',            // Service Unit Leader
-      'Account Manager',
-      'Invoice Specialist',
-      'Finance Officer'
+      'Employee',           // Regular employee
+      'SUL',               // Service Unit Leader
+      'Account Manager',   // Account Manager
+      'Invoice Specialist', // Invoice Specialist
+      'Finance Officer',   // Finance Officer
+      'Sales Director',    // Sales Director (highest approval level)
+      'Admin'             // Admin (with account management)
     ),
     defaultValue: 'Employee',
   },

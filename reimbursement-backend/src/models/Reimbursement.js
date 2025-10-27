@@ -12,8 +12,25 @@ const Reimbursement = sequelize.define('Reimbursement', {
   merchant: { type: DataTypes.STRING },
   total: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
   status: { type: DataTypes.ENUM('Pending','Manager Approved','Michelle Approved','Approved','Rejected'), defaultValue: 'Pending' },
-  current_approver: { type: DataTypes.STRING }, // role string like 'Manager' / 'Michelle' / 'Grace'
-  receipt_url: { type: DataTypes.STRING }, // optional
+  current_approver: { type: DataTypes.STRING },
+  
+  // Store receipt image data directly in database
+  receipt_data: { 
+    type: DataTypes.TEXT('long'), // Use 'long' for MySQL to support LONGTEXT
+    allowNull: true,
+    comment: 'Base64 encoded image data'
+  },
+  receipt_mimetype: { 
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Image MIME type (e.g., image/jpeg, image/png)'
+  },
+  receipt_filename: { 
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Original filename'
+  },
+  
   submitted_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   approved_at: { type: DataTypes.DATE, allowNull: true }
 });

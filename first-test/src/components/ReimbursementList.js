@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Box, Typography, List, ListItem, ListItemText,
-  Button, Paper, Dialog, DialogTitle, DialogContent,
+  Box, Typography, Button, Paper, Dialog, DialogTitle, DialogContent,
   CircularProgress, Alert, TextField, InputAdornment, Select,
   MenuItem, Chip, Grid, Avatar, IconButton, DialogActions,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
 import {
   Search,
@@ -11,6 +11,10 @@ import {
   Person as PersonIcon,
   Close as CloseIcon,
   Cancel as CancelIcon,
+  Visibility as VisibilityIcon,
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useAppContext } from '../App';
@@ -28,6 +32,8 @@ function ReimbursementList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [remarks, setRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [receiptZoom, setReceiptZoom] = useState(1);
+  const [receiptLoading, setReceiptLoading] = useState(false);
   const hasFetched = useRef(false);
 
   useEffect(() => {
@@ -41,7 +47,6 @@ function ReimbursementList() {
       setLoading(true);
       setError(null);
       
-      // Fetch pending approvals for current user's role
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements/pending-approvals`, {
         method: 'GET',
         headers: {
@@ -55,6 +60,7 @@ function ReimbursementList() {
       }
       
       const data = await response.json();
+      console.log('📋 Fetched reimbursements:', data);
       setPendings(data);
       hasFetched.current = true;
     } catch (err) {
@@ -81,7 +87,6 @@ function ReimbursementList() {
         throw new Error('Failed to approve reimbursement');
       }
       
-      // Remove from pending list
       setPendings(pendings.filter(p => p.id !== id));
       showNotification('Reimbursement approved successfully', 'success');
       handleCloseDialog();
@@ -113,7 +118,6 @@ function ReimbursementList() {
         throw new Error('Failed to reject reimbursement');
       }
       
-      // Remove from pending list
       setPendings(pendings.filter(p => p.id !== id));
       showNotification('Reimbursement rejected successfully', 'success');
       handleCloseRejectDialog();
@@ -129,12 +133,14 @@ function ReimbursementList() {
     setSelectedTicket(ticket);
     setOpenDialog(true);
     setRemarks('');
+    setReceiptZoom(1);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setSelectedTicket(null);
     setRemarks('');
+    setReceiptZoom(1);
   };
 
   const handleOpenRejectDialog = () => {
@@ -144,6 +150,46 @@ function ReimbursementList() {
   const handleCloseRejectDialog = () => {
     setOpenRejectDialog(false);
     setRemarks('');
+  };
+
+  const handleZoomIn = () => setReceiptZoom((prev) => Math.min(prev + 0.25, 3));
+  const handleZoomOut = () => setReceiptZoom((prev) => Math.max(prev - 0.25, 0.5));
+
+  const handleDownloadReceipt = () => {
+    if (!selectedTicket?.receipt) return;
+
+    try {
+      let url, filename;
+      if (typeof selectedTicket.receipt === 'string') {
+        url = `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`;
+        filename = `receipt-${selectedTicket.id}.jpg`;
+      } else {
+        const { data, mimetype, filename: receiptFilename } = selectedTicket.receipt;
+        const byteCharacters = atob(data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimetype });
+        url = URL.createObjectURL(blob);
+        filename = receiptFilename || `receipt-${selectedTicket.id}.jpg`;
+      }
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+      showNotification('Receipt downloaded successfully', 'success');
+    } catch (error) {
+      console.error('Download failed:', error);
+      showNotification('Failed to download receipt', 'error');
+    }
   };
 
   const getStatusColor = (status) => {
@@ -161,7 +207,6 @@ function ReimbursementList() {
     }
   };
 
-  // Filter reimbursements based on search and filters
   const filteredData = pendings.filter((r) => {
     const matchStatus = statusFilter === 'All' || r.status === statusFilter;
     const matchCategory = categoryFilter === 'All' || r.category === categoryFilter;
@@ -175,13 +220,11 @@ function ReimbursementList() {
     return matchStatus && matchCategory && matchSearch;
   });
 
-  // Build approval flow from actual approval records
   const getApprovalFlow = (ticket) => {
     if (!ticket.approvals || ticket.approvals.length === 0) {
       return [];
     }
 
-    // Sort approvals by level (reverse for display - latest first)
     const sortedApprovals = [...ticket.approvals].sort((a, b) => b.approval_level - a.approval_level);
 
     return sortedApprovals.map((approval) => ({
@@ -194,7 +237,6 @@ function ReimbursementList() {
     }));
   };
 
-  // Check if current user can approve this ticket
   const canApprove = (ticket) => {
     if (!ticket.approvals || !user) return false;
     
@@ -207,54 +249,16 @@ function ReimbursementList() {
   const theme = useTheme();
   const { darkMode } = useAppContext();
 
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-CA');
+  };
+
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
         Pending Approvals - {user?.role}
       </Typography>
-
-      {/* Filters */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 2,
-          alignItems: 'center',
-          mb: 3,
-          flexWrap: 'wrap',
-        }}
-      >
-        <TextField
-          placeholder="Search by user, category, description..."
-          size="small"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search color="action" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ flex: 1, minWidth: 220 }}
-        />
-
-        <Select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          size="small"
-          sx={{ minWidth: 140 }}
-        >
-          {['All', 'Transportation (Commute)', 'Transportation (Drive)', 'Meal with Client', 'Overtime Meal', 'Accomodation'].map((cat) => (
-            <MenuItem key={cat} value={cat}>
-              {cat}
-            </MenuItem>
-          ))}
-        </Select>
-
-        <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
-          {filteredData.length} pending approval/s
-        </Typography>
-      </Box>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -265,53 +269,92 @@ function ReimbursementList() {
       ) : filteredData.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 4 }}>
           <Typography color="text.secondary">
-            {searchQuery || categoryFilter !== 'All'
-              ? 'No reimbursements match your filters'
-              : 'No pending approvals at this time'}
+            No pending approvals at this time
           </Typography>
         </Box>
       ) : (
-        <List>
-          {filteredData.map((item) => (
-            <ListItem
-              key={item.id}
-              divider
-              sx={{ py: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-            >
-              <ListItemText
-                primary={`${item.category} Reimbursement`}
-                secondary={
-                  <>
-                    <Typography component="span" variant="body2" color="text.secondary">
-                      Submitted by: {item.user?.name || item.userId || 'Unknown'}
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold' }}>EMPLOYEE</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>REQUEST</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>AMOUNT</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>CATEGORY</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>DATES</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>STATUS</TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredData.map((item) => (
+                <TableRow key={item.id} hover>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                        {item.user?.name || 'Unknown'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.user?.role || 'Unknown Role'}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                        {item.items || `${item.category} Reimbursement`}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.description || 'No description provided'}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                      ₱{parseFloat(item.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Typography>
-                    <br />
-                    <Typography component="span" variant="body2" color="text.secondary">
-                      Role: {item.user?.role || 'Unknown'}
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {item.category}
                     </Typography>
-                    <br />
-                    <Typography component="span" variant="body2" color="text.secondary" sx={{ mt: 0.5, display: 'inline-block' }}>
-                      Amount: ₱{parseFloat(item.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </Typography>
-                  </>
-                }
-                primaryTypographyProps={{ fontWeight: 'medium' }}
-              />
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => handleOpenDetails(item)}
-                >
-                  View Details
-                </Button>
-              </Box>
-            </ListItem>
-          ))}
-        </List>
+                  </TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2">
+                        {item.date ? formatDate(item.date) : 'N/A'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Submitted: {formatDate(item.submittedAt)}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={item.status}
+                      size="small"
+                      color={getStatusColor(item.status)}
+                      sx={{
+                        fontWeight: 600,
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleOpenDetails(item)}
+                      title="View Details"
+                    >
+                      <VisibilityIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
-      {/* Details Dialog */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -343,10 +386,9 @@ function ReimbursementList() {
         <DialogContent sx={{ p: 0 }}>
           {selectedTicket && (
             <>
-              {/* Employee Info Header */}
               <Box sx={{ p: 3, 
                 bgcolor: darkMode 
-                  ? theme.palette.background.paper  // darker surface in dark mode
+                  ? theme.palette.background.paper 
                   : theme.palette.grey[50], 
                 borderBottom: 1, 
                 borderColor: 'divider' }}>
@@ -368,9 +410,7 @@ function ReimbursementList() {
                 </Box>
               </Box>
 
-              {/* Two Column Content */}
               <Grid container spacing={3} wrap="nowrap" sx={{ p: 3 }}>
-                {/* Left Column - Details */}
                 <Grid item sx={{ width: '650px', flexShrink: 0 }}>
                   <Box sx={{ 
                     p: 3, 
@@ -418,7 +458,7 @@ function ReimbursementList() {
 
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                        Date:
+                        Date of Expense:
                       </Typography>
                       <Typography variant="body2">
                         {new Date(selectedTicket.date || selectedTicket.submittedAt).toLocaleDateString()}
@@ -427,7 +467,7 @@ function ReimbursementList() {
 
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                        Submitted At:
+                        Date Submitted:
                       </Typography>
                       <Typography variant="body2">
                         {new Date(selectedTicket.submittedAt).toLocaleString()}
@@ -437,7 +477,7 @@ function ReimbursementList() {
                     {selectedTicket.merchant && (
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                          Expense Source:
+                          Merchant:
                         </Typography>
                         <Typography variant="body2">
                           {selectedTicket.merchant}
@@ -465,32 +505,103 @@ function ReimbursementList() {
 
                     {selectedTicket.receipt && (
                       <Box sx={{ mt: 3 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 1 }}>
-                          Receipt:
-                        </Typography>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          mb: 1 
+                        }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            Receipt:
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <IconButton 
+                              size="small" 
+                              onClick={handleZoomOut} 
+                              disabled={receiptZoom <= 0.5}
+                              title="Zoom Out"
+                            >
+                              <ZoomOutIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton 
+                              size="small" 
+                              onClick={handleZoomIn} 
+                              disabled={receiptZoom >= 3}
+                              title="Zoom In"
+                            >
+                              <ZoomInIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton 
+                              size="small" 
+                              onClick={handleDownloadReceipt}
+                              title="Download Receipt"
+                            >
+                              <DownloadIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </Box>
+                        
                         <Box
-                          component="img"
-                          src={`${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`}
-                          alt="Receipt"
                           sx={{
+                            position: 'relative',
                             width: '100%',
                             maxHeight: '500px',
-                            objectFit: 'contain',
-                            borderRadius: 1,
+                            overflow: 'auto',
                             border: 1,
                             borderColor: 'divider',
-                            display: 'block'
+                            borderRadius: 1,
+                            bgcolor: darkMode ? 'grey.900' : 'grey.100',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            p: 2
                           }}
-                          onError={(e) => {
-                            console.error('Failed to load receipt:', selectedTicket.receipt);
-                          }}
-                        />
+                        >
+                          {receiptLoading && (
+                            <CircularProgress 
+                              sx={{ position: 'absolute' }} 
+                            />
+                          )}
+                          <Box
+                            component="img"
+                            src={
+                              typeof selectedTicket.receipt === 'string'
+                                ? `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`
+                                : `data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`
+                            }
+                            alt="Receipt"
+                            sx={{
+                              maxWidth: '100%',
+                              maxHeight: '480px',
+                              objectFit: 'contain',
+                              transform: `scale(${receiptZoom})`,
+                              transition: 'transform 0.2s ease-in-out',
+                              display: receiptLoading ? 'none' : 'block'
+                            }}
+                            onLoad={() => setReceiptLoading(false)}
+                            onLoadStart={() => setReceiptLoading(true)}
+                            onError={(e) => {
+                              console.error('Failed to load receipt:', selectedTicket.receipt);
+                              setReceiptLoading(false);
+                              showNotification('Failed to load receipt image', 'error');
+                            }}
+                          />
+                        </Box>
+                        
+                        {selectedTicket.receipt.filename && (
+                          <Typography 
+                            variant="caption" 
+                            color="text.secondary" 
+                            sx={{ display: 'block', mt: 1, textAlign: 'center' }}
+                          >
+                            {selectedTicket.receipt.filename}
+                          </Typography>
+                        )}
                       </Box>
                     )}
                   </Box>
                 </Grid>
 
-                {/* Right Column - Approval Status */}
                 <Grid item sx={{ width: '450px', flexShrink: 0 }}>
                   <Box sx={{ 
                     p: 3, 
@@ -504,7 +615,6 @@ function ReimbursementList() {
                       Approval Progress
                     </Typography>
 
-                    {/* Approval Flow Timeline */}
                     <Box sx={{ position: 'relative', mb: 3 }}>
                       {getApprovalFlow(selectedTicket).map((step, index) => (
                         <Box
@@ -521,7 +631,7 @@ function ReimbursementList() {
                               bottom: '-24px',
                               width: '2px',
                               bgcolor: step.status === 'Pending' ? 'grey.300' : 
-                                       step.status === 'Rejected' ? 'error.main' : 'success.main'
+                                      step.status === 'Rejected' ? 'error.main' : 'success.main'
                             }
                           }}
                         >
@@ -584,7 +694,6 @@ function ReimbursementList() {
                       ))}
                     </Box>
 
-                    {/* Action Buttons - Only show if user can approve */}
                     {canApprove(selectedTicket) && (
                       <Box sx={{ mt: 3, pt: 3, borderTop: 1, borderColor: 'divider' }}>
                         <Typography variant="body2" sx={{ mb: 2, fontWeight: 600 }}>
@@ -630,7 +739,6 @@ function ReimbursementList() {
         </DialogContent>
       </Dialog>
 
-      {/* Reject Confirmation Dialog */}
       <Dialog open={openRejectDialog} onClose={handleCloseRejectDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Confirm Rejection</DialogTitle>
         <DialogContent>

@@ -25,7 +25,7 @@ import {
 
 function ReceiptUpload() {
   const theme = useTheme();
-  const { showNotification, user } = useAppContext(); // ⬅️ Add user from context
+  const { showNotification, user } = useAppContext();
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [extractedText, setExtractedText] = useState('');
@@ -41,7 +41,6 @@ function ReceiptUpload() {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [errors, setErrors] = useState({});
 
-  // Categories for the dropdown
   const categories = [
     'Transportation (Commute)',
     'Transportation (Drive)',
@@ -51,16 +50,13 @@ function ReceiptUpload() {
     'Other',
   ];
 
-  // Handle image selection and validation
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
         showNotification('File size must be less than 5MB', 'error');
         return;
       }
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         showNotification('Please upload an image file', 'error');
         return;
@@ -72,11 +68,9 @@ function ReceiptUpload() {
     }
   };
 
-  // Parse OCR-extracted text to extract relevant fields
   const parseReceiptText = (text) => {
     const lines = text.split('\n').filter(line => line.trim());
 
-    // Extract total using multiple patterns
     const totalPatterns = [
       /total[:\s]*₱?\s*(\d+\.?\d*)/i,
       /amount[:\s]*₱?\s*(\d+\.?\d*)/i,
@@ -92,7 +86,6 @@ function ReceiptUpload() {
       }
     }
 
-    // Extract date
     const datePattern = /(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/;
     const dateMatch = text.match(datePattern);
     let date = formData.date;
@@ -107,16 +100,12 @@ function ReceiptUpload() {
       }
     }
 
-    // Extract merchant (first non-empty line as fallback)
     const merchant = lines[0] || '';
-
-    // Extract items (join non-empty lines after merchant)
     const items = lines.slice(1).filter(line => !totalPatterns.some(p => p.test(line))).join('\n');
 
     return { total, date, merchant, items };
   };
 
-  // Perform OCR on the uploaded image
   const handleOCR = async () => {
     if (!image) {
       showNotification('Please select an image first', 'warning');
@@ -158,7 +147,6 @@ function ReceiptUpload() {
     }
   };
 
-  // Handle form input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -167,9 +155,24 @@ function ReceiptUpload() {
     }
   };
 
-  // Validate form before submission
+  const validateDate = (dateString) => {
+  const selectedDate = new Date(dateString);
+  const today = new Date();
+  today.setHours(23, 59, 59, 999); // End of today
+  
+  if (selectedDate > today) {
+    return 'Date cannot be in the future';
+  }
+  return'';
+};
+
   const validateForm = () => {
     const newErrors = {};
+  
+    // Date validation
+  const dateError = validateDate(formData.date);
+  if (dateError) newErrors.date = dateError;
+
     if (!formData.date) newErrors.date = 'Date is required';
     if (!formData.total || parseFloat(formData.total) <= 0) {
       newErrors.total = 'Valid total amount is required';
@@ -182,68 +185,62 @@ function ReceiptUpload() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Submit reimbursement request
   const handleSubmit = async () => {
-  if (!validateForm()) {
-    showNotification('Please fill in all required fields', 'error');
-    return;
-  }
+    if (!validateForm()) {
+      showNotification('Please fill in all required fields', 'error');
+      return;
+    }
 
-  if (!user) {
-    showNotification('Please log in first', 'error');
-    return;
-  }
+    if (!user) {
+      showNotification('Please log in first', 'error');
+      return;
+    }
 
-  const formDataToSend = new FormData();
+     const formDataToSend = new FormData();
   formDataToSend.append('category', formData.category);
   formDataToSend.append('type', formData.category);
-  
-  // 🔄 Swap logic:
-  formDataToSend.append('description', formData.items);   // ⬅️ send Description field content here
-  formDataToSend.append('items', formData.description);   // ⬅️ send Purpose field content here
-  
+  formDataToSend.append('description', formData.description); // Fixed: use description for description
+  formDataToSend.append('items', formData.items); // Fixed: use items for items
   formDataToSend.append('total', parseFloat(formData.total));
-  formDataToSend.append('merchant', formData.merchant);   // ⬅️ ADDED: Merchant was missing!
-  formDataToSend.append('date', formData.date);           // ⬅️ Also adding date for completeness
+  formDataToSend.append('merchant', formData.merchant);
+  formDataToSend.append('date_of_expense', formData.date); // ✅ Changed from 'date' to 'date_of_expense'
   
   if (image) formDataToSend.append('receipt', image);
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: formDataToSend,
+        credentials: 'include',
+      });
 
-  try {
-    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${user.token}`,
-      },
-      body: formDataToSend,
-      credentials: 'include',
-    });
+      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+      const data = await res.json();
 
-    if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-    const data = await res.json();
+      showNotification('Reimbursement submitted successfully!', 'success');
+      console.log('Created reimbursement:', data);
 
-    showNotification('Reimbursement submitted successfully!', 'success');
-    console.log('Created reimbursement:', data);
+      // Reset fields
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        items: '',
+        total: '',
+        description: '',
+        category: 'Meal with Client',
+        merchant: '',
+      });
+      setImage(null);
+      setImagePreview(null);
+      setExtractedText('');
+      setErrors({});
+    } catch (err) {
+      console.error('Error submitting reimbursement:', err);
+      showNotification('Failed to submit reimbursement', 'error');
+    }
+  };
 
-    // ✅ Reset fields
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      items: '',
-      total: '',
-      description: '',
-      category: 'Meal with Client', // Fixed: was 'Transportation (Drive)' but your initial state uses 'Meal with Client'
-      merchant: '',
-    });
-    setImage(null);
-    setImagePreview(null);
-    setExtractedText('');
-    setErrors({});
-  } catch (err) {
-    console.error('Error submitting reimbursement:', err);
-    showNotification('Failed to submit reimbursement', 'error');
-  }
-};
-
-  // Clear uploaded image
   const handleClearImage = () => {
     setImage(null);
     setImagePreview(null);
@@ -344,6 +341,9 @@ function ReceiptUpload() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Supported formats: JPG, PNG, JPEG (Max 5MB)
+                  </Typography>
+                  <Typography variant="caption" color="primary" sx={{ mt: 1, display: 'block' }}>
+                    📌 Images are stored securely in the database
                   </Typography>
                 </label>
               )}
@@ -471,7 +471,7 @@ function ReceiptUpload() {
                   bgcolor: '#2e7d32',
                   color: '#fafafa',
                   '&:hover': {
-                    bgcolor: '#1b5e20', // Darker green on hover
+                    bgcolor: '#1b5e20',
                   },
                   '&:disabled': {
                     bgcolor: 'action.disabledBackground',

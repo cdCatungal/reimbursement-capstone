@@ -2,6 +2,7 @@
 import { Reimbursement, User, Approval } from "../models/index.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { getApprovalFlow, getNextApprover } from "../utils/approvalFlow.js";
+import { bufferToBase64 } from "../middlewares/upload.js";
 
 // 📤 Create new reimbursement with all approval records
 export async function createReimbursement(req, res) {
@@ -29,19 +30,32 @@ export async function createReimbursement(req, res) {
 
     const firstApprover = approvalFlow[0];
 
-    // ✅ Create the reimbursement
+    // 🆕 Process receipt image from memory buffer
+    let receiptData = null;
+    let receiptMimetype = null;
+    let receiptFilename = null;
+
+    if (req.file) {
+      receiptData = bufferToBase64(req.file.buffer);
+      receiptMimetype = req.file.mimetype;
+      receiptFilename = req.file.originalname;
+      console.log(`📸 Receipt uploaded: ${receiptFilename} (${receiptMimetype}), Size: ${req.file.size} bytes`);
+    }
+
+    // ✅ Create the reimbursement with base64 image data
     const reimbursement = await Reimbursement.create({
       user_id: user.id,
       category: payload.category,
-      type: payload.type || payload.merchant || payload.category, // merchant or category as type
-      description: payload.description, // purpose/description
-      items: payload.items, // items if provided, else description
+      type: payload.type || payload.merchant || payload.category,
+      description: payload.description,
+      items: payload.items,
       merchant: payload.merchant,
-      date: payload.date || new Date(),
       total: payload.total,
       status: "Pending",
       current_approver: firstApprover,
-      receipt_url: req.file ? `/uploads/${req.file.filename}` : null,
+      receipt_data: receiptData,
+      receipt_mimetype: receiptMimetype,
+      receipt_filename: receiptFilename,
       submitted_at: new Date(),
     });
 
@@ -50,7 +64,7 @@ export async function createReimbursement(req, res) {
     // ✅ Create all approval records upfront (one for each level)
     const approvalRecords = approvalFlow.map((role, index) => ({
       reimbursement_id: reimbursement.id,
-      approver_id: null,  // Will be set when they actually approve
+      approver_id: null,
       approver_role: role,
       approval_level: index + 1,
       status: 'Pending',
@@ -142,10 +156,17 @@ export async function getUserReimbursements(req, res) {
       total: r.total,
       status: r.status,
       currentApprover: r.current_approver,
-      receipt: r.receipt_url,
+      
+      // 🆕 Include receipt data for client-side display
+      receipt: r.receipt_data ? {
+        data: r.receipt_data,
+        mimetype: r.receipt_mimetype,
+        filename: r.receipt_filename
+      } : null,
+      
       submittedAt: r.submitted_at || r.createdAt,
       approvedAt: r.approved_at,
-      merchant: r.merchant,  // ✅ CORRECT - use the actual merchant field
+      merchant: r.merchant,
       items: r.items,
       extractedText: null,
       approvals: r.approvals || []
@@ -168,7 +189,6 @@ export async function getPendingApprovals(req, res) {
 
     console.log("🔍 Fetching pending approvals for role:", user.role);
 
-    // ✅ Find reimbursements where current_approver matches user's role
     const reimbursements = await Reimbursement.findAll({
       where: {
         current_approver: user.role,
@@ -212,7 +232,14 @@ export async function getPendingApprovals(req, res) {
       total: r.total,
       status: r.status,
       currentApprover: r.current_approver,
-      receipt: r.receipt_url,
+      
+      // 🆕 Include receipt data
+      receipt: r.receipt_data ? {
+        data: r.receipt_data,
+        mimetype: r.receipt_mimetype,
+        filename: r.receipt_filename
+      } : null,
+      
       date: r.createdAt,
       submittedAt: r.submitted_at || r.createdAt,
       merchant: r.merchant,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from '@mui/material/styles'; // Add this import
+import { useTheme } from '@mui/material/styles';
 import {
   Container, Box, Typography, Menu, MenuItem, IconButton, Drawer,
   ListItemButton, ListItemIcon, List, ListItemText, Avatar
@@ -21,7 +21,7 @@ import UserSettings from "./UserSettings";
 import { userUserStore } from "../store/userUserStore.js";
 
 function AdminDashboard() {
-  const theme = useTheme(); // Add this hook to get the current theme
+  const theme = useTheme();
   const { user, setIsAuthenticated, setIsAdmin, setUser, showNotification } = useAppContext();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -73,8 +73,8 @@ function AdminDashboard() {
   const { getUser, user: storeUser } = userUserStore();
 
   useEffect(() => {
-    getUser(); // fetches Microsoft profile info (including profilePicture)
-  }, [getUser]);
+    getUser();
+  }, []);
 
   const tabs = [
     {
@@ -102,7 +102,6 @@ function AdminDashboard() {
 
   const firstName = user?.username?.split(' ')[0] || user?.username || 'Admin';
 
-  // ✅ Updated to handle -1 for settings
   const renderContent = () => {
     if (tabValue === -1) {
       return settingsTab.component;
@@ -191,7 +190,6 @@ function AdminDashboard() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            {/* Conditionally render logo based on theme mode */}
             <img 
               src={theme.palette.mode === 'dark' ? "/erni-logo-darkmode.png" : "/erni-logo.png"} 
               alt="ERNI Logo" 
@@ -200,7 +198,7 @@ function AdminDashboard() {
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="h6">
-              Welcome back, {firstName}
+              Welcome, {firstName}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <ThemeToggle />
@@ -241,6 +239,19 @@ function AdminDashboard() {
         </Box>
 
         <Box sx={{ p: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 3,
+            }}
+          >
+            <Typography variant="h4" sx={{ fontWeight: "bold" }}>
+              Admin Dashboard
+            </Typography>
+          </Box>
+
           {renderContent()}
         </Box>
       </Box>

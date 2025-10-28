@@ -51,12 +51,12 @@ function StatusTracker() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 🆕 Search and filter states
+  // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
 
-  // 🆕 Receipt viewer state
+  // Receipt viewer state
   const [receiptZoom, setReceiptZoom] = useState(1);
   const [receiptLoading, setReceiptLoading] = useState(false);
 
@@ -64,9 +64,10 @@ function StatusTracker() {
     fetchUserReimbursements();
   }, [user]);
 
-  // useEffect(() => {
-  //   applyFilters();
-  // }, [reimbursements, searchTerm, statusFilter, categoryFilter]);
+  // Apply all filters whenever any filter changes
+  useEffect(() => {
+    applyAllFilters();
+  }, [reimbursements, searchTerm, statusFilter, categoryFilter]);
 
   const fetchUserReimbursements = async () => {
     if (!user) return;
@@ -93,7 +94,6 @@ function StatusTracker() {
       const data = await response.json();
       console.log("📋 Fetched reimbursements:", data);
       setReimbursements(data);
-      setFilteredReimbursements(data);
     } catch (err) {
       setError(err.message);
       showNotification("Failed to load reimbursements", "error");
@@ -102,59 +102,60 @@ function StatusTracker() {
     }
   };
 
-  const handleSearch = (searchValue) => {
-    setSearchTerm(searchValue);
+  // Enhanced filter logic that combines all filters
+  const applyAllFilters = () => {
     let filtered = [...reimbursements];
-    if (searchValue) {
+
+    // Apply status filter first
+    if (statusFilter !== "All Status") {
+      filtered = filtered.filter((item) => item.status === statusFilter);
+    }
+
+    // Apply category filter second
+    if (categoryFilter !== "All Categories") {
+      filtered = filtered.filter((item) => item.category === categoryFilter);
+    }
+
+    // Apply search filter last (most specific)
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (item) =>
-          (item.items && item.items.toLowerCase().includes(searchValue)) ||
-          (item.description &&
-            item.description.toLowerCase().includes(searchValue)) ||
-          (item.category &&
-            item.category.toLowerCase().includes(searchValue)) ||
-          (item.merchant &&
-            item.merchant.toLowerCase().includes(searchValue)) ||
+          (item.items && item.items.toLowerCase().includes(term)) ||
+          (item.description && item.description.toLowerCase().includes(term)) ||
+          (item.category && item.category.toLowerCase().includes(term)) ||
+          (item.merchant && item.merchant.toLowerCase().includes(term)) ||
           (item.submittedAt &&
             new Date(item.submittedAt)
-              .toLocaleDateString("en-CA") // YYYY-MM-DD format
+              .toLocaleDateString("en-CA")
               .toLowerCase()
-              .includes(searchValue)) ||
-          (item.status && item.status.toLowerCase().includes(searchValue))
+              .includes(term)) ||
+          (item.status && item.status.toLowerCase().includes(term))
       );
     }
+
     setFilteredReimbursements(filtered);
-    getUniqueStatuses();
-    getUniqueCategories();
   };
 
-  const handleStatusfilter = (searchValue) => {
+  const handleSearch = (searchValue) => {
+    setSearchTerm(searchValue);
+    // Filters will be applied automatically by useEffect
+  };
+
+  const handleStatusFilter = (searchValue) => {
     setStatusFilter(searchValue);
-
-    let filtered = [...reimbursements];
-
+    // Clear search when changing status filter for better UX
     if (searchValue !== "All Status") {
-      filtered = filtered.filter((item) => item.status === searchValue);
-    } else {
-      filtered = [...reimbursements];
+      setSearchTerm("");
     }
-
-    setFilteredReimbursements(filtered);
-    getUniqueCategories();
-    setSearchTerm("");
   };
 
-  const handleCategoriesFilter = (searchValue) => {
+  const handleCategoryFilter = (searchValue) => {
     setCategoryFilter(searchValue);
-    let filtered = [...reimbursements];
+    // Clear search when changing category filter for better UX
     if (searchValue !== "All Categories") {
-      filtered = filtered.filter((item) => item.category === searchValue);
-    } else {
-      filtered = [...reimbursements];
+      setSearchTerm("");
     }
-    setFilteredReimbursements(filtered);
-    getUniqueStatuses();
-    setSearchTerm("");
   };
 
   const getUniqueStatuses = () => {
@@ -162,16 +163,24 @@ function StatusTracker() {
   };
 
   const getUniqueCategories = () => {
-    const categories = [
-      ...new Set(reimbursements.map((item) => item.category)),
+    // const categories = [
+    //   ...new Set(reimbursements.map((item) => item.category)),
+    // ];
+    // return ["All Categories", ...categories];
+    return [
+      "All Categories",
+      "Transportation (Commute)",
+      "Transportation (Drive)",
+      "Meal with Client",
+      "OverTime Meal",
+      "Accomodation",
     ];
-    return ["All Categories", ...categories];
   };
 
   const handleOpenDetails = (ticket) => {
     setSelectedTicket(ticket);
     setOpenDialog(true);
-    setReceiptZoom(1); // Reset zoom
+    setReceiptZoom(1);
   };
 
   const handleCloseDialog = () => {
@@ -180,12 +189,12 @@ function StatusTracker() {
     setReceiptZoom(1);
   };
 
-  // 🆕 Receipt zoom controls
+  // Receipt zoom controls
   const handleZoomIn = () => setReceiptZoom((prev) => Math.min(prev + 0.25, 3));
   const handleZoomOut = () =>
     setReceiptZoom((prev) => Math.max(prev - 0.25, 0.5));
 
-  // 🆕 Download receipt
+  // Download receipt
   const handleDownloadReceipt = () => {
     if (!selectedTicket?.receipt) return;
 
@@ -289,7 +298,7 @@ function StatusTracker() {
   // Format date for display
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-CA"); // YYYY-MM-DD format
+    return date.toLocaleDateString("en-CA");
   };
 
   return (
@@ -298,7 +307,7 @@ function StatusTracker() {
         My Reimbursement Requests
       </Typography>
 
-      {/* 🆕 Search and Filter Section */}
+      {/* Search and Filter Section */}
       <Box
         sx={{
           mb: 3,
@@ -331,7 +340,7 @@ function StatusTracker() {
         <TextField
           select
           value={statusFilter}
-          onChange={(e) => handleStatusfilter(e.target.value)}
+          onChange={(e) => handleStatusFilter(e.target.value)}
           sx={{
             minWidth: 150,
             "& .MuiOutlinedInput-root": {
@@ -350,7 +359,7 @@ function StatusTracker() {
         <TextField
           select
           value={categoryFilter}
-          onChange={(e) => handleCategoriesFilter(e.target.value)}
+          onChange={(e) => handleCategoryFilter(e.target.value)}
           sx={{
             minWidth: 180,
             "& .MuiOutlinedInput-root": {
@@ -366,7 +375,7 @@ function StatusTracker() {
           ))}
         </TextField>
 
-        {/* 🆕 Results count */}
+        {/* Results count */}
         <Typography variant="body2" color="text.secondary" sx={{ ml: "auto" }}>
           {filteredReimbursements.length} requests found
         </Typography>
@@ -381,10 +390,9 @@ function StatusTracker() {
       ) : filteredReimbursements.length === 0 ? (
         <Box sx={{ textAlign: "center", py: 4 }}>
           <Typography color="text.secondary">
-            No reimbursement requests found
-            {/* {reimbursements.length === 0
+            {reimbursements.length === 0
               ? "No reimbursement requests found"
-              : "No requests match your search criteria"} */}
+              : "No requests match your search criteria"}
           </Typography>
         </Box>
       ) : (
@@ -397,7 +405,7 @@ function StatusTracker() {
                 <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>DATES</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
-                <TableCell></TableCell> {/* Empty header for actions */}
+                <TableCell></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -463,7 +471,7 @@ function StatusTracker() {
         </TableContainer>
       )}
 
-      {/* Details Dialog */}
+      {/* Details Dialog - Rest of your existing dialog code remains the same */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -658,7 +666,7 @@ function StatusTracker() {
                       </Box>
                     )}
 
-                    {/* 🆕 Updated Receipt Display with Base64 Support */}
+                    {/* Updated Receipt Display with Base64 Support */}
                     {selectedTicket.receipt && (
                       <Box sx={{ mt: 3 }}>
                         <Box

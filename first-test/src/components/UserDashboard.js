@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from '@mui/material';
 import { useNavigate } from "react-router-dom";
+import MonthlyStats from "./MonthlyStats";
 import {
   Container,
   Box,
@@ -154,6 +155,13 @@ useEffect(() => {
             </ListItemButton>
           ))}
         </List>
+
+        {drawerOpen && (
+          <Box sx={{ mt: 'auto' }}>
+            <MonthlyStats />
+          </Box>
+        )}
+
       </Drawer>
 
       <Box

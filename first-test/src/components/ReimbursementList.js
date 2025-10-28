@@ -63,9 +63,9 @@ function ReimbursementList() {
     fetchReimbursements();
   }, [user]);
 
-  // Apply filters when data or filters change
+  // Apply all filters whenever any filter changes
   useEffect(() => {
-    applyFilters();
+    applyAllFilters();
   }, [pendings, searchTerm, statusFilter, categoryFilter]);
 
   const fetchReimbursements = async () => {
@@ -93,7 +93,6 @@ function ReimbursementList() {
       const data = await response.json();
       console.log("📋 Fetched reimbursements:", data);
       setPendings(data);
-      setFilteredPendings(data);
       hasFetched.current = true;
     } catch (err) {
       setError(err.message);
@@ -103,12 +102,22 @@ function ReimbursementList() {
     }
   };
 
-  // Apply search and filters
-  const applyFilters = () => {
+  // Enhanced filter logic that combines all filters
+  const applyAllFilters = () => {
     let filtered = [...pendings];
 
-    // Apply search filter
-    if (searchTerm) {
+    // Apply status filter first
+    if (statusFilter !== "All Status") {
+      filtered = filtered.filter((item) => item.status === statusFilter);
+    }
+
+    // Apply category filter second
+    if (categoryFilter !== "All Categories") {
+      filtered = filtered.filter((item) => item.category === categoryFilter);
+    }
+
+    // Apply search filter last (most specific)
+    if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (item) =>
@@ -127,16 +136,6 @@ function ReimbursementList() {
       );
     }
 
-    // Apply status filter
-    if (statusFilter !== "All Status") {
-      filtered = filtered.filter((item) => item.status === statusFilter);
-    }
-
-    // Apply category filter
-    if (categoryFilter !== "All Categories") {
-      filtered = filtered.filter((item) => item.category === categoryFilter);
-    }
-
     setFilteredPendings(filtered);
   };
 
@@ -148,22 +147,38 @@ function ReimbursementList() {
   // Status filter handler
   const handleStatusFilter = (searchValue) => {
     setStatusFilter(searchValue);
+    // Clear search when changing status filter for better UX
+    if (searchValue !== "All Status") {
+      setSearchTerm("");
+    }
   };
 
   // Category filter handler
   const handleCategoryFilter = (searchValue) => {
     setCategoryFilter(searchValue);
+    // Clear search when changing category filter for better UX
+    if (searchValue !== "All Categories") {
+      setSearchTerm("");
+    }
   };
 
   // Get unique statuses
   const getUniqueStatuses = () => {
-    return ["All Status", "Pending", "Approved", "Rejected"];
+    return ["All Status", "Pending", "Approved", "Rejected", "Validated"];
   };
 
   // Get unique categories
   const getUniqueCategories = () => {
-    const categories = [...new Set(pendings.map((item) => item.category))];
-    return ["All Categories", ...categories];
+    // const categories = [...new Set(pendings.map((item) => item.category))];
+    // return ["All Categories", ...categories];
+    return [
+      "All Categories",
+      "Transportation (Commute)",
+      "Transportation (Drive)",
+      "Meal with Client",
+      "OverTime Meal",
+      "Accomodation",
+    ];
   };
 
   const handleApprove = async (id, remarksText = "") => {

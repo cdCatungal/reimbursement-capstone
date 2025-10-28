@@ -43,13 +43,14 @@ function Login() {
             });
             setIsAuthenticated(true);
             setIsAdmin(
-            ["Admin", "SUL", "Account Manager", "Invoice Specialist", "Finance Officer"].includes(data.user.role)
+            ["Admin", "SUL", "Account Manager", "Invoice Specialist", "Sales Director", "Finance Officer"].includes(data.user.role)
               );
 
             if (data.user.role === "Admin"|| 
                 data.user.role === "SUL" || 
                 data.user.role === "Account Manager" || 
                 data.user.role === "Invoice Specialist" || 
+                data.user.role === "Sales Director" ||
                 data.user.role === "Finance Officer") {
               navigate("/admin");
             } else {

@@ -4,7 +4,6 @@ import { useAppContext } from '../App';
 
 function MonthlyStats() {
   const [stats, setStats] = useState({
-    submitted: 0,
     approved: 0,
     pending: 0,
     rejected: 0,
@@ -85,14 +84,6 @@ function MonthlyStats() {
       </Box>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Submitted
-          </Typography>
-          <Typography variant="body1" sx={{ fontWeight: 600 }}>
-            {stats.submitted}
-          </Typography>
-        </Box>
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>

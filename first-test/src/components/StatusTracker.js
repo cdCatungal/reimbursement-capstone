@@ -41,6 +41,7 @@ import {
 } from "@mui/icons-material";
 import { useAppContext } from "../App";
 import { useTheme } from "@mui/material/styles";
+import { userUserStore } from "../store/userUserStore";
 
 function StatusTracker() {
   const { user, showNotification } = useAppContext();
@@ -60,6 +61,13 @@ function StatusTracker() {
   const [receiptZoom, setReceiptZoom] = useState(1);
   const [receiptLoading, setReceiptLoading] = useState(false);
 
+  const { getUser, user: UserData } = userUserStore();
+
+  useEffect(() => {
+    getUser();
+  }, []);
+
+  console.log("Data Data: ", UserData);
   useEffect(() => {
     fetchUserReimbursements();
   }, [user]);
@@ -522,10 +530,20 @@ function StatusTracker() {
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                    <Avatar
+                    {/* <Avatar
                       sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
                     >
                       <PersonIcon sx={{ fontSize: 32 }} />
+                    </Avatar> */}
+
+                    <Avatar
+                      src={UserData?.profilePicture}
+                      alt={UserData?.name || UserData?.username}
+                      sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
+                    >
+                      {!UserData?.profilePicture &&
+                        (UserData?.name?.charAt(0).toUpperCase() ||
+                          UserData?.username?.charAt(0).toUpperCase())}
                     </Avatar>
                     <Box>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>

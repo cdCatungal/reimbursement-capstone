@@ -91,7 +91,6 @@ function ReimbursementList() {
       }
 
       const data = await response.json();
-      console.log("📋 Fetched reimbursements:", data);
       setPendings(data);
       hasFetched.current = true;
     } catch (err) {
@@ -596,14 +595,26 @@ function ReimbursementList() {
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Avatar
+                  {/* <Avatar
                     sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
                   >
                     <PersonIcon sx={{ fontSize: 32 }} />
+                  </Avatar> */}
+
+                  <Avatar
+                    src={selectedTicket.user?.profile_picture}
+                    alt={
+                      selectedTicket.user?.name || selectedTicket.user?.username
+                    }
+                    sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
+                  >
+                    {!selectedTicket.user?.profile_picture &&
+                      (selectedTicket.user?.name?.charAt(0).toUpperCase() ||
+                        selectedTicket.user?.username?.charAt(0).toUpperCase())}
                   </Avatar>
                   <Box>
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      Employee: {selectedTicket.user?.name || "N/A"}
+                      {selectedTicket.user?.name || "N/A"}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Role: {selectedTicket.user?.role || "N/A"}

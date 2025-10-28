@@ -18,11 +18,11 @@ export async function createReimbursement(req, res) {
 
     // ✅ Get the full approval flow for this user's role
     const approvalFlow = getApprovalFlow(user.role);
-    
+
     if (!approvalFlow || approvalFlow.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "No approval flow defined for your role",
-        role: user.role 
+        role: user.role,
       });
     }
 
@@ -39,7 +39,9 @@ export async function createReimbursement(req, res) {
       receiptData = bufferToBase64(req.file.buffer);
       receiptMimetype = req.file.mimetype;
       receiptFilename = req.file.originalname;
-      console.log(`📸 Receipt uploaded: ${receiptFilename} (${receiptMimetype}), Size: ${req.file.size} bytes`);
+      console.log(
+        `📸 Receipt uploaded: ${receiptFilename} (${receiptMimetype}), Size: ${req.file.size} bytes`
+      );
     }
 
     // ✅ Create the reimbursement with base64 image data
@@ -67,9 +69,9 @@ export async function createReimbursement(req, res) {
       approver_id: null,
       approver_role: role,
       approval_level: index + 1,
-      status: 'Pending',
+      status: "Pending",
       remarks: null,
-      approved_at: null
+      approved_at: null,
     }));
 
     await Approval.bulkCreate(approvalRecords);
@@ -81,7 +83,9 @@ export async function createReimbursement(req, res) {
     });
 
     if (approverUser) {
-      console.log(`📧 Would notify ${approverUser.name} (${approverUser.email})`);
+      console.log(
+        `📧 Would notify ${approverUser.name} (${approverUser.email})`
+      );
       /*
       await sendEmail(
         approverUser.email,
@@ -119,7 +123,7 @@ export async function getUserReimbursements(req, res) {
         {
           model: User,
           as: "user",
-          attributes: ["id", "name", "email", "role"],
+          attributes: ["id", "name", "email", "role", "profile_picture"],
         },
         {
           model: Approval,
@@ -128,11 +132,11 @@ export async function getUserReimbursements(req, res) {
             {
               model: User,
               as: "approver",
-              attributes: ["id", "name", "email", "role"],
-            }
+              attributes: ["id", "name", "email", "role", "profile_picture"],
+            },
           ],
-          order: [['approval_level', 'ASC']]
-        }
+          order: [["approval_level", "ASC"]],
+        },
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -148,6 +152,7 @@ export async function getUserReimbursements(req, res) {
             name: r.user.name,
             email: r.user.email,
             role: r.user.role,
+            profile_picture: r.user?.dataValues?.profile_picture,
           }
         : null,
       category: r.category,
@@ -156,20 +161,22 @@ export async function getUserReimbursements(req, res) {
       total: r.total,
       status: r.status,
       currentApprover: r.current_approver,
-      
+
       // 🆕 Include receipt data for client-side display
-      receipt: r.receipt_data ? {
-        data: r.receipt_data,
-        mimetype: r.receipt_mimetype,
-        filename: r.receipt_filename
-      } : null,
-      
+      receipt: r.receipt_data
+        ? {
+            data: r.receipt_data,
+            mimetype: r.receipt_mimetype,
+            filename: r.receipt_filename,
+          }
+        : null,
+
       submittedAt: r.submitted_at || r.createdAt,
       approvedAt: r.approved_at,
       merchant: r.merchant,
       items: r.items,
       extractedText: null,
-      approvals: r.approvals || []
+      approvals: r.approvals || [],
     }));
 
     res.json(formattedReimbursements);
@@ -198,7 +205,7 @@ export async function getPendingApprovals(req, res) {
         {
           model: User,
           as: "user",
-          attributes: ["id", "name", "email", "role"],
+          attributes: ["id", "name", "email", "role", "profile_picture"],
         },
         {
           model: Approval,
@@ -207,47 +214,53 @@ export async function getPendingApprovals(req, res) {
             {
               model: User,
               as: "approver",
-              attributes: ["id", "name", "email", "role"],
-            }
-          ]
-        }
+              attributes: ["id", "name", "email", "role", "profile_picture"],
+            },
+          ],
+        },
       ],
       order: [["createdAt", "DESC"]],
     });
 
     console.log(`✅ Found ${reimbursements.length} pending approvals`);
 
+    console.log("First user data:", reimbursements[0].user);
+
     const formatted = reimbursements.map((r) => ({
       id: r.id,
       userId: r.user_id,
-      user: r.user ? {
-        id: r.user.id,
-        name: r.user.name,
-        email: r.user.email,
-        role: r.user.role
-      } : null,
+      user: r.user
+        ? {
+            id: r.user.id,
+            name: r.user.name,
+            email: r.user.email,
+            role: r.user.role,
+            profile_picture: r.user?.dataValues?.profile_picture,
+          }
+        : null,
       category: r.category,
       type: r.type,
       description: r.description,
       total: r.total,
       status: r.status,
       currentApprover: r.current_approver,
-      
+
       // 🆕 Include receipt data
-      receipt: r.receipt_data ? {
-        data: r.receipt_data,
-        mimetype: r.receipt_mimetype,
-        filename: r.receipt_filename
-      } : null,
-      
+      receipt: r.receipt_data
+        ? {
+            data: r.receipt_data,
+            mimetype: r.receipt_mimetype,
+            filename: r.receipt_filename,
+          }
+        : null,
+
       date: r.createdAt,
       submittedAt: r.submitted_at || r.createdAt,
       merchant: r.merchant,
       items: r.items,
       extractedText: null,
-      approvals: r.approvals || []
+      approvals: r.approvals || [],
     }));
-
     res.json(formatted);
   } catch (err) {
     console.error("❌ Error fetching pending approvals:", err);

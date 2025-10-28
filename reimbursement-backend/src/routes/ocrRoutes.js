@@ -336,6 +336,11 @@ router.post("/", upload.single("receipt"), async (req, res) => {
 
 
 
+// Replace your /structured route in ocrRoutes.js with this improved version:
+
+// Simplified AI OCR route - auto-populate only receipt data
+// Replace your existing /structured route in ocrRoutes.js with this:
+
 router.post("/structured", upload.single("image"), async (req, res) => {
   try {
     if (!req.file)
@@ -343,38 +348,127 @@ router.post("/structured", upload.single("image"), async (req, res) => {
 
     const imagePath = req.file.path;
 
-    // 1) OCR using Tesseract
-    const result = await Tesseract.recognize(imagePath, "eng");
-    const rawText = result.data.text;
+    // 1) Use Gemini Vision to extract the actual text from the receipt image
+    // This will be MORE accurate than Tesseract for display purposes
+    const visionModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    
+    // Read image as base64 first
+    const imageBuffer = fs.readFileSync(imagePath);
+    const base64Image = imageBuffer.toString('base64');
+    const mimeType = req.file.mimetype;
+    
+    const textExtractionPrompt = `Extract ALL text from this receipt image EXACTLY as it appears.
+
+RULES:
+- Preserve the EXACT layout and spacing
+- Include every line, even blank lines
+- Keep all numbers, symbols, and punctuation exactly as shown
+- Maintain the original order from top to bottom
+- Do NOT interpret, summarize, or format - just extract the raw text
+
+Return ONLY the extracted text, nothing else.`;
+
+    const textResult = await visionModel.generateContent([
+      textExtractionPrompt,
+      {
+        inlineData: {
+          data: base64Image,
+          mimeType: mimeType
+        }
+      }
+    ]);
+
+    const rawText = textResult.response.text();
     const cleanedText = cleanOCR(rawText);
 
-    // delete temp file
+    // Delete temp file
     fs.unlink(imagePath, () => {});
 
-    // 2) Call Gemini for STRUCTURED PARSING
-    const model = genAI.getGenerativeModel({model: "gemini-2.0-flash-exp" });
+    // 2) Now use the same Gemini Vision for structured data extraction
+    const structuredModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
-    const prompt = `
-You are a receipt parser. 
-Extract structured receipt info and return ONLY a valid JSON object.
-Fields: merchant, date, total, items (array), payment_method (optional).
+    const prompt = `You are an expert receipt parser. Analyze this receipt image with EXTREME PRECISION.
 
-Return JSON only. NO explanation.
+CRITICAL EXTRACTION RULES:
+1. **MERCHANT**: Extract the EXACT store name from the TOP of the receipt (first 1-2 lines, usually in larger text)
+2. **DATE**: Find the transaction date and return in DD/MM/YYYY format
+3. **TOTAL**: Find the FINAL TOTAL amount - look for:
+   - "TOTAL" or "GRAND TOTAL" or "AMOUNT DUE" labels
+   - Usually the LAST and LARGEST number on the receipt
+   - DO NOT use subtotal, tax amounts, or individual item prices
+   - Be extremely careful with decimal points
+4. **ITEMS**: Extract ALL line items with individual prices
+5. **PAYMENT**: Look for payment method (Cash, Credit, Debit, etc.)
 
-Receipt text:
-"""
-${cleanedText}
-"""`;
+IMPORTANT FOR TOTALS:
+- If you see multiple totals (subtotal, tax, grand total), ALWAYS use the grand/final total
+- Double-check the number matches the largest amount on the receipt
+- Preserve exact decimal values (e.g., 1387.72, not 1387.7 or 1388)
 
-    const aiResult = await model.generateContent(prompt);
+Return ONLY valid JSON with this EXACT structure:
+{
+  "merchant": "EXACT STORE NAME",
+  "date": "DD/MM/YYYY",
+  "total": 1234.56,
+  "items": [
+    {"description": "Item Name", "price": 12.34},
+    {"description": "Item Name 2", "price": 56.78}
+  ],
+  "payment_method": "Cash/Card/etc or null"
+}
+
+NO markdown formatting, NO explanations, ONLY the JSON object.`;
+
+    const aiResult = await structuredModel.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Image,
+          mimeType: mimeType
+        }
+      }
+    ]);
+
     const aiText = aiResult.response.text();
+    
+    // Remove markdown code blocks if present
+    const cleanedAIText = aiText
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
 
     let structured;
     try {
-      structured = JSON.parse(aiText);
+      structured = JSON.parse(cleanedAIText);
+      
+      // Validation: Ensure total is a number with 2 decimal places
+      if (structured.total) {
+        const totalNum = typeof structured.total === 'string' 
+          ? parseFloat(structured.total.replace(/[^0-9.]/g, ''))
+          : structured.total;
+        structured.total = parseFloat(totalNum.toFixed(2));
+      }
+      
+      // Validation: Ensure items prices are numbers
+      if (Array.isArray(structured.items)) {
+        structured.items = structured.items.map(item => ({
+          ...item,
+          price: item.price ? parseFloat(
+            typeof item.price === 'string' 
+              ? item.price.replace(/[^0-9.]/g, '')
+              : item.price
+          ).toFixed(2) : null
+        }));
+      }
+      
     } catch (err) {
-      console.error("JSON parse error:", aiText);
-      return res.status(500).json({ error: "AI JSON parsing failed", detail: aiText });
+      console.error("JSON parse error:", cleanedAIText);
+      return res.status(500).json({ 
+        error: "AI JSON parsing failed", 
+        detail: cleanedAIText,
+        rawText,
+        cleanedText
+      });
     }
 
     return res.json({
@@ -386,10 +480,12 @@ ${cleanedText}
 
   } catch (error) {
     console.error("Structured OCR error:", error);
-    res.status(500).json({ error: "Structured OCR failed" });
+    res.status(500).json({ 
+      error: "Structured OCR failed",
+      detail: error.message 
+    });
   }
 });
-
 router.post("/clean-text", cleanExtractedText);
 
 

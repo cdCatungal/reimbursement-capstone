@@ -136,6 +136,10 @@ const handleImageChange = (e) => {
 
   // Perform OCR on the uploaded image
   // Perform OCR using backend instead of browser
+// Simplified handleOCR - only auto-populate receipt data (Date, Merchant, Total, Items)
+// Category and Description remain manual entry
+// Replace your handleOCR function in ReceiptUpload.js with this:
+
 const handleOCR = async () => {
   if (!image) {
     showNotification('Please select an image first', 'warning');
@@ -158,23 +162,95 @@ const handleOCR = async () => {
 
     if (!res.ok) throw new Error(data.error || 'OCR failed');
 
-    // Save both raw and structured
+    // Display raw text for user to verify
     setExtractedText(data.cleanedText || data.rawText);
 
     if (data.structured) {
+      const structured = data.structured;
+      
+      console.log('🤖 AI Extracted Data:', structured);
+      
+      // ===== DATE FORMATTING =====
+      let formattedDate = formData.date;
+      if (structured.date) {
+        try {
+          // Handle DD/MM/YYYY or DD-MM-YYYY format
+          const parts = structured.date.split(/[/-]/);
+          if (parts.length === 3) {
+            let [day, month, year] = parts;
+            
+            // Pad with zeros
+            day = day.padStart(2, '0');
+            month = month.padStart(2, '0');
+            
+            // Handle 2-digit year
+            if (year.length === 2) {
+              year = '20' + year;
+            }
+            
+            // Convert to YYYY-MM-DD for input[type="date"]
+            formattedDate = `${year}-${month}-${day}`;
+            console.log('📅 Date:', structured.date, '→', formattedDate);
+          }
+        } catch (e) {
+          console.error('❌ Date parse error:', e);
+        }
+      }
+
+      // ===== ITEMS FORMATTING =====
+      let itemsText = '';
+      if (Array.isArray(structured.items) && structured.items.length > 0) {
+        itemsText = structured.items
+          .map(item => {
+            if (typeof item === 'object' && item.description) {
+              // Format: "Item Name - ₱123.45"
+              return item.price && item.price > 0
+                ? `${item.description} - ₱${parseFloat(item.price).toFixed(2)}`
+                : item.description;
+            }
+            return '';
+          })
+          .filter(line => line.trim())
+          .join('\n');
+        
+        console.log('📦 Items:', structured.items.length, 'extracted');
+      }
+
+      // ===== TOTAL FORMATTING =====
+      let formattedTotal = '';
+      if (structured.total) {
+        formattedTotal = String(parseFloat(structured.total).toFixed(2));
+        console.log('💰 Total: ₱', formattedTotal);
+      }
+
+      // ===== UPDATE FORM (ONLY RECEIPT DATA) =====
       setFormData((prev) => ({
         ...prev,
-        date: data.structured.date || prev.date,
-        total: data.structured.total || prev.total,
-        merchant: data.structured.merchant || prev.merchant,
-        items: data.structured.items || prev.items,
+        date: formattedDate,
+        merchant: structured.merchant || prev.merchant,
+        total: formattedTotal || prev.total,
+        items: itemsText || prev.items,
+        // Keep category and description unchanged - manual entry only
+        // category: prev.category,
+        // description: prev.description,
       }));
+
+      // Success notification with extracted details
+      const details = [
+        structured.merchant ? `${structured.merchant}` : null,
+        structured.date ? `${structured.date}` : null,
+        structured.total ? `₱${structured.total}` : null,
+      ].filter(Boolean).join(' | ');
+
+      showNotification(`✅ Receipt extracted! ${details}`, 'success');
+      
+    } else {
+      showNotification('⚠️ OCR completed but no structured data found', 'warning');
     }
 
-    showNotification('AI OCR extracted receipt details successfully!', 'success');
   } catch (error) {
-    console.error(error);
-    showNotification('OCR failed. Please try again.', 'error');
+    console.error('❌ OCR Error:', error);
+    showNotification(`OCR failed: ${error.message}`, 'error');
   } finally {
     setLoading(false);
   }

@@ -17,22 +17,42 @@ import {
   TableHead,
   TableRow,
   Divider,
+  FormControl,
+  FormLabel,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
 } from "@mui/material";
 import { Download, Preview, Description, TrendingUp } from "@mui/icons-material";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { useAdminStore } from "../store/useAdminStore";
 
-function ReportExport() {
+function SalesDirectorReportExport() {
   const { getReport, reportData, resetReportData } = useAdminStore();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [showPreview, setShowPreview] = useState(false);
+  
+  // Role filters
+  const [roleFilters, setRoleFilters] = useState({
+    Employee: true,
+    SUL: true,
+    "Invoice Specialist": true,
+    "Account Manager": true,
+  });
 
   useEffect(() => {
     resetReportData();
   }, []);
+
+  const handleRoleFilterChange = (event) => {
+    setRoleFilters({
+      ...roleFilters,
+      [event.target.name]: event.target.checked,
+    });
+  };
 
   const filterData = () => {
     if (!Array.isArray(reportData)) return [];
@@ -40,7 +60,12 @@ function ReportExport() {
     return reportData.filter((item) => {
       const statusMatch =
         statusFilter === "All" || item.status === statusFilter;
-      return statusMatch;
+      
+      // Filter by role - check if user's role is selected
+      const userRole = item.user?.role || "Employee";
+      const roleMatch = roleFilters[userRole] === true;
+      
+      return statusMatch && roleMatch;
     });
   };
 
@@ -59,6 +84,7 @@ function ReportExport() {
     worksheet.columns = [
       { header: "Date", key: "date", width: 15 },
       { header: "User", key: "user", width: 20 },
+      { header: "Role", key: "role", width: 20 },
       { header: "Category", key: "category", width: 20 },
       { header: "Description", key: "description", width: 40 },
       { header: "Amount (₱)", key: "amount", width: 15 },
@@ -72,6 +98,7 @@ function ReportExport() {
       worksheet.addRow({
         date: item.createdAt || "N/A",
         user: item.user.name || "Unknown",
+        role: item.user.role || "Employee",
         category: item.category || item.type || "N/A",
         description: item.description || "N/A",
         amount: parseFloat(item.total).toFixed(2),
@@ -125,9 +152,6 @@ function ReportExport() {
       (sum, item) => sum + parseFloat(item.total),
       0
     );
-    const approvedAmount = filteredData
-      .filter((item) => item.status === "Approved")
-      .reduce((sum, item) => sum + parseFloat(item.total), 0);
 
     worksheet.addRow(["Total Requests:", filteredData.length]);
     worksheet.addRow([
@@ -143,6 +167,16 @@ function ReportExport() {
       filteredData.filter((item) => item.status === "Rejected").length,
     ]);
     worksheet.addRow(["Total Amount:", `₱${totalAmount.toFixed(2)}`]);
+
+    // Add role breakdown
+    worksheet.addRow([]);
+    worksheet.addRow(["BY ROLE"]);
+    Object.keys(roleFilters).forEach((role) => {
+      if (roleFilters[role]) {
+        const count = filteredData.filter((item) => item.user?.role === role).length;
+        worksheet.addRow([`${role}:`, count]);
+      }
+    });
 
     // Generate and save file
     const buffer = await workbook.xlsx.writeBuffer();
@@ -176,6 +210,20 @@ function ReportExport() {
     getReport({ start: dataStart, end: dataEnd });
   };
 
+  const selectedRoleCount = Object.values(roleFilters).filter(Boolean).length;
+  const allRolesSelected = selectedRoleCount === Object.keys(roleFilters).length;
+  const someRolesSelected = selectedRoleCount > 0 && !allRolesSelected;
+
+  const handleSelectAllRoles = (event) => {
+    const newValue = event.target.checked;
+    setRoleFilters({
+      Employee: newValue,
+      SUL: newValue,
+      "Invoice Specialist": newValue,
+      "Account Manager": newValue,
+    });
+  };
+
   return (
     <Card sx={{ mt: 3, boxShadow: 3 }}>
       <CardContent sx={{ p: 3 }}>
@@ -194,7 +242,7 @@ function ReportExport() {
 
         {/* Filters */}
         <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3}>
             <TextField
               label="Start Date"
               type="date"
@@ -204,7 +252,7 @@ function ReportExport() {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3}>
             <TextField
               label="End Date"
               type="date"
@@ -214,7 +262,7 @@ function ReportExport() {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3}>
             <TextField
               select
               label="Status Filter"
@@ -227,6 +275,70 @@ function ReportExport() {
               <MenuItem value="Approved">Approved</MenuItem>
               <MenuItem value="Rejected">Rejected</MenuItem>
             </TextField>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl component="fieldset" variant="standard">
+              <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>
+                Submitted By
+              </FormLabel>
+              <FormGroup>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={allRolesSelected}
+                      indeterminate={someRolesSelected}
+                      onChange={handleSelectAllRoles}
+                      size="small"
+                    />
+                  }
+                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>All Roles</Typography>}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={roleFilters.Employee}
+                      onChange={handleRoleFilterChange}
+                      name="Employee"
+                      size="small"
+                    />
+                  }
+                  label={<Typography variant="body2">Employee</Typography>}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={roleFilters.SUL}
+                      onChange={handleRoleFilterChange}
+                      name="SUL"
+                      size="small"
+                    />
+                  }
+                  label={<Typography variant="body2">SUL</Typography>}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={roleFilters["Invoice Specialist"]}
+                      onChange={handleRoleFilterChange}
+                      name="Invoice Specialist"
+                      size="small"
+                    />
+                  }
+                  label={<Typography variant="body2">Invoice Specialist</Typography>}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={roleFilters["Account Manager"]}
+                      onChange={handleRoleFilterChange}
+                      name="Account Manager"
+                      size="small"
+                    />
+                  }
+                  label={<Typography variant="body2">Account Manager</Typography>}
+                />
+              </FormGroup>
+            </FormControl>
           </Grid>
         </Grid>
 
@@ -414,6 +526,15 @@ function ReportExport() {
                       color: "primary.contrastText",
                     }}
                   >
+                    Role
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: "bold",
+                      bgcolor: "primary.main",
+                      color: "primary.contrastText",
+                    }}
+                  >
                     Category
                   </TableCell>
                   <TableCell
@@ -455,6 +576,13 @@ function ReportExport() {
                   >
                     <TableCell>{item.createdAt || "N/A"}</TableCell>
                     <TableCell sx={{ fontWeight: 500 }}>{item.user.name || "Unknown"}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={item.user?.role || "Employee"} 
+                        size="small" 
+                        variant="outlined"
+                      />
+                    </TableCell>
                     <TableCell>{item.category || item.type || "N/A"}</TableCell>
                     <TableCell>
                       {item.description?.substring(0, 50)}
@@ -495,4 +623,4 @@ function ReportExport() {
   );
 }
 
-export default ReportExport;
+export default SalesDirectorReportExport;

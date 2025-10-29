@@ -1,45 +1,44 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
+import MonthlyStats from "../components/MonthlyStats.js";
 import {
   Container,
   Box,
   Typography,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemText,
-  ListItemIcon,
-  IconButton,
   Menu,
   MenuItem,
-  Avatar,  // ✅ Add this
+  IconButton,
+  Drawer,
+  ListItemButton,
+  ListItemIcon,
+  List,
+  ListItemText,
+  Avatar,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import ListAltIcon from "@mui/icons-material/ListAlt";
+import AssessmentIcon from "@mui/icons-material/Assessment";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
-import ReceiptUpload from "./ReceiptUpload";
-import StatusTracker from "./StatusTracker";
-import ThemeToggle from "./ThemeToggle";
-import { useAppContext } from "../App";
-import UserSettings from "./UserSettings";
+import ReportExport from "../components/ReportExport.js";
+import ReceiptUpload from "../components/ReceiptUpload.js";
+import StatusTracker from "../components/StatusTracker.js";
+import ReimbursementList from "../components/ReimbursementList.js";
+import ThemeToggle from "../components/ThemeToggle.js";
+import { useAppContext } from "../App.js";
+import UserSettings from "../components/UserSettings.js";
 import { userUserStore } from "../store/userUserStore.js";
 
-function UserDashboard() {
+function AdminDashboard() {
+  const theme = useTheme();
   const { user, setIsAuthenticated, setIsAdmin, setUser, showNotification } =
     useAppContext();
   const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(true);
-  const [anchorEl, setAnchorEl] = useState(null);
-
-  const handleTabChange = (newValue) => {
-    setTabValue(newValue);
-  };
-
-  const toggleDrawer = () => {
-    setDrawerOpen(!drawerOpen);
-  };
 
   const handleProfileClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -75,21 +74,35 @@ function UserDashboard() {
     handleProfileClose();
   };
 
+  const handleTabChange = (newValue) => {
+    setTabValue(newValue);
+  };
+
+  const toggleDrawer = () => {
+    setDrawerOpen(!drawerOpen);
+  };
+
   const { getUser, user: storeUser } = userUserStore();
 
-useEffect(() => {
-  getUser(); // fetches Microsoft profile info (including profilePicture)
-}, []);
+  useEffect(() => {
+    getUser();
+  }, []);
 
   const tabs = [
     {
+      label: "Reimbursement Lists",
+      icon: <ListAltIcon />,
+    },
+    {
+      label: "Export Summary Reports",
+      icon: <AssessmentIcon />,
+    },
+    {
       label: "Upload Receipt",
-      component: <ReceiptUpload />,
       icon: <ReceiptIcon />,
     },
     {
       label: "Track Status",
-      component: <StatusTracker />,
       icon: <TrackChangesIcon />,
     },
   ];
@@ -99,7 +112,26 @@ useEffect(() => {
     component: <UserSettings />,
   };
 
-  const firstName = user?.username?.split(" ")[0] || user?.username || "User";
+  const firstName = user?.username?.split(" ")[0] || user?.username || "Admin";
+
+  const renderContent = () => {
+    if (tabValue === -1) {
+      return settingsTab.component;
+    }
+
+    switch (tabValue) {
+      case 0:
+        return <ReimbursementList />;
+      case 1:
+        return <ReportExport />;
+      case 2:
+        return <ReceiptUpload />;
+      case 3:
+        return <StatusTracker />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <Container
@@ -152,6 +184,12 @@ useEffect(() => {
             </ListItemButton>
           ))}
         </List>
+
+        {drawerOpen && (
+          <Box sx={{ mt: "auto" }}>
+            <MonthlyStats />
+          </Box>
+        )}
       </Drawer>
 
       <Box
@@ -174,40 +212,40 @@ useEffect(() => {
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <img
-              src="/erni-logo.png"
+              src={
+                theme.palette.mode === "dark"
+                  ? "/erni-logo-darkmode.png"
+                  : "/erni-logo.png"
+              }
               alt="ERNI Logo"
               style={{ height: "40px" }}
             />
           </Box>
-
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Typography variant="h6">Welcome, {firstName}</Typography>
-
-            <Box sx={{ display: "flex", alignItems: "center", gap: -0.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <ThemeToggle />
-              {/* ✅ Replace AccountCircleIcon with Avatar */}
               <IconButton
                 onClick={handleProfileClick}
                 color="inherit"
                 size="large"
               >
                 <Avatar
-  src={storeUser?.profilePicture}
-  alt={storeUser?.name || storeUser?.username}
-  sx={{
-    width: 32,
-    height: 32,
-    bgcolor: "primary.main",
-    fontSize: "0.9rem",
-  }}
->
-  {!storeUser?.profilePicture &&
-    (storeUser?.name?.charAt(0).toUpperCase() ||
-      storeUser?.username?.charAt(0).toUpperCase())}
-</Avatar>
+                  src={storeUser?.profilePicture}
+                  alt={storeUser?.name || storeUser?.username}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    bgcolor: "primary.main",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {!storeUser?.profilePicture &&
+                    (storeUser?.name?.charAt(0).toUpperCase() ||
+                      storeUser?.username?.charAt(0).toUpperCase())}
+                </Avatar>
               </IconButton>
             </Box>
-
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
@@ -239,20 +277,12 @@ useEffect(() => {
               alignItems: "center",
               mb: 3,
             }}
-          >
-            <Typography variant="h4" sx={{ fontWeight: "bold" }}>
-              User Dashboard
-            </Typography>
-          </Box>
-          <Box sx={{ px: 0.5 }}>
-            {tabValue === -1
-              ? settingsTab.component
-              : tabs[tabValue]?.component}
-          </Box>
+          ></Box>
+          {renderContent()}
         </Box>
       </Box>
     </Container>
   );
 }
 
-export default UserDashboard;
+export default AdminDashboard;

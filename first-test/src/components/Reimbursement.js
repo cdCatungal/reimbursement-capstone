@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -9,45 +9,41 @@ import {
   DialogContent,
   CircularProgress,
   Alert,
+  TextField,
+  InputAdornment,
+  MenuItem,
   Chip,
   Grid,
   Avatar,
   IconButton,
-  Stepper,
-  Step,
-  StepLabel,
-  StepContent,
+  DialogActions,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
-  MenuItem,
-  InputAdornment,
 } from "@mui/material";
 import {
+  Search as SearchIcon,
   CheckCircle as CheckCircleIcon,
   Person as PersonIcon,
   Close as CloseIcon,
   Cancel as CancelIcon,
-  Pending as PendingIcon,
+  Visibility as VisibilityIcon,
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
   Download as DownloadIcon,
-  Visibility as VisibilityIcon,
-  Search as SearchIcon,
 } from "@mui/icons-material";
-import { useAppContext } from "../App";
 import { useTheme } from "@mui/material/styles";
-import { userUserStore } from "../store/userUserStore";
+import { useAppContext } from "../App";
 
-function StatusTracker() {
+function Reimbursement() {
   const { user, showNotification } = useAppContext();
-  const [reimbursements, setReimbursements] = useState([]);
-  const [filteredReimbursements, setFilteredReimbursements] = useState([]);
+  const [pendings, setPendings] = useState([]);
+  const [filteredPendings, setFilteredPendings] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openRejectDialog, setOpenRejectDialog] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -57,35 +53,30 @@ function StatusTracker() {
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
 
-  // Receipt viewer state
+  const [remarks, setRemarks] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
   const [receiptZoom, setReceiptZoom] = useState(1);
   const [receiptLoading, setReceiptLoading] = useState(false);
-
-  const { getUser, user: UserData } = userUserStore();
+  const hasFetched = useRef(false);
 
   useEffect(() => {
-    getUser();
-  }, []);
-
-  console.log("Data Data: ", UserData);
-  useEffect(() => {
-    fetchUserReimbursements();
+    fetchReimbursements();
   }, [user]);
 
   // Apply all filters whenever any filter changes
   useEffect(() => {
     applyAllFilters();
-  }, [reimbursements, searchTerm, statusFilter, categoryFilter]);
+  }, [pendings, searchTerm, statusFilter, categoryFilter]);
 
-  const fetchUserReimbursements = async () => {
-    if (!user) return;
+  const fetchReimbursements = async () => {
+    if (!user || hasFetched.current) return;
 
     try {
       setLoading(true);
       setError(null);
 
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL}/api/reimbursements/my-reimbursements`,
+        `${process.env.REACT_APP_API_URL}/api/reimbursements/pending-approvals`,
         {
           method: "GET",
           headers: {
@@ -100,8 +91,8 @@ function StatusTracker() {
       }
 
       const data = await response.json();
-      console.log("📋 Fetched reimbursements:", data);
-      setReimbursements(data);
+      setPendings(data);
+      hasFetched.current = true;
     } catch (err) {
       setError(err.message);
       showNotification("Failed to load reimbursements", "error");
@@ -112,7 +103,7 @@ function StatusTracker() {
 
   // Enhanced filter logic that combines all filters
   const applyAllFilters = () => {
-    let filtered = [...reimbursements];
+    let filtered = [...pendings];
 
     // Apply status filter first
     if (statusFilter !== "All Status") {
@@ -133,23 +124,26 @@ function StatusTracker() {
           (item.description && item.description.toLowerCase().includes(term)) ||
           (item.category && item.category.toLowerCase().includes(term)) ||
           (item.merchant && item.merchant.toLowerCase().includes(term)) ||
+          (item.user?.name && item.user.name.toLowerCase().includes(term)) ||
+          (item.user?.role && item.user.role.toLowerCase().includes(term)) ||
+          (item.status && item.status.toLowerCase().includes(term)) ||
           (item.submittedAt &&
             new Date(item.submittedAt)
               .toLocaleDateString("en-CA")
               .toLowerCase()
-              .includes(term)) ||
-          (item.status && item.status.toLowerCase().includes(term))
+              .includes(term))
       );
     }
 
-    setFilteredReimbursements(filtered);
+    setFilteredPendings(filtered);
   };
 
+  // Search handler
   const handleSearch = (searchValue) => {
     setSearchTerm(searchValue);
-    // Filters will be applied automatically by useEffect
   };
 
+  // Status filter handler
   const handleStatusFilter = (searchValue) => {
     setStatusFilter(searchValue);
     // Clear search when changing status filter for better UX
@@ -158,6 +152,7 @@ function StatusTracker() {
     }
   };
 
+  // Category filter handler
   const handleCategoryFilter = (searchValue) => {
     setCategoryFilter(searchValue);
     // Clear search when changing category filter for better UX
@@ -166,14 +161,14 @@ function StatusTracker() {
     }
   };
 
+  // Get unique statuses
   const getUniqueStatuses = () => {
-    return ["All Status", "Pending", "Approved", "Rejected"];
+    return ["All Status", "Pending", "Approved", "Rejected", "Validated"];
   };
 
+  // Get unique categories
   const getUniqueCategories = () => {
-    // const categories = [
-    //   ...new Set(reimbursements.map((item) => item.category)),
-    // ];
+    // const categories = [...new Set(pendings.map((item) => item.category))];
     // return ["All Categories", ...categories];
     return [
       "All Categories",
@@ -185,49 +180,137 @@ function StatusTracker() {
     ];
   };
 
+  const handleApprove = async (id, remarksText = "") => {
+    try {
+      setActionLoading(true);
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL}/api/approvals/${id}/approve`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ remarks: remarksText }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to approve reimbursement");
+      }
+
+      setPendings(pendings.filter((p) => p.id !== id));
+      showNotification("Reimbursement approved successfully", "success");
+      handleCloseDialog();
+    } catch (err) {
+      showNotification(
+        err.message || "Failed to approve reimbursement",
+        "error"
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async (id, remarksText) => {
+    if (!remarksText || remarksText.trim() === "") {
+      showNotification("Please provide remarks for rejection", "warning");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL}/api/approvals/${id}/reject`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ remarks: remarksText }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to reject reimbursement");
+      }
+
+      setPendings(pendings.filter((p) => p.id !== id));
+      showNotification("Reimbursement rejected successfully", "success");
+      handleCloseRejectDialog();
+      handleCloseDialog();
+    } catch (err) {
+      showNotification(
+        err.message || "Failed to reject reimbursement",
+        "error"
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleOpenDetails = (ticket) => {
     setSelectedTicket(ticket);
     setOpenDialog(true);
+    setRemarks("");
     setReceiptZoom(1);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setSelectedTicket(null);
+    setRemarks("");
     setReceiptZoom(1);
   };
 
-  // Receipt zoom controls
+  const handleOpenRejectDialog = () => {
+    setOpenRejectDialog(true);
+  };
+
+  const handleCloseRejectDialog = () => {
+    setOpenRejectDialog(false);
+    setRemarks("");
+  };
+
   const handleZoomIn = () => setReceiptZoom((prev) => Math.min(prev + 0.25, 3));
   const handleZoomOut = () =>
     setReceiptZoom((prev) => Math.max(prev - 0.25, 0.5));
 
-  // Download receipt
   const handleDownloadReceipt = () => {
     if (!selectedTicket?.receipt) return;
 
     try {
-      const { data, mimetype, filename } = selectedTicket.receipt;
-
-      // Convert base64 to blob
-      const byteCharacters = atob(data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      let url, filename;
+      if (typeof selectedTicket.receipt === "string") {
+        url = `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`;
+        filename = `receipt-${selectedTicket.id}.jpg`;
+      } else {
+        const {
+          data,
+          mimetype,
+          filename: receiptFilename,
+        } = selectedTicket.receipt;
+        const byteCharacters = atob(data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimetype });
+        url = URL.createObjectURL(blob);
+        filename = receiptFilename || `receipt-${selectedTicket.id}.jpg`;
       }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: mimetype });
 
-      // Create download link
-      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = filename || `receipt-${selectedTicket.id}.jpg`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
+      if (url.startsWith("blob:")) {
+        URL.revokeObjectURL(url);
+      }
       showNotification("Receipt downloaded successfully", "success");
     } catch (error) {
       console.error("Download failed:", error);
@@ -243,18 +326,18 @@ function StatusTracker() {
         return "success";
       case "Rejected":
         return "error";
+      case "Validated":
+        return "info";
       default:
         return "default";
     }
   };
 
-  // Build approval flow from actual approval records
   const getApprovalFlow = (ticket) => {
     if (!ticket.approvals || ticket.approvals.length === 0) {
       return [];
     }
 
-    // Sort approvals by level (reverse for display - latest first)
     const sortedApprovals = [...ticket.approvals].sort(
       (a, b) => b.approval_level - a.approval_level
     );
@@ -262,7 +345,7 @@ function StatusTracker() {
     return sortedApprovals.map((approval) => ({
       role: approval.approver_role,
       status: approval.status,
-      name: approval.approver?.name || "Awaiting Approval",
+      name: approval.approver?.name || "Pending Assignment",
       date: approval.approved_at
         ? new Date(approval.approved_at).toLocaleString()
         : null,
@@ -271,39 +354,20 @@ function StatusTracker() {
     }));
   };
 
-  // Get active step for stepper
-  const getActiveStep = (approvals) => {
-    if (!approvals || approvals.length === 0) return 0;
+  const canApprove = (ticket) => {
+    if (!ticket.approvals || !user) return false;
 
-    const sortedApprovals = [...approvals].sort(
+    const sortedApprovals = [...ticket.approvals].sort(
       (a, b) => a.approval_level - b.approval_level
     );
-    const pendingIndex = sortedApprovals.findIndex(
-      (a) => a.status === "Pending"
-    );
+    const nextPending = sortedApprovals.find((a) => a.status === "Pending");
 
-    if (pendingIndex === -1) {
-      // All approved or rejected
-      return sortedApprovals.length;
-    }
-
-    return pendingIndex;
-  };
-
-  const getStepIcon = (approval) => {
-    if (approval.status === "Approved") {
-      return <CheckCircleIcon sx={{ color: "success.main" }} />;
-    } else if (approval.status === "Rejected") {
-      return <CancelIcon sx={{ color: "error.main" }} />;
-    } else {
-      return <PendingIcon sx={{ color: "warning.main" }} />;
-    }
+    return nextPending && nextPending.approver_role === user.role;
   };
 
   const theme = useTheme();
   const { darkMode } = useAppContext();
 
-  // Format date for display
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-CA");
@@ -312,7 +376,7 @@ function StatusTracker() {
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: "bold", mb: 3 }}>
-        My Reimbursement Requests
+        Pending Approvals - {user?.role}
       </Typography>
 
       {/* Search and Filter Section */}
@@ -385,7 +449,7 @@ function StatusTracker() {
 
         {/* Results count */}
         <Typography variant="body2" color="text.secondary" sx={{ ml: "auto" }}>
-          {filteredReimbursements.length} requests found
+          {filteredPendings.length} requests found
         </Typography>
       </Box>
 
@@ -395,11 +459,11 @@ function StatusTracker() {
         </Box>
       ) : error ? (
         <Alert severity="error">{error}</Alert>
-      ) : filteredReimbursements.length === 0 ? (
+      ) : filteredPendings.length === 0 ? (
         <Box sx={{ textAlign: "center", py: 4 }}>
           <Typography color="text.secondary">
-            {reimbursements.length === 0
-              ? "No reimbursement requests found"
+            {pendings.length === 0
+              ? "No pending approvals at this time"
               : "No requests match your search criteria"}
           </Typography>
         </Box>
@@ -408,6 +472,7 @@ function StatusTracker() {
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell sx={{ fontWeight: "bold" }}>EMPLOYEE</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>REQUEST</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>AMOUNT</TableCell>
                 <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
@@ -417,8 +482,18 @@ function StatusTracker() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredReimbursements.map((item) => (
+              {filteredPendings.map((item) => (
                 <TableRow key={item.id} hover>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                        {item.user?.name || "Unknown"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {item.user?.role || "Unknown Role"}
+                      </Typography>
+                    </Box>
+                  </TableCell>
                   <TableCell>
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: "medium" }}>
@@ -444,9 +519,7 @@ function StatusTracker() {
                   <TableCell>
                     <Box>
                       <Typography variant="body2">
-                        {item.submittedAt
-                          ? formatDate(item.submittedAt)
-                          : "N/A"}
+                        {item.date ? formatDate(item.date) : "N/A"}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         Submitted: {formatDate(item.submittedAt)}
@@ -467,7 +540,7 @@ function StatusTracker() {
                     <IconButton
                       size="small"
                       onClick={() => handleOpenDetails(item)}
-                      title="See Details"
+                      title="View Details"
                     >
                       <VisibilityIcon />
                     </IconButton>
@@ -479,7 +552,7 @@ function StatusTracker() {
         </TableContainer>
       )}
 
-      {/* Details Dialog - Rest of your existing dialog code remains the same */}
+      {/* Details Dialog */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -501,7 +574,7 @@ function StatusTracker() {
           }}
         >
           <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-            REIMBURSEMENT TRACKING
+            REIMBURSEMENT DETAILS
           </Typography>
           <IconButton onClick={handleCloseDialog} size="small">
             <CloseIcon />
@@ -511,7 +584,6 @@ function StatusTracker() {
         <DialogContent sx={{ p: 0 }}>
           {selectedTicket && (
             <>
-              {/* Header with Status */}
               <Box
                 sx={{
                   p: 3,
@@ -522,50 +594,39 @@ function StatusTracker() {
                   borderColor: "divider",
                 }}
               >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                    {/* <Avatar
-                      sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
-                    >
-                      <PersonIcon sx={{ fontSize: 32 }} />
-                    </Avatar> */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  {/* <Avatar
+                    sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
+                  >
+                    <PersonIcon sx={{ fontSize: 32 }} />
+                  </Avatar> */}
 
-                    <Avatar
-                      src={UserData?.profilePicture}
-                      alt={UserData?.name || UserData?.username}
-                      sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
-                    >
-                      {!UserData?.profilePicture &&
-                        (UserData?.name?.charAt(0).toUpperCase() ||
-                          UserData?.username?.charAt(0).toUpperCase())}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                        {selectedTicket.category} Reimbursement
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Submitted:{" "}
-                        {new Date(selectedTicket.submittedAt).toLocaleString()}
-                      </Typography>
-                    </Box>
+                  <Avatar
+                    src={selectedTicket.user?.profile_picture}
+                    alt={
+                      selectedTicket.user?.name || selectedTicket.user?.username
+                    }
+                    sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
+                  >
+                    {!selectedTicket.user?.profile_picture &&
+                      (selectedTicket.user?.name?.charAt(0).toUpperCase() ||
+                        selectedTicket.user?.username?.charAt(0).toUpperCase())}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {selectedTicket.user?.name || "N/A"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Role: {selectedTicket.user?.role || "N/A"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Email: {selectedTicket.user?.email || "N/A"}
+                    </Typography>
                   </Box>
-                  <Chip
-                    label={selectedTicket.status}
-                    color={getStatusColor(selectedTicket.status)}
-                    sx={{ fontWeight: 700, fontSize: "1rem", px: 2, py: 2.5 }}
-                  />
                 </Box>
               </Box>
 
-              {/* Two Column Content */}
               <Grid container spacing={3} wrap="nowrap" sx={{ p: 3 }}>
-                {/* Left Column - Details */}
                 <Grid item sx={{ width: "650px", flexShrink: 0 }}>
                   <Box
                     sx={{
@@ -577,9 +638,18 @@ function StatusTracker() {
                       bgcolor: "background.paper",
                     }}
                   >
-                    <Typography variant="h6" sx={{ fontWeight: "bold", mb: 3 }}>
-                      Request Details
-                    </Typography>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        Reimbursement Type:
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        {selectedTicket.category}
+                      </Typography>
+                    </Box>
 
                     <Box sx={{ mb: 2 }}>
                       <Typography
@@ -610,7 +680,7 @@ function StatusTracker() {
                         Purpose:
                       </Typography>
                       <Typography variant="body2">
-                        {selectedTicket.items || "No purpose provided"}
+                        {selectedTicket.items || "No purpose provided."}
                       </Typography>
                     </Box>
 
@@ -638,42 +708,23 @@ function StatusTracker() {
                       </Typography>
                       <Typography variant="body2">
                         {new Date(
-                          selectedTicket.date
+                          selectedTicket.date || selectedTicket.submittedAt
                         ).toLocaleDateString()}
                       </Typography>
                     </Box>
 
-                  <Box sx={{ mb: 2 }}>
-  <Typography
-    variant="body2"
-    color="text.secondary"
-    sx={{ fontWeight: 600 }}
-  >
-    Date Submitted:
-  </Typography>
-  <Typography variant="body2">
-    {new Date(
-      selectedTicket.submittedAt
-    ).toLocaleDateString()}
-  </Typography>
-</Box>
-
-<Box sx={{ mb: 2 }}>
-  <Typography
-    variant="body2"
-    color="text.secondary"
-    sx={{ fontWeight: 600 }}
-  >
-    SAP Code:
-  </Typography>
-  <Chip 
-    label={selectedTicket.sapCode || "N/A"}
-    color="primary"
-    variant="outlined"
-    size="small"
-    sx={{ fontWeight: 600, mt: 0.5 }}
-  />
-</Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        Date Submitted:
+                      </Typography>
+                      <Typography variant="body2">
+                        {new Date(selectedTicket.submittedAt).toLocaleString()}
+                      </Typography>
+                    </Box>
 
                     {selectedTicket.merchant && (
                       <Box sx={{ mb: 2 }}>
@@ -716,7 +767,6 @@ function StatusTracker() {
                       </Box>
                     )}
 
-                    {/* Updated Receipt Display with Base64 Support */}
                     {selectedTicket.receipt && (
                       <Box sx={{ mt: 3 }}>
                         <Box
@@ -782,7 +832,11 @@ function StatusTracker() {
                           )}
                           <Box
                             component="img"
-                            src={`data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`}
+                            src={
+                              typeof selectedTicket.receipt === "string"
+                                ? `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`
+                                : `data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`
+                            }
                             alt="Receipt"
                             sx={{
                               maxWidth: "100%",
@@ -795,7 +849,10 @@ function StatusTracker() {
                             onLoad={() => setReceiptLoading(false)}
                             onLoadStart={() => setReceiptLoading(true)}
                             onError={(e) => {
-                              console.error("Failed to load receipt");
+                              console.error(
+                                "Failed to load receipt:",
+                                selectedTicket.receipt
+                              );
                               setReceiptLoading(false);
                               showNotification(
                                 "Failed to load receipt image",
@@ -823,7 +880,6 @@ function StatusTracker() {
                   </Box>
                 </Grid>
 
-                {/* Right Column - Approval Progress */}
                 <Grid item sx={{ width: "450px", flexShrink: 0 }}>
                   <Box
                     sx={{
@@ -839,174 +895,169 @@ function StatusTracker() {
                       Approval Progress
                     </Typography>
 
-                    {/* Approval Stepper */}
-                    <Stepper
-                      activeStep={getActiveStep(selectedTicket.approvals)}
-                      orientation="vertical"
-                      sx={{
-                        "& .MuiStepConnector-line": {
-                          minHeight: "30px",
-                        },
-                      }}
-                    >
+                    <Box sx={{ position: "relative", mb: 3 }}>
                       {getApprovalFlow(selectedTicket).map((step, index) => (
-                        <Step key={index} expanded>
-                          <StepLabel
-                            StepIconComponent={() => getStepIcon(step)}
-                            sx={{
-                              "& .MuiStepLabel-label": {
-                                fontWeight: 600,
-                                fontSize: "0.95rem",
-                              },
-                            }}
-                          >
-                            <Box>
+                        <Box
+                          key={index}
+                          sx={{
+                            display: "flex",
+                            mb: 3,
+                            position: "relative",
+                            "&:not(:last-child)::before": {
+                              content: '""',
+                              position: "absolute",
+                              left: "15px",
+                              top: "32px",
+                              bottom: "-24px",
+                              width: "2px",
+                              bgcolor:
+                                step.status === "Pending"
+                                  ? "grey.300"
+                                  : step.status === "Rejected"
+                                  ? "error.main"
+                                  : "success.main",
+                            },
+                          }}
+                        >
+                          <Box sx={{ mr: 2 }}>
+                            {step.status === "Rejected" ? (
+                              <CancelIcon
+                                sx={{
+                                  fontSize: 32,
+                                  color: "error.main",
+                                }}
+                              />
+                            ) : (
+                              <CheckCircleIcon
+                                sx={{
+                                  fontSize: 32,
+                                  color:
+                                    step.status === "Pending"
+                                      ? "grey.400"
+                                      : "success.main",
+                                }}
+                              />
+                            )}
+                          </Box>
+                          <Box sx={{ flex: 1 }}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                mb: 0.5,
+                              }}
+                            >
                               <Typography
                                 variant="body1"
                                 sx={{ fontWeight: 600 }}
                               >
                                 Level {step.level}: {step.role}
                               </Typography>
-                              <Chip
-                                label={step.status}
-                                size="small"
-                                color={getStatusColor(step.status)}
-                                sx={{ fontWeight: 600, height: 20, mt: 0.5 }}
-                              />
                             </Box>
-                          </StepLabel>
-                          <StepContent>
-                            <Box sx={{ ml: 1, mt: 1 }}>
-                              {step.name &&
-                                step.name !== "Awaiting Approval" && (
-                                  <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ fontStyle: "italic" }}
-                                  >
-                                    Processed by: {step.name}
-                                  </Typography>
-                                )}
-                              {step.date && (
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  display="block"
-                                >
-                                  {step.status === "Approved"
-                                    ? "Approved"
-                                    : step.status === "Rejected"
-                                    ? "Rejected"
-                                    : "Processed"}{" "}
-                                  on: {step.date}
-                                </Typography>
-                              )}
-                              {step.status === "Pending" && !step.date && (
+                            <Chip
+                              label={step.status}
+                              size="small"
+                              color={getStatusColor(step.status)}
+                              sx={{ fontWeight: 600, height: 20, mb: 0.5 }}
+                            />
+                            {step.name &&
+                              step.name !== "Pending Assignment" && (
                                 <Typography
                                   variant="body2"
-                                  color="warning.main"
-                                  sx={{ mt: 1, fontStyle: "italic" }}
+                                  color="text.secondary"
+                                  sx={{ fontStyle: "italic", mt: 0.5 }}
                                 >
-                                  Waiting for approval from {step.role}
+                                  By: {step.name}
                                 </Typography>
                               )}
-                              {step.remarks && (
-                                <Box
-                                  sx={{
-                                    mt: 1.5,
-                                    p: 1.5,
-                                    bgcolor:
-                                      step.status === "Rejected"
-                                        ? "error.50"
-                                        : "grey.50",
-                                    borderRadius: 1,
-                                    borderLeft: 3,
-                                    borderColor:
-                                      step.status === "Rejected"
-                                        ? "error.main"
-                                        : "info.main",
-                                  }}
-                                >
-                                  <Typography
-                                    variant="caption"
-                                    sx={{
-                                      fontWeight: 600,
-                                      display: "block",
-                                      mb: 0.5,
-                                    }}
-                                  >
-                                    Remarks:
-                                  </Typography>
-                                  <Typography
-                                    variant="body2"
-                                    sx={{
-                                      fontSize: "0.813rem",
-                                      fontStyle: "italic",
-                                    }}
-                                  >
-                                    {step.remarks}
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          </StepContent>
-                        </Step>
+                            {step.date && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                display="block"
+                              >
+                                {step.status === "Approved"
+                                  ? "Approved"
+                                  : step.status === "Rejected"
+                                  ? "Rejected"
+                                  : "Processed"}{" "}
+                                at: {step.date}
+                              </Typography>
+                            )}
+                            {step.remarks && (
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  mt: 1,
+                                  p: 1,
+                                  bgcolor: "grey.50",
+                                  borderRadius: 1,
+                                  fontStyle: "italic",
+                                  fontSize: "0.813rem",
+                                }}
+                              >
+                                <strong>Remarks:</strong> {step.remarks}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
                       ))}
-
-                      {/* Submission Step */}
-                      <Step expanded completed>
-                        <StepLabel
-                          StepIconComponent={() => (
-                            <CheckCircleIcon sx={{ color: "success.main" }} />
-                          )}
-                          sx={{
-                            "& .MuiStepLabel-label": {
-                              fontWeight: 600,
-                              fontSize: "0.95rem",
-                            },
-                          }}
-                        >
-                          Request Submitted
-                        </StepLabel>
-                        <StepContent>
-                          <Typography variant="caption" color="text.secondary">
-                            Submitted on:{" "}
-                            {new Date(
-                              selectedTicket.submittedAt
-                            ).toLocaleString()}
-                          </Typography>
-                        </StepContent>
-                      </Step>
-                    </Stepper>
-
-                    {/* Status Summary */}
-                    <Box
-                      sx={{
-                        mt: 4,
-                        pt: 3,
-                        borderTop: 1,
-                        borderColor: "divider",
-                      }}
-                    >
-                      {selectedTicket.status === "Pending" && (
-                        <Alert severity="info">
-                          Your reimbursement is currently under review. You will
-                          be notified once it's processed.
-                        </Alert>
-                      )}
-                      {selectedTicket.status === "Approved" && (
-                        <Alert severity="success">
-                          Your reimbursement has been fully approved! Payment
-                          processing will begin shortly.
-                        </Alert>
-                      )}
-                      {selectedTicket.status === "Rejected" && (
-                        <Alert severity="error">
-                          Your reimbursement request was rejected. Please review
-                          the remarks above and submit a new request if needed.
-                        </Alert>
-                      )}
                     </Box>
+
+                    {canApprove(selectedTicket) && (
+                      <Box
+                        sx={{
+                          mt: 3,
+                          pt: 3,
+                          borderTop: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{ mb: 2, fontWeight: 600 }}
+                        >
+                          Optional Remarks:
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          multiline
+                          rows={3}
+                          placeholder="Add remarks (optional for approval, required for rejection)"
+                          value={remarks}
+                          onChange={(e) => setRemarks(e.target.value)}
+                          size="small"
+                          sx={{ mb: 2 }}
+                        />
+                        <Box sx={{ display: "flex", gap: 2 }}>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            color="success"
+                            onClick={() =>
+                              handleApprove(selectedTicket.id, remarks)
+                            }
+                            disabled={actionLoading}
+                          >
+                            {actionLoading ? (
+                              <CircularProgress size={24} />
+                            ) : (
+                              "Approve"
+                            )}
+                          </Button>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            color="error"
+                            onClick={handleOpenRejectDialog}
+                            disabled={actionLoading}
+                          >
+                            Reject
+                          </Button>
+                        </Box>
+                      </Box>
+                    )}
                   </Box>
                 </Grid>
               </Grid>
@@ -1014,8 +1065,50 @@ function StatusTracker() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Reject Confirmation Dialog */}
+      <Dialog
+        open={openRejectDialog}
+        onClose={handleCloseRejectDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Confirm Rejection</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Please provide a reason for rejecting this reimbursement request.
+          </Alert>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Rejection Remarks (Required)"
+            placeholder="Please explain why this reimbursement is being rejected..."
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            required
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseRejectDialog}>Cancel</Button>
+          <Button
+            onClick={() =>
+              selectedTicket && handleReject(selectedTicket.id, remarks)
+            }
+            color="error"
+            variant="contained"
+            disabled={!remarks || remarks.trim() === "" || actionLoading}
+          >
+            {actionLoading ? (
+              <CircularProgress size={24} />
+            ) : (
+              "Confirm Rejection"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 }
 
-export default StatusTracker;
+export default Reimbursement;

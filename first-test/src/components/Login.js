@@ -16,13 +16,8 @@ import {
 import { useAppContext } from "../App";
 
 function Login() {
-  const {
-    setIsAdmin,
-    setIsAuthenticated,
-    setUser,
-    showNotification,
-    setIsSalesDirector,
-  } = useAppContext();
+  const { setIsAdmin, setIsAuthenticated, setUser, showNotification } =
+    useAppContext();
   const [checking, setChecking] = useState(true);
   const navigate = useNavigate();
   const theme = useTheme(); // ⬅️ Get current theme
@@ -50,51 +45,18 @@ function Login() {
             });
             setIsAuthenticated(true);
             setIsAdmin(
-              [
-                "Admin",
-                "SUL",
-                "Account Manager",
-                "Invoice Specialist",
-                // "Sales Director",
-                "Finance Officer",
-              ].includes(data.user.role)
-            );
+            ["Admin", "SUL", "Account Manager", "Invoice Specialist", "Sales Director", "Finance Officer"].includes(data.user.role)
+              );
 
-            setIsSalesDirector(["Sales Director"].includes(data.user.role));
-            console.log("User:: ", data.user.role);
-
-            // if (
-            //   data.user.role === "Admin" ||
-            //   data.user.role === "SUL" ||
-            //   data.user.role === "Account Manager" ||
-            //   data.user.role === "Invoice Specialist" ||
-            //   // data.user.role === "Sales Director" ||
-            //   data.user.role === "Finance Officer"
-            // ) {
-            //   navigate("/admin");
-            // } else {
-            //   navigate("/user");
-            // }
-
-            switch (data.user.role) {
-              case "Admin":
-              case "SUL":
-              case "Account Manager":
-              case "Invoice Specialist":
-              case "Finance Officer":
-                navigate("/admin");
-                break;
-              case "Employee":
-                navigate("/user");
-                break;
-              case "Sales Director":
-                navigate("/sales-director");
-                break;
-              default:
-                // Optional: handle unknown roles
-                console.warn("Unknown role:", data.user.role);
-                navigate("/fallback"); // or whatever default route you prefer
-                break;
+            if (data.user.role === "Admin"|| 
+                data.user.role === "SUL" || 
+                data.user.role === "Account Manager" || 
+                data.user.role === "Invoice Specialist" || 
+                data.user.role === "Sales Director" ||
+                data.user.role === "Finance Officer") {
+              navigate("/admin");
+            } else {
+              navigate("/user");
             }
 
             const firstName = data.user.name.split(" ")[0];
@@ -164,11 +126,7 @@ function Login() {
           <Box sx={{ mb: 3, textAlign: "center" }}>
             <Box sx={{ mb: 1.5, display: "flex", justifyContent: "center" }}>
               <img
-                src={
-                  theme.palette.mode === "dark"
-                    ? "/erni-logo-darkmode.png"
-                    : "/erni-logo.png"
-                }
+                src={theme.palette.mode === "dark" ? "/erni-logo-darkmode.png" : "/erni-logo.png"}
                 alt="Logo"
                 style={{ height: "60px" }}
                 onError={(e) => (e.target.style.display = "none")}

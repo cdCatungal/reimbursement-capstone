@@ -1,10 +1,10 @@
 // src/controllers/approvalController.js
 import { User, Reimbursement, Approval } from "../models/index.js";
-import { getNextApprover } from '../utils/approvalFlow.js';
+import { getNextApprover, findApproverBySapCode } from '../utils/approvalFlow.js';
 import { sendEmail } from '../utils/sendEmail.js';
 
 /**
- * Approve a reimbursement (by current approver)
+ * Approve a reimbursement (by current approver with SAP code routing)
  */
 export async function approve(req, res) {
   try {
@@ -44,7 +44,7 @@ export async function approve(req, res) {
       return res.status(404).json({ error: 'Reimbursement not found' });
     }
 
-    console.log(`📋 Reimbursement status: ${r.status}, current_approver: ${r.current_approver}`);
+    console.log(`📋 Reimbursement SAP Code: ${r.sap_code}, status: ${r.status}, current_approver: ${r.current_approver}`);
 
     // ✅ Check if it's this approver's turn
     if (r.current_approver !== approver.role) {
@@ -54,6 +54,20 @@ export async function approve(req, res) {
         currentApprover: r.current_approver,
         yourRole: approver.role
       });
+    }
+
+    // ✅ For SUL and Account Manager, verify SAP code match
+    if (['SUL', 'Account Manager'].includes(approver.role)) {
+      const approverSapCodes = [approver.sap_code_1, approver.sap_code_2].filter(Boolean);
+      
+      if (!approverSapCodes.includes(r.sap_code)) {
+        console.log(`❌ SAP code mismatch. Request: ${r.sap_code}, Approver: ${approverSapCodes.join(', ')}`);
+        return res.status(403).json({
+          error: 'This reimbursement is not assigned to your SAP code',
+          requestSapCode: r.sap_code,
+          yourSapCodes: approverSapCodes
+        });
+      }
     }
 
     // ✅ Find the pending approval record for this user's role
@@ -90,18 +104,41 @@ export async function approve(req, res) {
     if (nextRole) {
       // Still has more approvers
       console.log(`➡️ Moving to next approver: ${nextRole}`);
+      
+      // ✅ Find next approver based on SAP code (if applicable)
+      const allUsers = await User.findAll();
+      const nextApprover = findApproverBySapCode(nextRole, r.sap_code, allUsers);
+      
+      if (!nextApprover) {
+        console.log(`⚠️ Warning: No ${nextRole} found for SAP code ${r.sap_code}`);
+        // Optionally handle this case - could reject or escalate
+      }
+      
       r.current_approver = nextRole;
       r.status = 'Pending';
       await r.save();
 
-      // ✅ Notify next approver
-      const nextUser = await User.findOne({ where: { role: nextRole } });
-      if (nextUser) {
-        console.log(`📧 Would notify ${nextUser.name} (${nextUser.email})`);
+      // ✅ Update the next approval record with approver_id if found
+      if (nextApprover) {
+        const nextApprovalRecord = await Approval.findOne({
+          where: {
+            reimbursement_id: r.id,
+            approver_role: nextRole,
+            status: 'Pending'
+          }
+        });
+        
+        if (nextApprovalRecord && !nextApprovalRecord.approver_id) {
+          nextApprovalRecord.approver_id = nextApprover.id;
+          await nextApprovalRecord.save();
+        }
+
+        console.log(`📧 Would notify ${nextApprover.name} (${nextApprover.email})`);
         /*
-        await sendEmail(nextUser.email, 'Reimbursement awaiting your approval', `
-          <p>Hi ${nextUser.name},</p>
+        await sendEmail(nextApprover.email, 'Reimbursement awaiting your approval', `
+          <p>Hi ${nextApprover.name},</p>
           <p>Reimbursement #${r.id} from ${r.user.name} was approved by ${approver.name}.</p>
+          <p>SAP Code: ${r.sap_code}</p>
           <p>Amount: ₱${r.total}</p>
           <p>Please review and approve.</p>
         `);
@@ -121,6 +158,7 @@ export async function approve(req, res) {
       await sendEmail(r.user.email, 'Your reimbursement was approved', `
         <p>Hi ${r.user.name},</p>
         <p>Your reimbursement #${r.id} has been fully approved!</p>
+        <p>SAP Code: ${r.sap_code}</p>
         <p>Amount: ₱${r.total}</p>
       `);
       */
@@ -172,7 +210,7 @@ export async function reject(req, res) {
       return res.status(404).json({ error: 'Reimbursement not found' });
     }
 
-    console.log(`📋 Reimbursement status: ${r.status}, current_approver: ${r.current_approver}`);
+    console.log(`📋 Reimbursement SAP Code: ${r.sap_code}, status: ${r.status}, current_approver: ${r.current_approver}`);
 
     // ✅ Check if it's this approver's turn
     if (r.current_approver !== approver.role) {
@@ -182,6 +220,20 @@ export async function reject(req, res) {
         currentApprover: r.current_approver,
         yourRole: approver.role
       });
+    }
+
+    // ✅ For SUL and Account Manager, verify SAP code match
+    if (['SUL', 'Account Manager'].includes(approver.role)) {
+      const approverSapCodes = [approver.sap_code_1, approver.sap_code_2].filter(Boolean);
+      
+      if (!approverSapCodes.includes(r.sap_code)) {
+        console.log(`❌ SAP code mismatch. Request: ${r.sap_code}, Approver: ${approverSapCodes.join(', ')}`);
+        return res.status(403).json({
+          error: 'This reimbursement is not assigned to your SAP code',
+          requestSapCode: r.sap_code,
+          yourSapCodes: approverSapCodes
+        });
+      }
     }
 
     // ✅ Find the pending approval record
@@ -244,6 +296,7 @@ export async function reject(req, res) {
     await sendEmail(r.user.email, 'Your reimbursement was rejected', `
       <p>Hi ${r.user.name},</p>
       <p>Your reimbursement #${r.id} was rejected by ${approver.name} (${approver.role}).</p>
+      <p>SAP Code: ${r.sap_code}</p>
       <p>Amount: ₱${r.total}</p>
       <p><strong>Reason:</strong> ${remarks}</p>
     `);

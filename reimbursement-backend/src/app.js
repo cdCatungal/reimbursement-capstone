@@ -12,6 +12,7 @@ import reimbursementRoutes from "./routes/reimbursementRoutes.js";
 import approvalRoutes from "./routes/approvalRoutes.js";
 import userRoutes from "./routes/user.routes.js";
 import ocrRoutes from "./routes/ocrRoutes.js";
+import adminRoutes from "./routes/admin.route.js";
 
 dotenv.config();
 
@@ -52,9 +53,6 @@ app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ✅ Static files
-app.use("/uploads", express.static("uploads"));
-
 // ✅ Initialize Passport (now uses session)
 app.use(passport.initialize());
 app.use(passport.session());
@@ -74,6 +72,8 @@ app.use("/api/reimbursements", reimbursementRoutes);
 app.use("/api/approvals", approvalRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/ocr", ocrRoutes);
+app.use("/api/admin", adminRoutes);
+
 
 // ✅ Health check
 app.get("/", (req, res) => {

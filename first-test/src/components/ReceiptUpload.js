@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useTheme } from '@mui/material/styles';
+import React, { useState, useEffect } from 'react';
 import Tesseract from 'tesseract.js';
 import { useAppContext } from '../App';
 import {
@@ -13,6 +14,7 @@ import {
   Grid,
   IconButton,
   Paper,
+  Alert,
 } from '@mui/material';
 import {
   CloudUpload,
@@ -23,7 +25,8 @@ import {
 } from '@mui/icons-material';
 
 function ReceiptUpload() {
-  const { showNotification, user } = useAppContext(); // ⬅️ Add user from context
+  const theme = useTheme();
+  const { showNotification, user } = useAppContext();
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [extractedText, setExtractedText] = useState('');
@@ -34,12 +37,13 @@ function ReceiptUpload() {
     description: '',
     category: 'Meal with Client',
     merchant: '',
+    sap_code: '', // NEW: SAP code field
   });
   const [loading, setLoading] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [errors, setErrors] = useState({});
+  const [availableSapCodes, setAvailableSapCodes] = useState([]);
 
-  // Categories for the dropdown
   const categories = [
     'Transportation (Commute)',
     'Transportation (Drive)',
@@ -50,7 +54,21 @@ function ReceiptUpload() {
   ];
 
   // Handle image selection and validation
-const handleImageChange = (e) => {
+  // ✅ Load user's SAP codes on mount
+  useEffect(() => {
+    if (user) {
+      const codes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
+      setAvailableSapCodes(codes);
+      
+      // Auto-select if only one SAP code
+      if (codes.length === 1) {
+        setFormData(prev => ({ ...prev, sap_code: codes[0] }));
+      }
+    }
+  }, [user]);
+
+
+  const handleImageChange = (e) => {
   const file = e.target.files[0];
   if (file) {
     if (file.size > 5 * 1024 * 1024) {
@@ -90,11 +108,9 @@ const handleImageChange = (e) => {
 
 
 
-  // Parse OCR-extracted text to extract relevant fields
   const parseReceiptText = (text) => {
     const lines = text.split('\n').filter(line => line.trim());
 
-    // Extract total using multiple patterns
     const totalPatterns = [
       /total[:\s]*₱?\s*(\d+\.?\d*)/i,
       /amount[:\s]*₱?\s*(\d+\.?\d*)/i,
@@ -110,7 +126,6 @@ const handleImageChange = (e) => {
       }
     }
 
-    // Extract date
     const datePattern = /(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/;
     const dateMatch = text.match(datePattern);
     let date = formData.date;
@@ -125,10 +140,7 @@ const handleImageChange = (e) => {
       }
     }
 
-    // Extract merchant (first non-empty line as fallback)
     const merchant = lines[0] || '';
-
-    // Extract items (join non-empty lines after merchant)
     const items = lines.slice(1).filter(line => !totalPatterns.some(p => p.test(line))).join('\n');
 
     return { total, date, merchant, items };
@@ -258,7 +270,6 @@ const handleOCR = async () => {
 
 
 
-  // Handle form input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -267,29 +278,43 @@ const handleOCR = async () => {
     }
   };
 
-  // Validate form before submission
+  const validateDate = (dateString) => {
+    const selectedDate = new Date(dateString);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    if (selectedDate > today) {
+      return 'Date cannot be in the future';
+    }
+    return '';
+  };
+
   const validateForm = () => {
     const newErrors = {};
+  
+    const dateError = validateDate(formData.date);
+    if (dateError) newErrors.date = dateError;
+
     if (!formData.date) newErrors.date = 'Date is required';
     if (!formData.total || parseFloat(formData.total) <= 0) {
       newErrors.total = 'Valid total amount is required';
     }
     if (!formData.category) newErrors.category = 'Category is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
+    if (!formData.sap_code) newErrors.sap_code = 'SAP code is required'; // NEW
     if (!image) newErrors.image = 'Receipt image is required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Submit reimbursement request
   const handleSubmit = async () => {
     if (!validateForm()) {
       showNotification('Please fill in all required fields', 'error');
       return;
     }
 
-    if (!user) { // ⬅️ Check if user is authenticated
+    if (!user) {
       showNotification('Please log in first', 'error');
       return;
     }
@@ -298,14 +323,19 @@ const handleOCR = async () => {
     formDataToSend.append('category', formData.category);
     formDataToSend.append('type', formData.category);
     formDataToSend.append('description', formData.description);
+    formDataToSend.append('items', formData.items);
     formDataToSend.append('total', parseFloat(formData.total));
+    formDataToSend.append('merchant', formData.merchant);
+    formDataToSend.append('date_of_expense', formData.date);
+    formDataToSend.append('sap_code', formData.sap_code); // NEW
+    
     if (image) formDataToSend.append('receipt', image);
 
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, { // ⬅️ Use env variable
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${user.token}`, // ⬅️ Add authorization header
+          Authorization: `Bearer ${user.token}`,
         },
         body: formDataToSend,
         credentials: 'include',
@@ -317,14 +347,15 @@ const handleOCR = async () => {
       showNotification('Reimbursement submitted successfully!', 'success');
       console.log('Created reimbursement:', data);
 
-      // ✅ Reset all fields after successful submission
+      // Reset fields
       setFormData({
         date: new Date().toISOString().split('T')[0],
         items: '',
         total: '',
         description: '',
-        category: 'Transportation (Drive)',
+        category: 'Meal with Client',
         merchant: '',
+        sap_code: availableSapCodes.length === 1 ? availableSapCodes[0] : '',
       });
       setImage(null);
       setImagePreview(null);
@@ -336,7 +367,6 @@ const handleOCR = async () => {
     }
   };
 
-  // Clear uploaded image
   const handleClearImage = () => {
     setImage(null);
     setImagePreview(null);
@@ -347,9 +377,16 @@ const handleOCR = async () => {
   return (
     <Card>
       <CardContent sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
           Upload Receipt for Reimbursement
         </Typography>
+
+        {/* SAP Code Alert */}
+        {availableSapCodes.length === 0 && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            No SAP codes assigned to your account. Please contact your administrator.
+          </Alert>
+        )}
 
         <Grid container spacing={3}>
           {/* Image Upload Section */}
@@ -427,7 +464,11 @@ const handleOCR = async () => {
                     onChange={handleImageChange}
                     style={{ display: 'none' }}
                   />
-                  <CloudUpload sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+                  <CloudUpload sx={{ 
+                    fontSize: 64, 
+                    color: theme.palette.mode === 'dark' ? theme.palette.primary.light : '#00387e', 
+                    mb: 2 
+                  }} />
                   <Typography variant="h6" sx={{ mb: 1 }}>
                     Click to Upload Receipt
                   </Typography>
@@ -468,6 +509,25 @@ const handleOCR = async () => {
           {/* Form Section */}
           <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              {/* NEW: SAP Code Selector */}
+              <TextField
+                select
+                label="SAP Code *"
+                name="sap_code"
+                value={formData.sap_code}
+                onChange={handleChange}
+                fullWidth
+                error={!!errors.sap_code}
+                helperText={errors.sap_code || 'Select the department/project for this expense'}
+                disabled={availableSapCodes.length === 0}
+              >
+                {availableSapCodes.map((code) => (
+                  <MenuItem key={code} value={code}>
+                    {code}
+                  </MenuItem>
+                ))}
+              </TextField>
+
               <TextField
                 select
                 label="Category *"
@@ -495,6 +555,13 @@ const handleOCR = async () => {
                 InputLabelProps={{ shrink: true }}
                 error={!!errors.date}
                 helperText={errors.date}
+                InputProps={{
+                  sx: {
+                    '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                      filter: theme.palette.mode === 'dark' ? 'invert(1)' : 'none'
+                    }
+                  }
+                }}
               />
 
               <TextField
@@ -519,40 +586,48 @@ const handleOCR = async () => {
               />
 
               <TextField
-                label="Items/Details"
-                name="items"
-                value={formData.items}
-                onChange={handleChange}
-                fullWidth
-                multiline
-                rows={3}
-                placeholder="List of items purchased..."
-              />
-
-              <TextField
-                label="Description/Purpose *"
+                label="Purpose *"
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
                 fullWidth
                 multiline
                 rows={3}
-                placeholder="Brief description of the expense purpose..."
+                placeholder="Purpose of the expense..."
                 error={!!errors.description}
                 helperText={errors.description || 'Explain the business purpose of this expense'}
               />
 
+              <TextField
+                label="Description *"
+                name="items"
+                value={formData.items}
+                onChange={handleChange}
+                fullWidth
+                multiline
+                rows={3}
+                placeholder="Description of this reimbursement application..."
+              />
+
               <Button
                 variant="contained"
-                color="success"
                 onClick={handleSubmit}
                 size="large"
                 startIcon={<CheckCircle />}
                 sx={{
                   py: 1.5,
                   fontWeight: 600,
+                  bgcolor: '#2e7d32',
+                  color: '#fafafa',
+                  '&:hover': {
+                    bgcolor: '#1b5e20',
+                  },
+                  '&:disabled': {
+                    bgcolor: 'action.disabledBackground',
+                    color: 'action.disabled',
+                  },
                 }}
-                disabled={loading}
+                disabled={loading || availableSapCodes.length === 0}
               >
                 Submit for Approval
               </Button>

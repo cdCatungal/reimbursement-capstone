@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { useTheme } from '@mui/material';
 import { useNavigate } from "react-router-dom";
+import MonthlyStats from "./MonthlyStats";
 import {
   Container,
   Box,
@@ -26,6 +28,7 @@ import UserSettings from "./UserSettings";
 import { userUserStore } from "../store/userUserStore.js";
 
 function UserDashboard() {
+  const theme = useTheme();
   const { user, setIsAuthenticated, setIsAdmin, setUser, showNotification } =
     useAppContext();
   const navigate = useNavigate();
@@ -152,6 +155,13 @@ useEffect(() => {
             </ListItemButton>
           ))}
         </List>
+
+        {drawerOpen && (
+          <Box sx={{ mt: 'auto' }}>
+            <MonthlyStats />
+          </Box>
+        )}
+
       </Drawer>
 
       <Box
@@ -174,7 +184,7 @@ useEffect(() => {
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <img
-              src="/erni-logo.png"
+              src={theme.palette.mode === "dark" ? "/erni-logo-darkmode.png" : "/erni-logo.png"}
               alt="ERNI Logo"
               style={{ height: "40px" }}
             />
@@ -240,9 +250,6 @@ useEffect(() => {
               mb: 3,
             }}
           >
-            <Typography variant="h4" sx={{ fontWeight: "bold" }}>
-              User Dashboard
-            </Typography>
           </Box>
           <Box sx={{ px: 0.5 }}>
             {tabValue === -1

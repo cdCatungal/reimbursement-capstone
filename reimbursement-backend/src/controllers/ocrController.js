@@ -11,8 +11,8 @@ export const cleanExtractedText = async (req, res) => {
       return res.status(400).json({ message: "No text provided" });
     }
 
-    // Use the latest Gemini 1.5 Pro model
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+    // Use the latest Gemini 2.0 Flash Exp model
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     const prompt = `
 You are an OCR text cleaner. 

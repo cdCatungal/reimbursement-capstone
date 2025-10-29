@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Tesseract from 'tesseract.js';
 import { useAppContext } from '../App';
 import {
@@ -14,6 +14,7 @@ import {
   Grid,
   IconButton,
   Paper,
+  Alert,
 } from '@mui/material';
 import {
   CloudUpload,
@@ -36,10 +37,12 @@ function ReceiptUpload() {
     description: '',
     category: 'Meal with Client',
     merchant: '',
+    sap_code: '', // NEW: SAP code field
   });
   const [loading, setLoading] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [errors, setErrors] = useState({});
+  const [availableSapCodes, setAvailableSapCodes] = useState([]);
 
   const categories = [
     'Transportation (Commute)',
@@ -49,6 +52,19 @@ function ReceiptUpload() {
     'Accomodation',
     'Other',
   ];
+
+  // ✅ Load user's SAP codes on mount
+  useEffect(() => {
+    if (user) {
+      const codes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
+      setAvailableSapCodes(codes);
+      
+      // Auto-select if only one SAP code
+      if (codes.length === 1) {
+        setFormData(prev => ({ ...prev, sap_code: codes[0] }));
+      }
+    }
+  }, [user]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -156,22 +172,21 @@ function ReceiptUpload() {
   };
 
   const validateDate = (dateString) => {
-  const selectedDate = new Date(dateString);
-  const today = new Date();
-  today.setHours(23, 59, 59, 999); // End of today
-  
-  if (selectedDate > today) {
-    return 'Date cannot be in the future';
-  }
-  return'';
-};
+    const selectedDate = new Date(dateString);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    if (selectedDate > today) {
+      return 'Date cannot be in the future';
+    }
+    return '';
+  };
 
   const validateForm = () => {
     const newErrors = {};
   
-    // Date validation
-  const dateError = validateDate(formData.date);
-  if (dateError) newErrors.date = dateError;
+    const dateError = validateDate(formData.date);
+    if (dateError) newErrors.date = dateError;
 
     if (!formData.date) newErrors.date = 'Date is required';
     if (!formData.total || parseFloat(formData.total) <= 0) {
@@ -179,6 +194,7 @@ function ReceiptUpload() {
     }
     if (!formData.category) newErrors.category = 'Category is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
+    if (!formData.sap_code) newErrors.sap_code = 'SAP code is required'; // NEW
     if (!image) newErrors.image = 'Receipt image is required';
 
     setErrors(newErrors);
@@ -196,16 +212,18 @@ function ReceiptUpload() {
       return;
     }
 
-     const formDataToSend = new FormData();
-  formDataToSend.append('category', formData.category);
-  formDataToSend.append('type', formData.category);
-  formDataToSend.append('description', formData.description); // Fixed: use description for description
-  formDataToSend.append('items', formData.items); // Fixed: use items for items
-  formDataToSend.append('total', parseFloat(formData.total));
-  formDataToSend.append('merchant', formData.merchant);
-  formDataToSend.append('date_of_expense', formData.date); // ✅ Changed from 'date' to 'date_of_expense'
-  
-  if (image) formDataToSend.append('receipt', image);
+    const formDataToSend = new FormData();
+    formDataToSend.append('category', formData.category);
+    formDataToSend.append('type', formData.category);
+    formDataToSend.append('description', formData.description);
+    formDataToSend.append('items', formData.items);
+    formDataToSend.append('total', parseFloat(formData.total));
+    formDataToSend.append('merchant', formData.merchant);
+    formDataToSend.append('date_of_expense', formData.date);
+    formDataToSend.append('sap_code', formData.sap_code); // NEW
+    
+    if (image) formDataToSend.append('receipt', image);
+
     try {
       const res = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, {
         method: 'POST',
@@ -230,6 +248,7 @@ function ReceiptUpload() {
         description: '',
         category: 'Meal with Client',
         merchant: '',
+        sap_code: availableSapCodes.length === 1 ? availableSapCodes[0] : '',
       });
       setImage(null);
       setImagePreview(null);
@@ -254,6 +273,13 @@ function ReceiptUpload() {
         <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
           Upload Receipt for Reimbursement
         </Typography>
+
+        {/* SAP Code Alert */}
+        {availableSapCodes.length === 0 && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            No SAP codes assigned to your account. Please contact your administrator.
+          </Alert>
+        )}
 
         <Grid container spacing={3}>
           {/* Image Upload Section */}
@@ -342,9 +368,6 @@ function ReceiptUpload() {
                   <Typography variant="body2" color="text.secondary">
                     Supported formats: JPG, PNG, JPEG (Max 5MB)
                   </Typography>
-                  <Typography variant="caption" color="primary" sx={{ mt: 1, display: 'block' }}>
-                    📌 Images are stored securely in the database
-                  </Typography>
                 </label>
               )}
               {errors.image && (
@@ -379,6 +402,25 @@ function ReceiptUpload() {
           {/* Form Section */}
           <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              {/* NEW: SAP Code Selector */}
+              <TextField
+                select
+                label="SAP Code *"
+                name="sap_code"
+                value={formData.sap_code}
+                onChange={handleChange}
+                fullWidth
+                error={!!errors.sap_code}
+                helperText={errors.sap_code || 'Select the department/project for this expense'}
+                disabled={availableSapCodes.length === 0}
+              >
+                {availableSapCodes.map((code) => (
+                  <MenuItem key={code} value={code}>
+                    {code}
+                  </MenuItem>
+                ))}
+              </TextField>
+
               <TextField
                 select
                 label="Category *"
@@ -478,7 +520,7 @@ function ReceiptUpload() {
                     color: 'action.disabled',
                   },
                 }}
-                disabled={loading}
+                disabled={loading || availableSapCodes.length === 0}
               >
                 Submit for Approval
               </Button>

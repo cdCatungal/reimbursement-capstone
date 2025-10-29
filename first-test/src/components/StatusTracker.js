@@ -638,10 +638,42 @@ function StatusTracker() {
                       </Typography>
                       <Typography variant="body2">
                         {new Date(
-                          selectedTicket.date || selectedTicket.submittedAt
+                          selectedTicket.date
                         ).toLocaleDateString()}
                       </Typography>
                     </Box>
+
+                  <Box sx={{ mb: 2 }}>
+  <Typography
+    variant="body2"
+    color="text.secondary"
+    sx={{ fontWeight: 600 }}
+  >
+    Date Submitted:
+  </Typography>
+  <Typography variant="body2">
+    {new Date(
+      selectedTicket.submittedAt
+    ).toLocaleDateString()}
+  </Typography>
+</Box>
+
+<Box sx={{ mb: 2 }}>
+  <Typography
+    variant="body2"
+    color="text.secondary"
+    sx={{ fontWeight: 600 }}
+  >
+    SAP Code:
+  </Typography>
+  <Chip 
+    label={selectedTicket.sapCode || "N/A"}
+    color="primary"
+    variant="outlined"
+    size="small"
+    sx={{ fontWeight: 600, mt: 0.5 }}
+  />
+</Box>
 
                     {selectedTicket.merchant && (
                       <Box sx={{ mb: 2 }}>

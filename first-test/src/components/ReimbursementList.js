@@ -124,6 +124,7 @@ function ReimbursementList() {
           (item.description && item.description.toLowerCase().includes(term)) ||
           (item.category && item.category.toLowerCase().includes(term)) ||
           (item.merchant && item.merchant.toLowerCase().includes(term)) ||
+          (item.sapCode && item.sapCode.toLowerCase().includes(term)) ||
           (item.user?.name && item.user.name.toLowerCase().includes(term)) ||
           (item.user?.role && item.user.role.toLowerCase().includes(term)) ||
           (item.status && item.status.toLowerCase().includes(term)) ||
@@ -168,8 +169,6 @@ function ReimbursementList() {
 
   // Get unique categories
   const getUniqueCategories = () => {
-    // const categories = [...new Set(pendings.map((item) => item.category))];
-    // return ["All Categories", ...categories];
     return [
       "All Categories",
       "Transportation (Commute)",
@@ -584,6 +583,7 @@ function ReimbursementList() {
         <DialogContent sx={{ p: 0 }}>
           {selectedTicket && (
             <>
+              {/* Header with SAP Code on opposite side */}
               <Box
                 sx={{
                   p: 3,
@@ -594,34 +594,43 @@ function ReimbursementList() {
                   borderColor: "divider",
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  {/* <Avatar
-                    sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
-                  >
-                    <PersonIcon sx={{ fontSize: 32 }} />
-                  </Avatar> */}
-
-                  <Avatar
-                    src={selectedTicket.user?.profile_picture}
-                    alt={
-                      selectedTicket.user?.name || selectedTicket.user?.username
-                    }
-                    sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
-                  >
-                    {!selectedTicket.user?.profile_picture &&
-                      (selectedTicket.user?.name?.charAt(0).toUpperCase() ||
-                        selectedTicket.user?.username?.charAt(0).toUpperCase())}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {selectedTicket.user?.name || "N/A"}
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <Avatar
+                      src={selectedTicket.user?.profile_picture}
+                      alt={
+                        selectedTicket.user?.name || selectedTicket.user?.username
+                      }
+                      sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
+                    >
+                      {!selectedTicket.user?.profile_picture &&
+                        (selectedTicket.user?.name?.charAt(0).toUpperCase() ||
+                          selectedTicket.user?.username?.charAt(0).toUpperCase())}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {selectedTicket.user?.name || "N/A"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Role: {selectedTicket.user?.role || "N/A"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Email: {selectedTicket.user?.email || "N/A"}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  {/* SAP Code Display - Right side */}
+                  <Box sx={{ textAlign: "right" }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                      SAP Code
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Role: {selectedTicket.user?.role || "N/A"}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Email: {selectedTicket.user?.email || "N/A"}
-                    </Typography>
+                    <Chip 
+                      label={selectedTicket.sapCode || "N/A"}
+                      color="primary"
+                      variant="outlined"
+                      sx={{ fontWeight: 600, fontSize: "0.875rem" }}
+                    />
                   </Box>
                 </Box>
               </Box>
@@ -708,7 +717,7 @@ function ReimbursementList() {
                       </Typography>
                       <Typography variant="body2">
                         {new Date(
-                          selectedTicket.date || selectedTicket.submittedAt
+                          selectedTicket.date
                         ).toLocaleDateString()}
                       </Typography>
                     </Box>

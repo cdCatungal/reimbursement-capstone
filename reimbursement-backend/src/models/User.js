@@ -1,3 +1,4 @@
+// src/models/User.js
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/db.js';
 
@@ -25,13 +26,13 @@ const User = sequelize.define('User', {
   },
   role: {
     type: DataTypes.ENUM(
-      'Employee',           // Regular employee
-      'SUL',               // Service Unit Leader
-      'Account Manager',   // Account Manager
-      'Invoice Specialist', // Invoice Specialist
-      'Finance Officer',   // Finance Officer
-      'Sales Director',    // Sales Director (highest approval level)
-      'Admin'             // Admin (with account management)
+      'Employee',
+      'SUL',
+      'Account Manager',
+      'Invoice Specialist',
+      'Finance Officer',
+      'Sales Director',
+      'Admin'
     ),
     defaultValue: 'Employee',
   },
@@ -46,9 +47,39 @@ const User = sequelize.define('User', {
     unique: true,
   },
   profilePicture: {
-    type: DataTypes.TEXT,  // Using TEXT to store base64 or URL
+    type: DataTypes.TEXT,
     allowNull: true,
   },
+  // NEW: SAP Code fields
+  sap_code_1: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    validate: {
+      is: /^E-\d{5}-\d{4}$/i, // Format: E-00000-0000
+    },
+    comment: 'Primary SAP code (format: E-00000-0000)'
+  },
+  sap_code_2: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    validate: {
+      is: /^E-\d{5}-\d{4}$/i,
+    },
+    comment: 'Secondary SAP code (only for Employees, format: E-00000-0000)'
+  },
+});
+
+// Add validation to ensure only Employees can have 2 SAP codes
+User.beforeValidate((user) => {
+  if (user.sap_code_2 && !['Employee'].includes(user.role)) {
+    user.sap_code_2 = null; // Clear second SAP code for non-Employees
+  }
+  
+  // Ensure Sales Director, Invoice Specialist, Finance Officer have no SAP codes
+  if (['Sales Director', 'Invoice Specialist', 'Finance Officer', 'Admin'].includes(user.role)) {
+    user.sap_code_1 = null;
+    user.sap_code_2 = null;
+  }
 });
 
 export default User;

@@ -40,6 +40,8 @@ function Login() {
               email: data.user.email,
               role: data.user.role,
               authProvider: data.user.authProvider,
+              sap_code_1: data.user.sap_code_1,
+              sap_code_2: data.user.sap_code_2,
             });
             setIsAuthenticated(true);
             setIsAdmin(

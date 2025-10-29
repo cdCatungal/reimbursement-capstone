@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTheme } from '@mui/material/styles';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import MonthlyStats from "./MonthlyStats";
 import {
   Container,
@@ -186,7 +186,7 @@ function AdminDashboard() {
         </List>
 
         {drawerOpen && (
-          <Box sx={{ mt: 'auto' }}>
+          <Box sx={{ mt: "auto" }}>
             <MonthlyStats />
           </Box>
         )}

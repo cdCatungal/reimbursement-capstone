@@ -3,7 +3,7 @@
 // Define all possible approval chains based on submitter's role
 const approvalFlows = {
   Employee: ["SUL", "Account Manager", "Invoice Specialist", "Finance Officer"],
-  SUL: ["Account Manager", "Sales Director", "Invoice Specialist", "Finance Officer"],
+  SUL: ["Sales Director", "Invoice Specialist", "Finance Officer"],
   "Account Manager": ["Sales Director", "Invoice Specialist", "Finance Officer"],
   "Invoice Specialist": ["Sales Director", "Invoice Specialist", "Finance Officer"],
 };

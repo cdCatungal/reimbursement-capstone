@@ -12,9 +12,9 @@ import {
   Navigate,
 } from "react-router-dom";
 import Login from "./components/Login";
-import UserDashboard from "./components/UserDashboard";
-import AdminDashboard from "./components/AdminDashboard";
-import SalesDirector from "./pages/salesDirector/Dashboard";
+import UserDashboard from "./pages/UserDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import SalesDirector from "./pages/SalesDirectorDashboard";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { Snackbar, Alert } from "@mui/material";

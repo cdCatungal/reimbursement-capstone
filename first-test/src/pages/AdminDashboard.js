@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
-import MonthlyStats from "./MonthlyStats";
+import MonthlyStats from "../components/MonthlyStats.js";
 import {
   Container,
   Box,
@@ -22,13 +22,13 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
-import ReportExport from "./ReportExport";
-import ReceiptUpload from "./ReceiptUpload";
-import StatusTracker from "./StatusTracker";
-import ReimbursementList from "./ReimbursementList";
-import ThemeToggle from "./ThemeToggle";
-import { useAppContext } from "../App";
-import UserSettings from "./UserSettings";
+import ReportExport from "../components/ReportExport.js";
+import ReceiptUpload from "../components/ReceiptUpload.js";
+import StatusTracker from "../components/StatusTracker.js";
+import ReimbursementList from "../components/ReimbursementList.js";
+import ThemeToggle from "../components/ThemeToggle.js";
+import { useAppContext } from "../App.js";
+import UserSettings from "../components/UserSettings.js";
 import { userUserStore } from "../store/userUserStore.js";
 
 function AdminDashboard() {

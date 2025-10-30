@@ -66,23 +66,46 @@ function ReceiptUpload() {
     }
   }, [user]);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        showNotification('File size must be less than 5MB', 'error');
-        return;
-      }
-      if (!file.type.startsWith('image/')) {
-        showNotification('Please upload an image file', 'error');
-        return;
-      }
-      setImage(file);
-      setImagePreview(URL.createObjectURL(file));
-      setExtractedText('');
-      setErrors((prev) => ({ ...prev, image: '' }));
+  // Handle image selection and validation
+const handleImageChange = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification('File size must be less than 5MB', 'error');
+      return;
     }
-  };
+    if (!file.type.startsWith('image/')) {
+      showNotification('Please upload an image file', 'error');
+      return;
+    }
+
+    setImage(file);
+    setExtractedText('');
+    setErrors((prev) => ({ ...prev, image: '' }));
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const scaleFactor = 2.5;
+        canvas.width = img.width * scaleFactor;
+        canvas.height = img.height * scaleFactor;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const processedUrl = canvas.toDataURL('image/png');
+        setImagePreview(processedUrl);
+      };
+    };
+
+    reader.readAsDataURL(file);
+  }
+};
+
+
 
   const parseReceiptText = (text) => {
     const lines = text.split('\n').filter(line => line.trim());
@@ -128,40 +151,115 @@ function ReceiptUpload() {
       return;
     }
 
-    setLoading(true);
-    setOcrProgress(0);
+  setLoading(true);
 
-    try {
-      const result = await Tesseract.recognize(
-        imagePreview,
-        'eng',
-        {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              setOcrProgress(Math.round(m.progress * 100));
+  try {
+    const formDataToSend = new FormData();
+    formDataToSend.append('image', image);
+
+    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/ocr/structured`, {
+      method: 'POST',
+      body: formDataToSend,
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'OCR failed');
+
+    // Display raw text for user to verify
+    setExtractedText(data.cleanedText || data.rawText);
+
+    if (data.structured) {
+      const structured = data.structured;
+      
+      console.log('🤖 AI Extracted Data:', structured);
+      
+      // ===== DATE FORMATTING =====
+      let formattedDate = formData.date;
+      if (structured.date) {
+        try {
+          // Handle DD/MM/YYYY or DD-MM-YYYY format
+          const parts = structured.date.split(/[/-]/);
+          if (parts.length === 3) {
+            let [day, month, year] = parts;
+            
+            // Pad with zeros
+            day = day.padStart(2, '0');
+            month = month.padStart(2, '0');
+            
+            // Handle 2-digit year
+            if (year.length === 2) {
+              year = '20' + year;
             }
-          },
+            
+            // Convert to YYYY-MM-DD for input[type="date"]
+            formattedDate = `${year}-${month}-${day}`;
+            console.log('📅 Date:', structured.date, '→', formattedDate);
+          }
+        } catch (e) {
+          console.error('❌ Date parse error:', e);
         }
-      );
+      }
 
-      const text = result.data.text;
-      setExtractedText(text);
+      // ===== ITEMS FORMATTING =====
+      let itemsText = '';
+      if (Array.isArray(structured.items) && structured.items.length > 0) {
+        itemsText = structured.items
+          .map(item => {
+            if (typeof item === 'object' && item.description) {
+              // Format: "Item Name - ₱123.45"
+              return item.price && item.price > 0
+                ? `${item.description} - ₱${parseFloat(item.price).toFixed(2)}`
+                : item.description;
+            }
+            return '';
+          })
+          .filter(line => line.trim())
+          .join('\n');
+        
+        console.log('📦 Items:', structured.items.length, 'extracted');
+      }
 
-      const parsed = parseReceiptText(text);
+      // ===== TOTAL FORMATTING =====
+      let formattedTotal = '';
+      if (structured.total) {
+        formattedTotal = String(parseFloat(structured.total).toFixed(2));
+        console.log('💰 Total: ₱', formattedTotal);
+      }
+
+      // ===== UPDATE FORM (ONLY RECEIPT DATA) =====
       setFormData((prev) => ({
         ...prev,
-        ...parsed,
+        date: formattedDate,
+        merchant: structured.merchant || prev.merchant,
+        total: formattedTotal || prev.total,
+        items: itemsText || prev.items,
+        // Keep category and description unchanged - manual entry only
+        // category: prev.category,
+        // description: prev.description,
       }));
 
-      showNotification('Text extracted successfully! Please verify the details.', 'success');
-    } catch (error) {
-      showNotification('OCR failed. Please try again or enter manually.', 'error');
-      console.error('OCR Error:', error);
-    } finally {
-      setLoading(false);
-      setOcrProgress(0);
+      // Success notification with extracted details
+      const details = [
+        structured.merchant ? `${structured.merchant}` : null,
+        structured.date ? `${structured.date}` : null,
+        structured.total ? `₱${structured.total}` : null,
+      ].filter(Boolean).join(' | ');
+
+      showNotification(`✅ Receipt extracted! ${details}`, 'success');
+      
+    } else {
+      showNotification('⚠️ OCR completed but no structured data found', 'warning');
     }
-  };
+
+  } catch (error) {
+    console.error('❌ OCR Error:', error);
+    showNotification(`OCR failed: ${error.message}`, 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;

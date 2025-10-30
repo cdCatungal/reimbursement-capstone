@@ -1,7 +1,10 @@
 // src/controllers/reimbursementController.js
 import { Reimbursement, User, Approval } from "../models/index.js";
 import { sendEmail } from "../utils/sendEmail.js";
-import { getApprovalFlow, findApproverBySapCode } from "../utils/approvalFlow.js";
+import {
+  getApprovalFlow,
+  findApproverBySapCode,
+} from "../utils/approvalFlow.js";
 import { bufferToBase64 } from "../middlewares/upload.js";
 
 /**
@@ -25,10 +28,14 @@ export async function createReimbursement(req, res) {
     }
 
     // ✅ Validate user has this SAP code
-    if (user.sap_code_1 !== payload.sap_code && user.sap_code_2 !== payload.sap_code) {
-      return res.status(400).json({ 
-        error: "Invalid SAP code. You can only submit reimbursements with your assigned SAP codes.",
-        userSapCodes: [user.sap_code_1, user.sap_code_2].filter(Boolean)
+    if (
+      user.sap_code_1 !== payload.sap_code &&
+      user.sap_code_2 !== payload.sap_code
+    ) {
+      return res.status(400).json({
+        error:
+          "Invalid SAP code. You can only submit reimbursements with your assigned SAP codes.",
+        userSapCodes: [user.sap_code_1, user.sap_code_2].filter(Boolean),
       });
     }
 
@@ -49,16 +56,22 @@ export async function createReimbursement(req, res) {
 
     // ✅ Find the first approver (must match SAP code if SUL/Account Manager)
     const firstApproverRole = approvalFlow[0];
-    const firstApprover = findApproverBySapCode(firstApproverRole, payload.sap_code, allUsers);
+    const firstApprover = findApproverBySapCode(
+      firstApproverRole,
+      payload.sap_code,
+      allUsers
+    );
 
     if (!firstApprover) {
       return res.status(400).json({
         error: `No ${firstApproverRole} found with matching SAP code: ${payload.sap_code}`,
-        sapCode: payload.sap_code
+        sapCode: payload.sap_code,
       });
     }
 
-    console.log(`✅ First approver: ${firstApprover.name} (${firstApproverRole})`);
+    console.log(
+      `✅ First approver: ${firstApprover.name} (${firstApproverRole})`
+    );
 
     // ✅ Process receipt image from memory buffer
     let receiptData = null;
@@ -69,7 +82,9 @@ export async function createReimbursement(req, res) {
       receiptData = bufferToBase64(req.file.buffer);
       receiptMimetype = req.file.mimetype;
       receiptFilename = req.file.originalname;
-      console.log(`📸 Receipt uploaded: ${receiptFilename} (${receiptMimetype}), Size: ${req.file.size} bytes`);
+      console.log(
+        `📸 Receipt uploaded: ${receiptFilename} (${receiptMimetype}), Size: ${req.file.size} bytes`
+      );
     }
 
     // ✅ FIX: Parse date_of_expense properly
@@ -83,7 +98,7 @@ export async function createReimbursement(req, res) {
         // Try to parse and format
         const parsedDate = new Date(dateStr);
         if (!isNaN(parsedDate.getTime())) {
-          dateOfExpense = parsedDate.toISOString().split('T')[0];
+          dateOfExpense = parsedDate.toISOString().split("T")[0];
         }
       }
       console.log("📅 Parsed date_of_expense:", dateOfExpense);
@@ -112,11 +127,15 @@ export async function createReimbursement(req, res) {
 
     // ✅ Create approval records for all levels in the flow
     const approvalRecords = [];
-    
+
     for (let i = 0; i < approvalFlow.length; i++) {
       const approverRole = approvalFlow[i];
-      const potentialApprover = findApproverBySapCode(approverRole, payload.sap_code, allUsers);
-      
+      const potentialApprover = findApproverBySapCode(
+        approverRole,
+        payload.sap_code,
+        allUsers
+      );
+
       approvalRecords.push({
         reimbursement_id: reimbursement.id,
         approver_id: potentialApprover ? potentialApprover.id : null,
@@ -133,7 +152,9 @@ export async function createReimbursement(req, res) {
 
     // ✅ Notify first approver
     if (firstApprover) {
-      console.log(`📧 Would notify ${firstApprover.name} (${firstApprover.email})`);
+      console.log(
+        `📧 Would notify ${firstApprover.name} (${firstApprover.email})`
+      );
     }
 
     res.json({ reimbursement });
@@ -201,7 +222,9 @@ export async function getUserReimbursements(req, res) {
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
       // ✅ FIX: Format dates consistently
-      date: r.date_of_expense ? new Date(r.date_of_expense).toISOString().split('T')[0] : null,
+      date: r.date_of_expense
+        ? new Date(r.date_of_expense).toISOString().split("T")[0]
+        : null,
       receipt: r.receipt_data
         ? {
             data: r.receipt_data,
@@ -244,12 +267,12 @@ export async function getPendingApprovals(req, res) {
     // ✅ If user is SUL or Account Manager, filter by SAP code
     if (["SUL", "Account Manager"].includes(user.role)) {
       const userSapCodes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
-      
+
       if (userSapCodes.length === 0) {
         console.log("⚠️ User has no SAP codes assigned");
         return res.json([]);
       }
-      
+
       whereClause.sap_code = userSapCodes;
       console.log("🔍 Filtering by SAP codes:", userSapCodes);
     }
@@ -299,7 +322,9 @@ export async function getPendingApprovals(req, res) {
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
       // ✅ FIX: Format dates consistently
-      date: r.date_of_expense ? new Date(r.date_of_expense).toISOString().split('T')[0] : null,
+      date: r.date_of_expense
+        ? new Date(r.date_of_expense).toISOString().split("T")[0]
+        : null,
       receipt: r.receipt_data
         ? {
             data: r.receipt_data,
@@ -313,7 +338,105 @@ export async function getPendingApprovals(req, res) {
       extractedText: null,
       approvals: r.approvals || [],
     }));
-    
+
+    res.json(formatted);
+  } catch (err) {
+    console.error("❌ Error fetching pending approvals:", err);
+    res.status(500).json({ error: "Failed to fetch pending approvals" });
+  }
+}
+
+export async function getPendingAllApprovals(req, res) {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    console.log("🔍 Fetching pending approvals for role:", user.role);
+
+    const whereClause = {
+      // current_approver: user.role,
+      status: ["Pending"],
+    };
+
+    // ✅ If user is SUL or Account Manager, DON'T filter by SAP code - get ALL data
+    if (["SUL", "Account Manager"].includes(user.role)) {
+      console.log(
+        "🔍 SUL/Account Manager - fetching ALL pending approvals without SAP code filter"
+      );
+      // Remove any SAP code filtering - whereClause remains as is (only role and status)
+    } else {
+      // For other roles, you can keep SAP code filtering if needed
+      const userSapCodes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
+      if (userSapCodes.length > 0) {
+        whereClause.sap_code = userSapCodes;
+        console.log("🔍 Filtering by SAP codes:", userSapCodes);
+      }
+    }
+
+    const reimbursements = await Reimbursement.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "name", "email", "role", "profile_picture"],
+        },
+        {
+          model: Approval,
+          as: "approvals",
+          include: [
+            {
+              model: User,
+              as: "approver",
+              attributes: ["id", "name", "email", "role", "profile_picture"],
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    console.log(`✅ Found ${reimbursements.length} pending approvals`);
+
+    const formatted = reimbursements.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      user: r.user
+        ? {
+            id: r.user.id,
+            name: r.user.name,
+            email: r.user.email,
+            role: r.user.role,
+            profile_picture: r.user?.dataValues?.profile_picture,
+          }
+        : null,
+      category: r.category,
+      type: r.type,
+      description: r.description,
+      total: r.total,
+      status: r.status,
+      currentApprover: r.current_approver,
+      sapCode: r.sap_code,
+      // ✅ FIX: Format dates consistently
+      date: r.date_of_expense
+        ? new Date(r.date_of_expense).toISOString().split("T")[0]
+        : null,
+      receipt: r.receipt_data
+        ? {
+            data: r.receipt_data,
+            mimetype: r.receipt_mimetype,
+            filename: r.receipt_filename,
+          }
+        : null,
+      submittedAt: r.submitted_at ? r.submitted_at.toISOString() : null,
+      merchant: r.merchant,
+      items: r.items,
+      extractedText: null,
+      approvals: r.approvals || [],
+    }));
+
     res.json(formatted);
   } catch (err) {
     console.error("❌ Error fetching pending approvals:", err);
@@ -334,7 +457,9 @@ export async function updateReimbursementStatus(req, res) {
     const reimbursementId = req.params.id;
     const { action, remarks } = req.body;
 
-    console.log(`🔄 User ${user.name} (${user.role}) attempting to ${action} reimbursement #${reimbursementId}`);
+    console.log(
+      `🔄 User ${user.name} (${user.role}) attempting to ${action} reimbursement #${reimbursementId}`
+    );
 
     const reimbursement = await Reimbursement.findByPk(reimbursementId, {
       include: [
@@ -363,21 +488,21 @@ export async function updateReimbursementStatus(req, res) {
     }
 
     if (reimbursement.current_approver !== user.role) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: "You are not authorized to approve this reimbursement",
         currentApprover: reimbursement.current_approver,
-        yourRole: user.role
+        yourRole: user.role,
       });
     }
 
     if (["SUL", "Account Manager"].includes(user.role)) {
       const userSapCodes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
-      
+
       if (!userSapCodes.includes(reimbursement.sap_code)) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: "This reimbursement is assigned to a different SAP code",
           reimbursementSapCode: reimbursement.sap_code,
-          yourSapCodes: userSapCodes
+          yourSapCodes: userSapCodes,
         });
       }
     }
@@ -387,8 +512,8 @@ export async function updateReimbursementStatus(req, res) {
     );
 
     if (!currentApproval) {
-      return res.status(400).json({ 
-        error: "No pending approval found for your role"
+      return res.status(400).json({
+        error: "No pending approval found for your role",
       });
     }
 
@@ -405,9 +530,11 @@ export async function updateReimbursementStatus(req, res) {
         current_approver: null,
       });
 
-      console.log(`❌ Reimbursement #${reimbursementId} rejected by ${user.name}`);
+      console.log(
+        `❌ Reimbursement #${reimbursementId} rejected by ${user.name}`
+      );
 
-      return res.json({ 
+      return res.json({
         message: "Reimbursement rejected successfully",
         reimbursement: await Reimbursement.findByPk(reimbursementId, {
           include: [
@@ -428,7 +555,7 @@ export async function updateReimbursementStatus(req, res) {
               ],
             },
           ],
-        })
+        }),
       });
     }
 
@@ -440,7 +567,9 @@ export async function updateReimbursementStatus(req, res) {
         approved_at: new Date(),
       });
 
-      console.log(`✅ Approval level ${currentApproval.approval_level} completed by ${user.name}`);
+      console.log(
+        `✅ Approval level ${currentApproval.approval_level} completed by ${user.name}`
+      );
 
       const nextApproval = reimbursement.approvals.find(
         (a) => a.approval_level === currentApproval.approval_level + 1
@@ -449,15 +578,15 @@ export async function updateReimbursementStatus(req, res) {
       if (nextApproval) {
         const allUsers = await User.findAll();
         const nextApprover = findApproverBySapCode(
-          nextApproval.approver_role, 
-          reimbursement.sap_code, 
+          nextApproval.approver_role,
+          reimbursement.sap_code,
           allUsers
         );
 
         if (nextApprover) {
           if (!nextApproval.approver_id) {
             await nextApproval.update({
-              approver_id: nextApprover.id
+              approver_id: nextApprover.id,
             });
           }
 
@@ -465,10 +594,12 @@ export async function updateReimbursementStatus(req, res) {
             current_approver: nextApproval.approver_role,
           });
 
-          console.log(`➡️ Moving to next approver: ${nextApprover.name} (${nextApproval.approver_role})`);
+          console.log(
+            `➡️ Moving to next approver: ${nextApprover.name} (${nextApproval.approver_role})`
+          );
         } else {
-          return res.status(500).json({ 
-            error: `No ${nextApproval.approver_role} found with matching SAP code: ${reimbursement.sap_code}`
+          return res.status(500).json({
+            error: `No ${nextApproval.approver_role} found with matching SAP code: ${reimbursement.sap_code}`,
           });
         }
       } else {
@@ -481,8 +612,10 @@ export async function updateReimbursementStatus(req, res) {
         console.log(`🎉 Reimbursement #${reimbursementId} FULLY APPROVED`);
       }
 
-      return res.json({ 
-        message: nextApproval ? "Approval recorded, moved to next approver" : "Reimbursement fully approved",
+      return res.json({
+        message: nextApproval
+          ? "Approval recorded, moved to next approver"
+          : "Reimbursement fully approved",
         reimbursement: await Reimbursement.findByPk(reimbursementId, {
           include: [
             {
@@ -497,20 +630,25 @@ export async function updateReimbursementStatus(req, res) {
                 {
                   model: User,
                   as: "approver",
-                  attributes: ["id", "name", "email", "role", "profile_picture"],
+                  attributes: [
+                    "id",
+                    "name",
+                    "email",
+                    "role",
+                    "profile_picture",
+                  ],
                 },
               ],
             },
           ],
-        })
+        }),
       });
     }
 
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: "Invalid action. Must be 'approve' or 'reject'",
-      receivedAction: action
+      receivedAction: action,
     });
-
   } catch (err) {
     console.error("❌ Error updating reimbursement status:", err);
     res.status(500).json({ error: "Server error", details: err.message });

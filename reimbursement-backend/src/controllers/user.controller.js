@@ -39,10 +39,11 @@ export const getAllUsers = async (req, res) => {
     }
 
     // Check if user is Admin
-    if (!['Admin', 'Sales Director'].includes(req.user.role)) {
+    console.log("Current user role:", req.user.role); // Debug log
+    if (!['Admin', 'Sales Director'].includes(req.user.role)){
       return res.status(403).json({ 
         success: false, 
-        message: "Access denied. Admin role required." 
+        message: `Access denied. Admin role required. Your role: ${req.user.role}` 
       });
     }
 
@@ -78,7 +79,7 @@ export const updateUser = async (req, res) => {
     }
 
     // Check if user is Admin
-    if (req.user.role !== 'Admin', 'Sales Director') {
+    if (!['Admin', 'Sales Director'].includes(req.user.role)) {
       return res.status(403).json({ 
         success: false, 
         message: "Access denied. Admin role required." 
@@ -161,7 +162,7 @@ export const deleteUser = async (req, res) => {
     }
 
     // Check if user is Admin
-    if (req.user.role !== 'Admin', 'Sales Director') {
+    if (!['Admin', 'Sales Director'].includes(req.user.role)) {
       return res.status(403).json({ 
         success: false, 
         message: "Access denied. Admin role required." 

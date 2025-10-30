@@ -13,6 +13,7 @@ import approvalRoutes from "./routes/approvalRoutes.js";
 import userRoutes from "./routes/user.routes.js";
 import ocrRoutes from "./routes/ocrRoutes.js";
 import adminRoutes from "./routes/admin.route.js";
+import sapCodeRoutes from './routes/sapCode.routes.js';
 
 dotenv.config();
 
@@ -73,6 +74,7 @@ app.use("/api/approvals", approvalRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/admin", adminRoutes);
+app.use('/api/sap-codes', sapCodeRoutes);
 
 // ✅ Health check
 app.get("/", (req, res) => {

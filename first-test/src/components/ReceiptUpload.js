@@ -1,6 +1,5 @@
 import { useTheme } from '@mui/material/styles';
 import React, { useState, useEffect } from 'react';
-import Tesseract from 'tesseract.js';
 import { useAppContext } from '../App';
 import {
   Box,
@@ -37,7 +36,7 @@ function ReceiptUpload() {
     description: '',
     category: 'Meal with Client',
     merchant: '',
-    sap_code: '', // NEW: SAP code field
+    sap_code: '',
   });
   const [loading, setLoading] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
@@ -53,96 +52,39 @@ function ReceiptUpload() {
     'Other',
   ];
 
-  // ✅ Load user's SAP codes on mount
   useEffect(() => {
     if (user) {
       const codes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
       setAvailableSapCodes(codes);
       
-      // Auto-select if only one SAP code
       if (codes.length === 1) {
         setFormData(prev => ({ ...prev, sap_code: codes[0] }));
       }
     }
   }, [user]);
 
-  // Handle image selection and validation
-const handleImageChange = (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    if (file.size > 5 * 1024 * 1024) {
-      showNotification('File size must be less than 5MB', 'error');
-      return;
-    }
-    if (!file.type.startsWith('image/')) {
-      showNotification('Please upload an image file', 'error');
-      return;
-    }
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification('File size must be less than 5MB', 'error');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        showNotification('Please upload an image file', 'error');
+        return;
+      }
 
-    setImage(file);
-    setExtractedText('');
-    setErrors((prev) => ({ ...prev, image: '' }));
+      setImage(file);
+      setExtractedText('');
+      setErrors((prev) => ({ ...prev, image: '' }));
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        const scaleFactor = 2.5;
-        canvas.width = img.width * scaleFactor;
-        canvas.height = img.height * scaleFactor;
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        const processedUrl = canvas.toDataURL('image/png');
-        setImagePreview(processedUrl);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImagePreview(event.target.result);
       };
-    };
-
-    reader.readAsDataURL(file);
-  }
-};
-
-
-
-  const parseReceiptText = (text) => {
-    const lines = text.split('\n').filter(line => line.trim());
-
-    const totalPatterns = [
-      /total[:\s]*₱?\s*(\d+\.?\d*)/i,
-      /amount[:\s]*₱?\s*(\d+\.?\d*)/i,
-      /grand\s+total[:\s]*₱?\s*(\d+\.?\d*)/i,
-      /₱\s*(\d+\.?\d*)\s*$/m,
-    ];
-    let total = '';
-    for (const pattern of totalPatterns) {
-      const match = text.match(pattern);
-      if (match && match[1]) {
-        total = parseFloat(match[1]).toFixed(2);
-        break;
-      }
+      reader.readAsDataURL(file);
     }
-
-    const datePattern = /(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/;
-    const dateMatch = text.match(datePattern);
-    let date = formData.date;
-    if (dateMatch) {
-      try {
-        const parsedDate = new Date(dateMatch[1]);
-        if (!isNaN(parsedDate.getTime())) {
-          date = parsedDate.toISOString().split('T')[0];
-        }
-      } catch (e) {
-        console.warn('Invalid date format in receipt:', dateMatch[1]);
-      }
-    }
-
-    const merchant = lines[0] || '';
-    const items = lines.slice(1).filter(line => !totalPatterns.some(p => p.test(line))).join('\n');
-
-    return { total, date, merchant, items };
   };
 
   const handleOCR = async () => {
@@ -150,116 +92,114 @@ const handleImageChange = (e) => {
       showNotification('Please select an image first', 'warning');
       return;
     }
-
-  setLoading(true);
-
-  try {
-    const formDataToSend = new FormData();
-    formDataToSend.append('image', image);
-
-    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/ocr/structured`, {
-      method: 'POST',
-      body: formDataToSend,
-      credentials: 'include',
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.error || 'OCR failed');
-
-    // Display raw text for user to verify
-    setExtractedText(data.cleanedText || data.rawText);
-
-    if (data.structured) {
-      const structured = data.structured;
-      
-      console.log('🤖 AI Extracted Data:', structured);
-      
-      // ===== DATE FORMATTING =====
-      let formattedDate = formData.date;
-      if (structured.date) {
-        try {
-          // Handle DD/MM/YYYY or DD-MM-YYYY format
-          const parts = structured.date.split(/[/-]/);
-          if (parts.length === 3) {
-            let [day, month, year] = parts;
-            
-            // Pad with zeros
-            day = day.padStart(2, '0');
-            month = month.padStart(2, '0');
-            
-            // Handle 2-digit year
-            if (year.length === 2) {
-              year = '20' + year;
+ 
+    setLoading(true);
+    setOcrProgress(0);
+ 
+    try {
+      const progressInterval = setInterval(() => {
+        setOcrProgress((prev) => {
+          if (prev >= 90) return 90;
+          return prev + 10;
+        });
+      }, 200);
+ 
+      const formDataToSend = new FormData();
+      formDataToSend.append('image', image);
+ 
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/api/ocr/structured`, {
+        method: 'POST',
+        body: formDataToSend,
+        credentials: 'include',
+      });
+ 
+      clearInterval(progressInterval);
+      setOcrProgress(100);
+ 
+      const data = await res.json();
+ 
+      if (!res.ok) throw new Error(data.error || 'OCR failed');
+ 
+      setExtractedText(data.cleanedText || data.rawText);
+ 
+      if (data.structured) {
+        const structured = data.structured;
+       
+        console.log('🤖 AI Extracted Data:', structured);
+       
+        let formattedDate = formData.date;
+        if (structured.date) {
+          try {
+            const parts = structured.date.split(/[/-]/);
+            if (parts.length === 3) {
+              let [day, month, year] = parts;
+             
+              day = day.padStart(2, '0');
+              month = month.padStart(2, '0');
+             
+              if (year.length === 2) {
+                year = '20' + year;
+              }
+             
+              formattedDate = `${year}-${month}-${day}`;
+              console.log('📅 Date:', structured.date, '→', formattedDate);
             }
-            
-            // Convert to YYYY-MM-DD for input[type="date"]
-            formattedDate = `${year}-${month}-${day}`;
-            console.log('📅 Date:', structured.date, '→', formattedDate);
+          } catch (e) {
+            console.error('❌ Date parse error:', e);
           }
-        } catch (e) {
-          console.error('❌ Date parse error:', e);
         }
+ 
+        let itemsText = '';
+        if (Array.isArray(structured.items) && structured.items.length > 0) {
+          itemsText = structured.items
+            .map(item => {
+              if (typeof item === 'object' && item.description) {
+                return item.price && item.price > 0
+                  ? `${item.description} - ₱${parseFloat(item.price).toFixed(2)}`
+                  : item.description;
+              }
+              return '';
+            })
+            .filter(line => line.trim())
+            .join('\n');
+         
+          console.log('📦 Items:', structured.items.length, 'extracted');
+        }
+ 
+        let formattedTotal = '';
+        if (structured.total) {
+          formattedTotal = String(parseFloat(structured.total).toFixed(2));
+          console.log('💰 Total: ₱', formattedTotal);
+        }
+ 
+        setFormData((prev) => ({
+          ...prev,
+          date: formattedDate,
+          merchant: structured.merchant || prev.merchant,
+          total: formattedTotal || prev.total,
+          description: itemsText || prev.description,
+        }));
+ 
+        const details = [
+          structured.merchant ? `${structured.merchant}` : null,
+          structured.date ? `${structured.date}` : null,
+          structured.total ? `₱${structured.total}` : null,
+        ].filter(Boolean).join(' | ');
+ 
+        showNotification(`✅ Receipt extracted! ${details}`, 'success');
+       
+      } else {
+        showNotification('⚠️ OCR completed but no structured data found', 'warning');
       }
-
-      // ===== ITEMS FORMATTING =====
-      let itemsText = '';
-      if (Array.isArray(structured.items) && structured.items.length > 0) {
-        itemsText = structured.items
-          .map(item => {
-            if (typeof item === 'object' && item.description) {
-              // Format: "Item Name - ₱123.45"
-              return item.price && item.price > 0
-                ? `${item.description} - ₱${parseFloat(item.price).toFixed(2)}`
-                : item.description;
-            }
-            return '';
-          })
-          .filter(line => line.trim())
-          .join('\n');
-        
-        console.log('📦 Items:', structured.items.length, 'extracted');
-      }
-
-      // ===== TOTAL FORMATTING =====
-      let formattedTotal = '';
-      if (structured.total) {
-        formattedTotal = String(parseFloat(structured.total).toFixed(2));
-        console.log('💰 Total: ₱', formattedTotal);
-      }
-
-      // ===== UPDATE FORM (ONLY RECEIPT DATA) =====
-      setFormData((prev) => ({
-        ...prev,
-        date: formattedDate,
-        merchant: structured.merchant || prev.merchant,
-        total: formattedTotal || prev.total,
-        items: itemsText || prev.items,
-        // Keep category and description unchanged - manual entry only
-        // category: prev.category,
-        // description: prev.description,
-      }));
-
-      // Success notification with extracted details
-      const details = [
-        structured.merchant ? `${structured.merchant}` : null,
-        structured.date ? `${structured.date}` : null,
-        structured.total ? `₱${structured.total}` : null,
-      ].filter(Boolean).join(' | ');
-
-      showNotification(`✅ Receipt extracted! ${details}`, 'success');
-      
-    } else {
-      showNotification('⚠️ OCR completed but no structured data found', 'warning');
+ 
+    } catch (error) {
+      console.error('❌ OCR Error:', error);
+      showNotification(`OCR failed: ${error.message}`, 'error');
+    } finally {
+      setLoading(false);
+      setTimeout(() => setOcrProgress(0), 500);
     }
-
-  } catch (error) {
-    console.error('❌ OCR Error:', error);
-    showNotification(`OCR failed: ${error.message}`, 'error');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -282,19 +222,20 @@ const handleImageChange = (e) => {
 
   const validateForm = () => {
     const newErrors = {};
-  
+   
     const dateError = validateDate(formData.date);
     if (dateError) newErrors.date = dateError;
-
+   
     if (!formData.date) newErrors.date = 'Date is required';
     if (!formData.total || parseFloat(formData.total) <= 0) {
       newErrors.total = 'Valid total amount is required';
     }
     if (!formData.category) newErrors.category = 'Category is required';
+    if (!formData.items.trim()) newErrors.items = 'Purpose is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
-    if (!formData.sap_code) newErrors.sap_code = 'SAP code is required'; // NEW
+    if (!formData.sap_code) newErrors.sap_code = 'SAP code is required';
     if (!image) newErrors.image = 'Receipt image is required';
-
+   
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -310,19 +251,25 @@ const handleImageChange = (e) => {
       return;
     }
 
-    const formDataToSend = new FormData();
-    formDataToSend.append('category', formData.category);
-    formDataToSend.append('type', formData.category);
-    formDataToSend.append('description', formData.description);
-    formDataToSend.append('items', formData.items);
-    formDataToSend.append('total', parseFloat(formData.total));
-    formDataToSend.append('merchant', formData.merchant);
-    formDataToSend.append('date_of_expense', formData.date);
-    formDataToSend.append('sap_code', formData.sap_code); // NEW
-    
-    if (image) formDataToSend.append('receipt', image);
+    setLoading(true);
 
     try {
+      // Create FormData for multipart upload
+      const formDataToSend = new FormData();
+      formDataToSend.append('category', formData.category);
+      formDataToSend.append('type', formData.category);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('items', formData.items);
+      formDataToSend.append('total', parseFloat(formData.total));
+      formDataToSend.append('merchant', formData.merchant);
+      formDataToSend.append('date_of_expense', formData.date);
+      formDataToSend.append('sap_code', formData.sap_code);
+      
+      // Append the actual image file
+      if (image) {
+        formDataToSend.append('receipt', image);
+      }
+
       const res = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, {
         method: 'POST',
         headers: {
@@ -332,13 +279,17 @@ const handleImageChange = (e) => {
         credentials: 'include',
       });
 
-      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `Server responded with ${res.status}`);
+      }
+      
       const data = await res.json();
 
       showNotification('Reimbursement submitted successfully!', 'success');
       console.log('Created reimbursement:', data);
 
-      // Reset fields
+      // Reset form
       setFormData({
         date: new Date().toISOString().split('T')[0],
         items: '',
@@ -354,7 +305,9 @@ const handleImageChange = (e) => {
       setErrors({});
     } catch (err) {
       console.error('Error submitting reimbursement:', err);
-      showNotification('Failed to submit reimbursement', 'error');
+      showNotification(err.message || 'Failed to submit reimbursement', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -372,7 +325,6 @@ const handleImageChange = (e) => {
           Upload Receipt for Reimbursement
         </Typography>
 
-        {/* SAP Code Alert */}
         {availableSapCodes.length === 0 && (
           <Alert severity="warning" sx={{ mb: 3 }}>
             No SAP codes assigned to your account. Please contact your administrator.
@@ -380,7 +332,6 @@ const handleImageChange = (e) => {
         )}
 
         <Grid container spacing={3}>
-          {/* Image Upload Section */}
           <Grid item xs={12} md={6}>
             <Paper
               sx={{
@@ -497,10 +448,8 @@ const handleImageChange = (e) => {
             )}
           </Grid>
 
-          {/* Form Section */}
           <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              {/* NEW: SAP Code Selector */}
               <TextField
                 select
                 label="SAP Code *"
@@ -578,26 +527,28 @@ const handleImageChange = (e) => {
 
               <TextField
                 label="Purpose *"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                fullWidth
-                multiline
-                rows={3}
-                placeholder="Purpose of the expense..."
-                error={!!errors.description}
-                helperText={errors.description || 'Explain the business purpose of this expense'}
-              />
-
-              <TextField
-                label="Description *"
                 name="items"
                 value={formData.items}
                 onChange={handleChange}
                 fullWidth
                 multiline
                 rows={3}
+                placeholder="Purpose of the expense..."
+                error={!!errors.items}
+                helperText={errors.items || 'Explain the business purpose of this expense'}
+              />
+              
+              <TextField
+                label="Description *"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                fullWidth
+                multiline
+                rows={3}
                 placeholder="Description of this reimbursement application..."
+                error={!!errors.description}
+                helperText={errors.description}
               />
 
               <Button
@@ -620,7 +571,7 @@ const handleImageChange = (e) => {
                 }}
                 disabled={loading || availableSapCodes.length === 0}
               >
-                Submit for Approval
+                {loading ? 'Submitting...' : 'Submit for Approval'}
               </Button>
             </Box>
           </Grid>

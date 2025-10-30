@@ -1,21 +1,17 @@
 import express from "express";
 import Tesseract from "tesseract.js";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { cleanExtractedText } from "../controllers/ocrController.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import genAI from "../config/gemini.js";
 
-
 const router = express.Router();
 
-// ----------------- Multer -----------------
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
+// ✅ CHANGED: Use memory storage instead of disk storage
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
-const upload = multer({ storage });
 
 // ----------------- Helpers -----------------
 function cleanOCR(text) {
@@ -34,14 +30,12 @@ function cleanOCR(text) {
 
 function toNumber(numStr) {
   if (!numStr) return null;
-  // remove commas and stray characters
   const clean = numStr.replace(/[^\d.-]/g, "").replace(/,+/g, "");
   const n = parseFloat(clean);
   return isFinite(n) ? Number(n.toFixed(2)) : null;
 }
 
 function findAmounts(text) {
-  // Return array of numeric-like matches (preserve order)
   const regex = /(?:₱|\bPHP\b|PHP|\bP\b)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{1,2})?|[0-9]+\.\d{1,2})/gi;
   const matches = [];
   let m;
@@ -62,7 +56,6 @@ function findTotal(text) {
     const m = text.match(p);
     if (m && m[1]) return toNumber(m[1]);
   }
-  // fallback: last currency-like value
   const amounts = findAmounts(text);
   if (amounts.length) return amounts[amounts.length - 1].value;
   return null;
@@ -70,18 +63,16 @@ function findTotal(text) {
 
 function parseDateToDDMMYYYY(text) {
   if (!text) return null;
-  // Look for common date formats
   const datePatterns = [
-    /\b(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})\b/,        // YYYY-MM-DD or YYYY/MM/DD
-    /\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\b/,      // DD/MM/YYYY or MM/DD/YYYY (we'll disambiguate)
-    /([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/,          // MonthName DD, YYYY
+    /\b(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})\b/,
+    /\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\b/,
+    /([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/,
   ];
 
   for (const p of datePatterns) {
     const m = text.match(p);
     if (!m) continue;
 
-    // YYYY-MM-DD
     if (p === datePatterns[0]) {
       const [_, y, mo, d] = m;
       const dd = String(d).padStart(2, "0");
@@ -89,23 +80,17 @@ function parseDateToDDMMYYYY(text) {
       return `${dd}/${mm}/${y}`;
     }
 
-    // DD/MM/YYYY or MM/DD/YYYY -> we choose the more plausible (if first > 12 then treat as DD)
     if (p === datePatterns[1]) {
       let [_, part1, part2, year] = m;
       let day = part1, month = part2;
-      // if month > 12 then swap
       if (Number(month) > 12 && Number(day) <= 12) {
         month = part1;
         day = part2;
       } else {
-        // ambiguous: many PH receipts are MM/DD/YYYY or DD/MM/YYYY; prefer DD/MM/YYYY if day <=31 and month <=12
-        // If first part > 12, treat it as month? We'll keep safe approach:
-        if (Number(part1) > 31) { // impossible as day
-          // treat as MM/DD/YYYY -> swap
+        if (Number(part1) > 31) {
           day = part2;
           month = part1;
         } else {
-          // assume DD/MM/YYYY
           day = part1;
           month = part2;
         }
@@ -113,7 +98,6 @@ function parseDateToDDMMYYYY(text) {
       return `${String(day).padStart(2,"0")}/${String(month).padStart(2,"0")}/${year}`;
     }
 
-    // MonthName DD, YYYY
     if (p === datePatterns[2]) {
       const [_, monthName, d, y] = m;
       const monthIndex = new Date(`${monthName} 1, ${y}`).getMonth() + 1;
@@ -134,7 +118,6 @@ function extractReference(text) {
     const m = text.match(p);
     if (m && m[1]) return m[1].trim();
   }
-  // fallback: find series of digits with length >= 6 near bottom
   const bottomMatches = text.split("\n").slice(-6).join("\n").match(/([0-9]{6,})/);
   return bottomMatches ? bottomMatches[1] : "";
 }
@@ -145,64 +128,49 @@ function titleCase(str) {
     .toLowerCase()
     .split(" ")
     .map(w => {
-      if (w.length <= 2) return w.toUpperCase(); // keep short acronyms capitalized (e.g., "kg" -> "KG")
+      if (w.length <= 2) return w.toUpperCase();
       return w.charAt(0).toUpperCase() + w.slice(1);
     })
     .join(" ");
 }
 
-// small merchant dictionary to improve detection; add more as needed
 const merchantDictionary = [
   "S&R", "S&R MEMBERSHIP SHOPPING", "JOLLIBEE", "MCDONALD'S", "PUREGOLD", "7-ELEVEN", "SM", "LANDERS"
 ];
 
 function detectMerchant(lines) {
   if (!lines || !lines.length) return "";
-  // Try to find a merchant from dictionary
-  for (const line of lines.slice(0, 6)) { // check top 6 lines
+  for (const line of lines.slice(0, 6)) {
     for (const known of merchantDictionary) {
       if (line.toUpperCase().includes(known.toUpperCase())) return known;
     }
   }
-  // fallback: choose the biggest non-empty top line (likely store name)
   for (const candidate of lines.slice(0, 6)) {
     if (candidate && candidate.length > 2 && /[A-Za-z]/.test(candidate)) return candidate;
   }
   return "";
 }
 
-// ----------------- Parser -----------------
 function parseReceipt(text) {
   const cleaned = cleanOCR(text);
   const lines = cleaned.split("\n").map(l => l.trim()).filter(l => l);
 
-  // Merchant
   const merchant = detectMerchant(lines) || (lines.length ? lines[0] : "");
-
-  // Date (search whole text)
   const date = parseDateToDDMMYYYY(cleaned);
-
-  // Reference / OR / Invoice
   const reference = extractReference(cleaned);
-
-  // Total & Subtotal
-  const total = findTotal(cleaned); // uses total priority
-  // Try to find subtotal near 'subtotal' keyword
+  const total = findTotal(cleaned);
+  
   let subtotal = null;
   const subtotalMatch = cleaned.match(/subtotal[:\s]*₱?\s*([0-9,]+\.\d{1,2})/i);
   if (subtotalMatch && subtotalMatch[1]) subtotal = toNumber(subtotalMatch[1]);
 
-  // Payment method (search for common words)
   let payment_method = "";
   const pm = cleaned.match(/\b(Metrobank|CASH|CREDIT|GCASH|PAYMAYA|VISA|MASTERCARD)\b/i);
   if (pm) payment_method = pm[1].toUpperCase();
 
-  // Cashier (small heuristic)
   const cashierMatch = cleaned.match(/Cashier[:\s]*([A-Za-z\s]+)/i);
   const cashier = cashierMatch ? cashierMatch[1].trim() : "";
 
-  // Items: heuristic - take lines between header and subtotal/total area that look like item lines (contain a number)
-  // We'll search for the line index of SUBTOTAL/TOTAL and use lines before it.
   let stopIndex = lines.length;
   for (let i = 0; i < lines.length; i++) {
     if (/subtotal|total|amount due|grand total/i.test(lines[i])) {
@@ -211,16 +179,12 @@ function parseReceipt(text) {
     }
   }
 
-  // Candidate item lines = lines from top after merchant lines until stopIndex
-  // But skip initial header lines that contain address, phone, TIN etc.
-  let startIndex = 1; // assume line 0 is merchant
+  let startIndex = 1;
   for (let i = 1; i < Math.min(6, lines.length); i++) {
-    // skip if line contains TIN, TEL, BIR, MEMBER, ADDRESS keywords
     if (/tin|tel|telephone|address|member|membership|owned|operated|birtacc|bir/i.test(lines[i])) {
       startIndex = i + 1;
       continue;
     } else {
-      // stop skipping when we find first product-like line or line with numbers/prices
       if (/[0-9]/.test(lines[i])) break;
     }
   }
@@ -230,7 +194,6 @@ function parseReceipt(text) {
     .filter(l => l.length > 3);
 
   const items = [];
-  // Parse each candidate line: extract last number as price; rest as name
   const priceRegex = /([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{1,2})|[0-9]+\.\d{1,2})\s*$/;
   for (const line of rawItemLines) {
     let price = null;
@@ -240,21 +203,17 @@ function parseReceipt(text) {
     if (m && m[1]) {
       price = toNumber(m[1]);
       name = line.slice(0, m.index).trim();
-      // Sometimes price is earlier and line has multiple numbers, fallback to last occurrence
       if (!name) name = line.replace(m[0], "").trim();
     } else {
-      // try to find any numeric token in the line (if none, skip)
       const anyNum = line.match(/([0-9]+(?:\.\d{1,2}))/);
       if (anyNum) {
         price = toNumber(anyNum[1]);
         name = line.replace(anyNum[0], "").trim();
       } else {
-        // no price — treat as description line (skip if very short)
         continue;
       }
     }
 
-    // Title-case name
     const niceName = titleCase(name.replace(/\s{2,}/g, " ").replace(/[^\w\s'&-]/g, "").trim());
 
     items.push({
@@ -264,7 +223,6 @@ function parseReceipt(text) {
     });
   }
 
-  // If items empty, try looser parse: look for lines containing "x" or "X" like "0.655X 185.00"
   if (!items.length) {
     const looser = cleaned.match(/([A-Za-z0-9'&\s]{3,})\s+([0-9,]+\.\d{1,2})/g);
     if (looser) {
@@ -281,7 +239,6 @@ function parseReceipt(text) {
     }
   }
 
-  // Final fallback: if total exists but subtotal null, set subtotal = total
   const finalTotal = total;
   const finalSubtotal = subtotal || finalTotal;
 
@@ -298,20 +255,20 @@ function parseReceipt(text) {
   };
 }
 
-// ----------------- Route -----------------
+// ----------------- Routes -----------------
+
+// ✅ UPDATED: Tesseract OCR route - now uses memory buffer
 router.post("/", upload.single("receipt"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded (field: receipt)" });
 
-    const imgPath = req.file.path;
-
-    const result = await Tesseract.recognize(imgPath, "eng", { logger: (m) => console.log(m) });
+    // ✅ Process image buffer directly, no file system needed
+    const result = await Tesseract.recognize(req.file.buffer, "eng", { 
+      logger: (m) => console.log(m) 
+    });
     const raw = result?.data?.text || "";
 
     const parsed = parseReceipt(raw);
-
-    // cleanup file async
-    fs.unlink(imgPath, () => {});
 
     return res.json({
       success: true,
@@ -319,7 +276,7 @@ router.post("/", upload.single("receipt"), async (req, res) => {
       cleanedText: parsed.rawText,
       extracted: {
         store: parsed.store,
-        date: parsed.date,            // DD/MM/YYYY or null
+        date: parsed.date,
         reference: parsed.reference,
         items: parsed.items,
         subtotal: parsed.subtotal,
@@ -334,28 +291,19 @@ router.post("/", upload.single("receipt"), async (req, res) => {
   }
 });
 
-
-
-// Replace your /structured route in ocrRoutes.js with this improved version:
-
-// Simplified AI OCR route - auto-populate only receipt data
-// Replace your existing /structured route in ocrRoutes.js with this:
-
+// ✅ UPDATED: Gemini AI Vision OCR route - now uses memory buffer
 router.post("/structured", upload.single("image"), async (req, res) => {
   try {
     if (!req.file)
       return res.status(400).json({ error: "No file uploaded" });
 
-    const imagePath = req.file.path;
-
-    // 1) Use Gemini Vision to extract the actual text from the receipt image
-    // This will be MORE accurate than Tesseract for display purposes
-    const visionModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-    
-    // Read image as base64 first
-    const imageBuffer = fs.readFileSync(imagePath);
+    // ✅ Get image buffer directly from memory
+    const imageBuffer = req.file.buffer;
     const base64Image = imageBuffer.toString('base64');
     const mimeType = req.file.mimetype;
+
+    // 1) Extract raw text using Gemini Vision
+    const visionModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     
     const textExtractionPrompt = `Extract ALL text from this receipt image EXACTLY as it appears.
 
@@ -381,10 +329,7 @@ Return ONLY the extracted text, nothing else.`;
     const rawText = textResult.response.text();
     const cleanedText = cleanOCR(rawText);
 
-    // Delete temp file
-    fs.unlink(imagePath, () => {});
-
-    // 2) Now use the same Gemini Vision for structured data extraction
+    // 2) Extract structured data using Gemini Vision
     const structuredModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     const prompt = `You are an expert receipt parser. Analyze this receipt image with EXTREME PRECISION.
@@ -431,7 +376,6 @@ NO markdown formatting, NO explanations, ONLY the JSON object.`;
 
     const aiText = aiResult.response.text();
     
-    // Remove markdown code blocks if present
     const cleanedAIText = aiText
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')
@@ -486,7 +430,7 @@ NO markdown formatting, NO explanations, ONLY the JSON object.`;
     });
   }
 });
-router.post("/clean-text", cleanExtractedText);
 
+router.post("/clean-text", cleanExtractedText);
 
 export default router;

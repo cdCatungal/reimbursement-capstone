@@ -346,9 +346,7 @@ function SalesDirectorDashboard() {
               open={Boolean(anchorEl)}
               onClose={handleProfileClose}
             >
-              <MenuItem onClick={handleUserProfileClick}>
-                User Profile
-              </MenuItem>
+              <MenuItem onClick={handleUserProfileClick}>User Profile</MenuItem>
               <MenuItem onClick={handleLogoutClick}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <span>Logout</span>

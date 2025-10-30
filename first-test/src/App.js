@@ -11,6 +11,7 @@ import {
   Routes,
   Navigate,
 } from "react-router-dom";
+import { Toaster } from 'react-hot-toast';
 import Login from "./components/Login";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -19,6 +20,7 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { Snackbar, Alert } from "@mui/material";
 import Reimbursement from "./components/Reimbursement";
+
 
 // Global Context for State Management
 export const AppContext = createContext();
@@ -239,6 +241,7 @@ function App() {
     <AppContext.Provider value={contextValue}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        <Toaster position="top-right" /> {/* Add this line */}
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />

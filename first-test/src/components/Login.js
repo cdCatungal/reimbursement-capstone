@@ -56,6 +56,7 @@ function Login() {
                 "Account Manager",
                 "Invoice Specialist",
                 "Finance Officer",
+                "Sales Director",
               ].includes(data.user.role)
             );
 

@@ -1,4 +1,4 @@
-// src/controllers/approvalController.js
+// reimbursement-backend/src/controllers/approvalController.js
 import { User, Reimbursement, Approval } from "../models/index.js";
 import { getNextApprover, findApproverBySapCode } from '../utils/approvalFlow.js';
 import { sendEmail } from '../utils/sendEmail.js';

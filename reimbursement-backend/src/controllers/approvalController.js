@@ -2,6 +2,7 @@
 import { User, Reimbursement, Approval } from "../models/index.js";
 import { getNextApprover, findApproverBySapCode } from '../utils/approvalFlow.js';
 import { sendEmail } from '../utils/sendEmail.js';
+import { approvalProgressTemplate, finalApprovalTemplate, rejectionTemplate } from '../utils/emailTemplates.js';
 
 /**
  * Approve a reimbursement (by current approver with SAP code routing)
@@ -102,7 +103,7 @@ export async function approve(req, res) {
     const nextRole = getNextApprover(r.user.role, approver.role);
     
     if (nextRole) {
-      // Still has more approvers
+      // 📧 Still has more approvers - send progress email
       console.log(`➡️ Moving to next approver: ${nextRole}`);
       
       // ✅ Find next approver based on SAP code (if applicable)
@@ -111,7 +112,6 @@ export async function approve(req, res) {
       
       if (!nextApprover) {
         console.log(`⚠️ Warning: No ${nextRole} found for SAP code ${r.sap_code}`);
-        // Optionally handle this case - could reject or escalate
       }
       
       r.current_approver = nextRole;
@@ -132,41 +132,60 @@ export async function approve(req, res) {
           nextApprovalRecord.approver_id = nextApprover.id;
           await nextApprovalRecord.save();
         }
-
-        console.log(`📧 Would notify ${nextApprover.name} (${nextApprover.email})`);
-        /*
-        await sendEmail(nextApprover.email, 'Reimbursement awaiting your approval', `
-          <p>Hi ${nextApprover.name},</p>
-          <p>Reimbursement #${r.id} from ${r.user.name} was approved by ${approver.name}.</p>
-          <p>SAP Code: ${r.sap_code}</p>
-          <p>Amount: ₱${r.total}</p>
-          <p>Please review and approve.</p>
-        `);
-        */
       }
+
+      // 📧 Send intermediate approval email to requester
+      try {
+        const emailHtml = approvalProgressTemplate(
+          r, 
+          approver.name, 
+          approver.role, 
+          nextRole,
+          pendingApproval.approval_level
+        );
+        
+        await sendEmail(
+          r.user.email,
+          `✅ Reimbursement Approved - Level ${pendingApproval.approval_level} (${approver.role})`,
+          emailHtml
+        );
+        
+        console.log(`📧 Progress email sent to ${r.user.email}`);
+      } catch (emailError) {
+        console.error('❌ Failed to send progress email:', emailError);
+        // Don't fail the approval if email fails
+      }
+
     } else {
-      // ✅ Final approval - mark as fully approved
+      // 📧 Final approval - mark as fully approved
       console.log(`✅ Final approval! Marking as Approved`);
       r.status = 'Approved';
       r.current_approver = null;
       r.approved_at = new Date();
       await r.save();
 
-      // ✅ Notify submitter
-      console.log(`📧 Would notify submitter ${r.user.name} (${r.user.email})`);
-      /*
-      await sendEmail(r.user.email, 'Your reimbursement was approved', `
-        <p>Hi ${r.user.name},</p>
-        <p>Your reimbursement #${r.id} has been fully approved!</p>
-        <p>SAP Code: ${r.sap_code}</p>
-        <p>Amount: ₱${r.total}</p>
-      `);
-      */
+      // 📧 Send final approval email to requester
+      try {
+        const emailHtml = finalApprovalTemplate(r, approver.name, approver.role);
+        
+        await sendEmail(
+          r.user.email,
+          `🎉 Reimbursement Fully Approved - ${r.sap_code}`,
+          emailHtml
+        );
+        
+        console.log(`📧 Final approval email sent to ${r.user.email}`);
+      } catch (emailError) {
+        console.error('❌ Failed to send final approval email:', emailError);
+        // Don't fail the approval if email fails
+      }
     }
 
     res.json({ 
       ok: true, 
-      message: 'Reimbursement approved successfully',
+      message: nextRole 
+        ? 'Approval recorded successfully. Email notification sent to requester.' 
+        : 'Reimbursement fully approved! Email notification sent to requester.',
       reimbursement: r,
       nextApprover: nextRole
     });
@@ -290,21 +309,31 @@ export async function reject(req, res) {
 
     console.log(`✅ Reimbursement marked as Rejected`);
 
-    // ✅ Notify submitter
-    console.log(`📧 Would notify submitter ${r.user.name} (${r.user.email})`);
-    /*
-    await sendEmail(r.user.email, 'Your reimbursement was rejected', `
-      <p>Hi ${r.user.name},</p>
-      <p>Your reimbursement #${r.id} was rejected by ${approver.name} (${approver.role}).</p>
-      <p>SAP Code: ${r.sap_code}</p>
-      <p>Amount: ₱${r.total}</p>
-      <p><strong>Reason:</strong> ${remarks}</p>
-    `);
-    */
+    // 📧 Send rejection email to requester
+    try {
+      const emailHtml = rejectionTemplate(
+        r, 
+        approver.name, 
+        approver.role, 
+        remarks,
+        pendingApproval.approval_level
+      );
+      
+      await sendEmail(
+        r.user.email,
+        `❌ Reimbursement Rejected - ${r.sap_code}`,
+        emailHtml
+      );
+      
+      console.log(`📧 Rejection email sent to ${r.user.email}`);
+    } catch (emailError) {
+      console.error('❌ Failed to send rejection email:', emailError);
+      // Don't fail the rejection if email fails
+    }
 
     res.json({ 
       ok: true, 
-      message: 'Reimbursement rejected successfully',
+      message: 'Reimbursement rejected successfully. Email notification sent to requester.',
       reimbursement: r 
     });
   } catch (err) {

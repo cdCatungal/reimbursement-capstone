@@ -16,11 +16,16 @@ import {
 import { useAppContext } from "../App";
 
 function Login() {
-  const { setIsAdmin, setIsAuthenticated, setUser, showNotification } =
-    useAppContext();
+  const {
+    setIsAdmin,
+    setIsAuthenticated,
+    setUser,
+    showNotification,
+    setIsSalesDirector,
+  } = useAppContext();
   const [checking, setChecking] = useState(true);
   const navigate = useNavigate();
-  const theme = useTheme(); // ⬅️ Get current theme
+  const theme = useTheme();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -40,20 +45,43 @@ function Login() {
               email: data.user.email,
               role: data.user.role,
               authProvider: data.user.authProvider,
+              sap_code_1: data.user.sap_code_1,
+              sap_code_2: data.user.sap_code_2,
             });
             setIsAuthenticated(true);
             setIsAdmin(
-            ["Admin", "SUL", "Account Manager", "Invoice Specialist", "Finance Officer"].includes(data.user.role)
-              );
+              [
+                "Admin",
+                "SUL",
+                "Account Manager",
+                "Invoice Specialist",
+                "Finance Officer",
+                "Sales Director",
+              ].includes(data.user.role)
+            );
 
-            if (data.user.role === "Admin"|| 
-                data.user.role === "SUL" || 
-                data.user.role === "Account Manager" || 
-                data.user.role === "Invoice Specialist" || 
-                data.user.role === "Finance Officer") {
-              navigate("/admin");
-            } else {
-              navigate("/user");
+            setIsSalesDirector(["Sales Director"].includes(data.user.role));
+            console.log("User role:", data.user.role);
+
+            // Navigate based on role
+            switch (data.user.role) {
+              case "Admin":
+              case "SUL":
+              case "Account Manager":
+              case "Invoice Specialist":
+              case "Finance Officer":
+                navigate("/admin");
+                break;
+              case "Employee":
+                navigate("/user");
+                break;
+              case "Sales Director":
+                navigate("/sales-director");
+                break;
+              default:
+                console.warn("Unknown role:", data.user.role);
+                navigate("/user");
+                break;
             }
 
             const firstName = data.user.name.split(" ")[0];
@@ -71,7 +99,7 @@ function Login() {
     };
 
     checkAuth();
-  }, [navigate, setIsAdmin, setIsAuthenticated, setUser, showNotification]);
+  }, [navigate, setIsAdmin, setIsAuthenticated, setUser, showNotification, setIsSalesDirector]);
 
   const handleMicrosoftLogin = () => {
     window.location.href = "http://localhost:5000/auth/microsoft";
@@ -96,7 +124,6 @@ function Login() {
     <Box
       sx={{
         minHeight: "100vh",
-        // ⬅️ Adapt background based on theme
         background:
           theme.palette.mode === "dark"
             ? "linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)"
@@ -119,11 +146,15 @@ function Login() {
                 : "1px solid rgba(0, 0, 0, 0.05)",
           }}
         >
-          {/* Header - Updated with closer spacing */}
+          {/* Header */}
           <Box sx={{ mb: 3, textAlign: "center" }}>
             <Box sx={{ mb: 1.5, display: "flex", justifyContent: "center" }}>
               <img
-                src={theme.palette.mode === "dark" ? "/erni-logo-darkmode.png" : "/erni-logo.png"}
+                src={
+                  theme.palette.mode === "dark"
+                    ? "/erni-logo-darkmode.png"
+                    : "/erni-logo.png"
+                }
                 alt="Logo"
                 style={{ height: "60px" }}
                 onError={(e) => (e.target.style.display = "none")}
@@ -133,10 +164,9 @@ function Login() {
               variant="h5"
               sx={{
                 fontWeight: 700,
-                // ⬅️ Adapt text color based on theme
                 color: theme.palette.mode === "dark" ? "#ffffff" : "#4f5455",
                 mb: 0,
-                lineHeight: 1.2, // Tighter line height
+                lineHeight: 1.2,
               }}
             >
               Reimbursement Tool
@@ -160,7 +190,6 @@ function Login() {
               <Typography
                 variant="body2"
                 sx={{
-                  // ⬅️ Adapt text color based on theme
                   color: theme.palette.mode === "dark" ? "#ccc" : "#555",
                   fontSize: "0.9rem",
                 }}
@@ -222,18 +251,18 @@ function Login() {
               fontWeight: 600,
               fontSize: "0.95rem",
               backgroundColor: "#0078D4",
-              color: "white", // ✅ always white text
+              color: "white",
               borderRadius: 1.5,
               transition: "all 0.2s ease",
               "&:hover": {
                 backgroundColor: "#106EBE",
                 boxShadow: "0 6px 20px rgba(0, 120, 212, 0.3)",
                 transform: "translateY(-2px)",
-                color: "white", // ✅ stays white even on hover
+                color: "white",
               },
               "&:disabled": {
                 backgroundColor: "#a0c4f4",
-                color: "white", // ✅ white text even when disabled
+                color: "white",
               },
             }}
           >
@@ -246,7 +275,6 @@ function Login() {
             sx={{
               display: "block",
               textAlign: "center",
-              // ⬅️ Adapt footer text color based on theme
               color: theme.palette.mode === "dark" ? "#999" : "#999",
               fontSize: "0.8rem",
               mt: 3,

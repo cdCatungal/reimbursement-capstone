@@ -16,12 +16,12 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Divider,
 } from "@mui/material";
-import { Download, Preview, Description } from "@mui/icons-material";
+import { Download, Preview, Description, TrendingUp } from "@mui/icons-material";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { useAdminStore } from "../store/useAdminStore";
-// import { data } from "react-router-dom";
 
 function ReportExport() {
   const { getReport, reportData, resetReportData } = useAdminStore();
@@ -38,11 +38,9 @@ function ReportExport() {
     if (!Array.isArray(reportData)) return [];
 
     return reportData.filter((item) => {
-      // Only filter by status, NOT by date
       const statusMatch =
         statusFilter === "All" || item.status === statusFilter;
-
-      return statusMatch; // ✅ Only status filtering
+      return statusMatch;
     });
   };
 
@@ -111,7 +109,8 @@ function ReportExport() {
       });
     });
 
-    // Add summary row
+    // Add summary section
+    worksheet.addRow([]);
     const summaryRow = worksheet.addRow([]);
     summaryRow.getCell(1).value = "SUMMARY";
     summaryRow.getCell(1).font = { bold: true, size: 12 };
@@ -144,7 +143,6 @@ function ReportExport() {
       filteredData.filter((item) => item.status === "Rejected").length,
     ]);
     worksheet.addRow(["Total Amount:", `₱${totalAmount.toFixed(2)}`]);
-    worksheet.addRow(["Approved Amount:", `₱${approvedAmount.toFixed(2)}`]);
 
     // Generate and save file
     const buffer = await workbook.xlsx.writeBuffer();
@@ -179,8 +177,9 @@ function ReportExport() {
   };
 
   return (
-    <Card sx={{ mt: 3 }}>
+    <Card sx={{ mt: 3, boxShadow: 3 }}>
       <CardContent sx={{ p: 3 }}>
+        {/* Header */}
         <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
           <Description sx={{ fontSize: 32, color: "primary.main", mr: 2 }} />
           <Box>
@@ -193,16 +192,25 @@ function ReportExport() {
           </Box>
         </Box>
 
+        {/* Filters */}
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
             <TextField
               label="Start Date"
               type="date"
               value={startDate}
-              // onChange={(e) => setStartDate(e.target.value)}
               onChange={(e) => handlefilterReports(e.target.value, endDate)}
               fullWidth
               InputLabelProps={{ shrink: true }}
+              sx={{
+                '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                  filter: (theme) => 
+                    theme.palette.mode === 'dark' 
+                      ? 'brightness(0) saturate(100%) invert(98%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(102%) contrast(98%)' 
+                      : 'brightness(0) saturate(100%) invert(19%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(95%) contrast(91%)',
+                  cursor: 'pointer',
+                },
+              }}
             />
           </Grid>
           <Grid item xs={12} md={4}>
@@ -210,10 +218,18 @@ function ReportExport() {
               label="End Date"
               type="date"
               value={endDate}
-              // onChange={(e) => setEndDate(e.target.value)}
               onChange={(e) => handlefilterReports(startDate, e.target.value)}
               fullWidth
               InputLabelProps={{ shrink: true }}
+              sx={{
+                '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                  filter: (theme) => 
+                    theme.palette.mode === 'dark' 
+                      ? 'brightness(0) saturate(100%) invert(98%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(102%) contrast(98%)' 
+                      : 'brightness(0) saturate(100%) invert(19%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(95%) contrast(91%)',
+                  cursor: 'pointer',
+                },
+              }}
             />
           </Grid>
           <Grid item xs={12} md={4}>
@@ -233,100 +249,128 @@ function ReportExport() {
         </Grid>
 
         {/* Summary Statistics */}
-        <Paper sx={{ p: 2, mt: 3, bgcolor: "action.hover" }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-            Report Summary
-          </Typography>
-          <Grid container spacing={2}>
+        <Paper 
+          sx={{ 
+            p: 3, 
+            mt: 3, 
+            bgcolor: "background.paper",
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 2
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+            <TrendingUp sx={{ mr: 1, color: "primary.main" }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              Report Summary
+            </Typography>
+          </Box>
+          
+          <Grid container spacing={3}>
+            {/* Status Cards */}
             <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: "center" }}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: 2, 
+                  textAlign: "center",
+                  bgcolor: "primary.lighter",
+                  border: 1,
+                  borderColor: "primary.light"
+                }}
+              >
                 <Typography
-                  variant="h5"
+                  variant="h4"
                   sx={{ fontWeight: "bold", color: "primary.main" }}
                 >
                   {stats.total}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                   Total Records
                 </Typography>
-              </Box>
+              </Paper>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: "center" }}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: 2, 
+                  textAlign: "center",
+                  bgcolor: "warning.lighter",
+                  border: 1,
+                  borderColor: "warning.light"
+                }}
+              >
                 <Typography
-                  variant="h5"
+                  variant="h4"
                   sx={{ fontWeight: "bold", color: "warning.main" }}
                 >
                   {stats.pending}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                   Pending
                 </Typography>
-              </Box>
+              </Paper>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: "center" }}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: 2, 
+                  textAlign: "center",
+                  bgcolor: "success.lighter",
+                  border: 1,
+                  borderColor: "success.light"
+                }}
+              >
                 <Typography
-                  variant="h5"
+                  variant="h4"
                   sx={{ fontWeight: "bold", color: "success.main" }}
                 >
                   {stats.approved}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                   Approved
                 </Typography>
-              </Box>
+              </Paper>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: "center" }}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: 2, 
+                  textAlign: "center",
+                  bgcolor: "error.lighter",
+                  border: 1,
+                  borderColor: "error.light"
+                }}
+              >
                 <Typography
-                  variant="h5"
+                  variant="h4"
                   sx={{ fontWeight: "bold", color: "error.main" }}
                 >
                   {stats.rejected}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                   Rejected
                 </Typography>
-              </Box>
+              </Paper>
+            </Grid>
+
+            {/* Amount Summary */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 1 }} />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <Box
-                sx={{
-                  textAlign: "center",
-                  pt: 2,
-                  borderTop: 1,
-                  borderColor: "divider",
-                }}
-              >
+              <Box sx={{ textAlign: "center", p: 2 }}>
                 <Typography
-                  variant="h6"
+                  variant="h5"
                   sx={{ fontWeight: "bold", color: "secondary.main" }}
                 >
-                  ₱{stats.totalAmount.toFixed(2)}
+                  ₱{stats.totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                   Total Amount
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Box
-                sx={{
-                  textAlign: "center",
-                  pt: 2,
-                  borderTop: 1,
-                  borderColor: "divider",
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{ fontWeight: "bold", color: "success.main" }}
-                >
-                  ₱{stats.approvedAmount.toFixed(2)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Approved Amount
                 </Typography>
               </Box>
             </Grid>
@@ -334,14 +378,14 @@ function ReportExport() {
         </Paper>
 
         {/* Action Buttons */}
-        <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+        <Box sx={{ display: "flex", gap: 2, mt: 3, flexWrap: "wrap" }}>
           <Button
             variant="contained"
             color="success"
             startIcon={<Download />}
             onClick={exportToExcel}
             disabled={filteredData.length === 0}
-            sx={{ flex: 1 }}
+            sx={{ flex: { xs: "1 1 100%", sm: 1 }, minWidth: 200 }}
           >
             Export to Excel ({stats.total} records)
           </Button>
@@ -351,6 +395,7 @@ function ReportExport() {
             startIcon={<Preview />}
             onClick={() => setShowPreview(!showPreview)}
             disabled={filteredData.length === 0}
+            sx={{ minWidth: 200 }}
           >
             {showPreview ? "Hide Preview" : "Preview Data"}
           </Button>
@@ -358,7 +403,7 @@ function ReportExport() {
 
         {/* Preview Table */}
         {showPreview && filteredData.length > 0 && (
-          <TableContainer component={Paper} sx={{ mt: 3, maxHeight: 400 }}>
+          <TableContainer component={Paper} sx={{ mt: 3, maxHeight: 400, boxShadow: 2 }}>
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
@@ -420,17 +465,21 @@ function ReportExport() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredData.slice(0, 10).map((item) => (
-                  <TableRow key={item.id} hover>
+                {filteredData.slice(0, 10).map((item, index) => (
+                  <TableRow 
+                    key={item.id} 
+                    hover
+                    sx={{ '&:nth-of-type(odd)': { bgcolor: 'action.hover' } }}
+                  >
                     <TableCell>{item.createdAt || "N/A"}</TableCell>
-                    <TableCell>{item.user.name || "Unknown"}</TableCell>
+                    <TableCell sx={{ fontWeight: 500 }}>{item.user.name || "Unknown"}</TableCell>
                     <TableCell>{item.category || item.type || "N/A"}</TableCell>
                     <TableCell>
                       {item.description?.substring(0, 50)}
                       {item.description?.length > 50 ? "..." : ""}
                     </TableCell>
-                    <TableCell align="right">
-                      ₱{parseFloat(item.total).toFixed(2)}
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>
+                      ₱{parseFloat(item.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -452,9 +501,8 @@ function ReportExport() {
             </Table>
             {filteredData.length > 10 && (
               <Box sx={{ p: 2, textAlign: "center", bgcolor: "action.hover" }}>
-                <Typography variant="caption" color="text.secondary">
-                  Showing first 10 of {filteredData.length} records. Export to
-                  see all data.
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Showing first 10 of {filteredData.length} records. Export to see all data.
                 </Typography>
               </Box>
             )}

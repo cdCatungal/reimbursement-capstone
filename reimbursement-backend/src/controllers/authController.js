@@ -35,7 +35,19 @@ export const login = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({ message: "Login successful", token });
+    res.json({
+  message: "Login successful",
+  token,
+  user: {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    profilePicture: user.profilePicture,
+    sap_code_1: user.sap_code_1,
+    sap_code_2: user.sap_code_2
+  }
+});
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error" });

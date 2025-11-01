@@ -71,6 +71,8 @@ router.get("/me", (req, res) => {
         name: req.user.name,
         role: req.user.role,
         profilePicture: req.user.profilePicture,
+        sap_code_1: req.user.sap_code_1,
+        sap_code_2: req.user.sap_code_2,
       },
     });
   } else {

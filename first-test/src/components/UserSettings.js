@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { Box, Paper, Typography, Avatar } from "@mui/material";
-import { Mail, User } from "lucide-react";
+import { useEffect } from "react";
+import { Box, Paper, Typography, Avatar, Chip } from "@mui/material";
+import { Mail, User, Briefcase } from "lucide-react";
 import { userUserStore } from "../store/userUserStore.js";
 
 const UserSettings = () => {
@@ -9,6 +9,17 @@ const UserSettings = () => {
   useEffect(() => {
     getUser();
   }, []);
+
+  // Roles that don't have SAP codes
+  const rolesWithoutSapCodes = ['Admin', 'Invoice Specialist', 'Sales Director', 'Finance Officer'];
+  
+  // Check if user has SAP codes
+  const hasSapCodes = user && !rolesWithoutSapCodes.includes(user.role);
+  
+  // Get user's SAP codes
+  const sapCodes = [];
+  if (user?.sap_code_1) sapCodes.push(user.sap_code_1);
+  if (user?.sap_code_2) sapCodes.push(user.sap_code_2);
 
   return (
     <Box
@@ -111,6 +122,31 @@ const UserSettings = () => {
                 </Typography>
               </Box>
             </Box>
+
+            <Box sx={{ mb: 3 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+              >
+                <Briefcase sx={{ width: 20, height: 20, color: "text.secondary" }} />
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                  Role
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  px: 2,
+                  py: 1.5,
+                  bgcolor: "action.hover",
+                  borderRadius: 1,
+                  border: 1,
+                  borderColor: "divider",
+                }}
+              >
+                <Typography sx={{ color: "text.primary" }}>
+                  {user?.role}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
 
           {/* Account Information Section */}
@@ -152,25 +188,45 @@ const UserSettings = () => {
                   {user?.createdAt?.split("T")[0]}
                 </Typography>
               </Box>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  py: 1.5,
-                  borderBottom: 1,
-                  borderColor: "divider",
-                }}
-              >
-                <Typography sx={{ color: "text.secondary" }}>
-                  Employee ID
-                </Typography>
-                <Typography
-                  sx={{ color: "success.main", fontWeight: "medium" }}
+              
+              {/* SAP Code Section - Only show if user has SAP codes */}
+              {hasSapCodes && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    py: 1.5,
+                    borderBottom: 1,
+                    borderColor: "divider",
+                  }}
                 >
-                  100-1000-00
-                </Typography>
-              </Box>
+                  <Typography sx={{ color: "text.secondary" }}>
+                    {sapCodes.length > 1 ? "SAP Codes" : "SAP Code"}
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    {sapCodes.length > 0 ? (
+                      sapCodes.map((code, index) => (
+                        <Chip
+                          key={index}
+                          label={code}
+                          color="primary"
+                          variant="outlined"
+                          size="small"
+                          sx={{ fontWeight: 600 }}
+                        />
+                      ))
+                    ) : (
+                      <Typography
+                        sx={{ color: "warning.main", fontWeight: "medium", fontSize: "0.875rem" }}
+                      >
+                        No SAP codes assigned
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
+              
               <Box
                 sx={{
                   display: "flex",

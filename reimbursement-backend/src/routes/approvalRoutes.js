@@ -1,3 +1,4 @@
+//src/routes/approvalRoutes.js
 import express from 'express';
 import { approve, reject } from '../controllers/approvalController.js';
 import { verifyToken } from '../middlewares/authMiddleware.js'; // ⬅️ Add this

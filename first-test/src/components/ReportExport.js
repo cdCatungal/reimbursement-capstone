@@ -202,6 +202,15 @@ function ReportExport() {
               onChange={(e) => handlefilterReports(e.target.value, endDate)}
               fullWidth
               InputLabelProps={{ shrink: true }}
+              sx={{
+                '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                  filter: (theme) => 
+                    theme.palette.mode === 'dark' 
+                      ? 'brightness(0) saturate(100%) invert(98%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(102%) contrast(98%)' 
+                      : 'brightness(0) saturate(100%) invert(19%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(95%) contrast(91%)',
+                  cursor: 'pointer',
+                },
+              }}
             />
           </Grid>
           <Grid item xs={12} md={4}>
@@ -212,6 +221,15 @@ function ReportExport() {
               onChange={(e) => handlefilterReports(startDate, e.target.value)}
               fullWidth
               InputLabelProps={{ shrink: true }}
+              sx={{
+                '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                  filter: (theme) => 
+                    theme.palette.mode === 'dark' 
+                      ? 'brightness(0) saturate(100%) invert(98%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(102%) contrast(98%)' 
+                      : 'brightness(0) saturate(100%) invert(19%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(95%) contrast(91%)',
+                  cursor: 'pointer',
+                },
+              }}
             />
           </Grid>
           <Grid item xs={12} md={4}>

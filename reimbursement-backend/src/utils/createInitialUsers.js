@@ -1,3 +1,5 @@
+//src/utils/createInitialUsers.js
+
 import bcrypt from "bcryptjs";
 import sequelize from "../config/db.js";
 import User from "../models/User.js";

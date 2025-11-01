@@ -1,3 +1,4 @@
+//src/app.js
 import express from "express";
 import session from "express-session";
 import cookieParser from "cookie-parser";
@@ -14,6 +15,7 @@ import userRoutes from "./routes/user.routes.js";
 import ocrRoutes from "./routes/ocrRoutes.js";
 import adminRoutes from "./routes/admin.route.js";
 import sapCodeRoutes from './routes/sapCode.routes.js';
+import { verifyEmailConfig } from "./utils/sendEmail.js"; // Add this import
 
 dotenv.config();
 
@@ -93,20 +95,26 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || "Internal Server Error" });
 });
 
-// ✅ Start server
+// ✅ Enhanced server startup with email verification
 const PORT = process.env.PORT || 5000;
 (async () => {
   try {
+    // Check email configuration
+    console.log('\n📧 Checking email configuration...');
+    await verifyEmailConfig();
+    
+    // Sync database
     await sequelize.sync({ alter: false });
     console.log("✅ Database synced successfully");
+    
+    // Start server
     app.listen(PORT, () => {
-      console.log(`🚀 Server running: http://localhost:${PORT}`);
-      console.log(
-        `🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`
-      );
+      console.log(`\n🚀 Server running: http://localhost:${PORT}`);
+      console.log(`🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`);
+      console.log(`📧 Email notifications: ${process.env.EMAIL_USER ? '✅ Configured' : '❌ Not configured'}\n`);
     });
   } catch (err) {
-    console.error("❌ DB sync error:", err);
+    console.error("❌ Server startup error:", err);
     process.exit(1);
   }
 })();

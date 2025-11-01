@@ -3,6 +3,7 @@ import { Reimbursement, User, Approval } from "../models/index.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { getApprovalFlow, findApproverBySapCode } from "../utils/approvalFlow.js";
 import { bufferToBase64 } from "../middlewares/upload.js";
+import { newSubmissionToApproverTemplate } from '../utils/emailTemplates.js';
 
 /**
  * Create new reimbursement with SAP code-based approval routing
@@ -72,7 +73,7 @@ export async function createReimbursement(req, res) {
       console.log(`📸 Receipt uploaded: ${receiptFilename} (${receiptMimetype}), Size: ${req.file.size} bytes`);
     }
 
-    // ✅ FIX: Parse date_of_expense properly
+    // ✅ Parse date_of_expense properly
     let dateOfExpense = null;
     if (payload.date_of_expense) {
       // Ensure date is in YYYY-MM-DD format
@@ -101,7 +102,7 @@ export async function createReimbursement(req, res) {
       status: "Pending",
       current_approver: firstApproverRole,
       sap_code: payload.sap_code,
-      date_of_expense: dateOfExpense, // ✅ FIX: Store date_of_expense
+      date_of_expense: dateOfExpense,
       receipt_data: receiptData,
       receipt_mimetype: receiptMimetype,
       receipt_filename: receiptFilename,
@@ -131,9 +132,37 @@ export async function createReimbursement(req, res) {
     await Approval.bulkCreate(approvalRecords);
     console.log(`✅ Created ${approvalRecords.length} approval records`);
 
-    // ✅ Notify first approver
+    // 📧 Send email to FIRST APPROVER when reimbursement is submitted
     if (firstApprover) {
-      console.log(`📧 Would notify ${firstApprover.name} (${firstApprover.email})`);
+      try {
+        const emailHtml = newSubmissionToApproverTemplate(
+          {
+            sap_code: reimbursement.sap_code,
+            category: reimbursement.category,
+            total: reimbursement.total,
+            items: reimbursement.items,
+            description: reimbursement.description,
+            date_of_expense: dateOfExpense,
+            submitted_at: reimbursement.submitted_at
+          },
+          {
+            name: user.name,
+            role: user.role
+          },
+          firstApprover.name
+        );
+        
+        await sendEmail(
+          firstApprover.email,
+          `🔔 New Reimbursement Request - ${reimbursement.sap_code}`,
+          emailHtml
+        );
+        
+        console.log(`📧 Submission notification email sent to ${firstApprover.name} (${firstApprover.email})`);
+      } catch (emailError) {
+        console.error('❌ Failed to send submission notification email:', emailError);
+        // Don't fail the submission if email fails
+      }
     }
 
     res.json({ reimbursement });
@@ -200,7 +229,6 @@ export async function getUserReimbursements(req, res) {
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
-      // ✅ FIX: Format dates consistently
       date: r.date_of_expense ? new Date(r.date_of_expense).toISOString().split('T')[0] : null,
       receipt: r.receipt_data
         ? {
@@ -298,7 +326,6 @@ export async function getPendingApprovals(req, res) {
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
-      // ✅ FIX: Format dates consistently
       date: r.date_of_expense ? new Date(r.date_of_expense).toISOString().split('T')[0] : null,
       receipt: r.receipt_data
         ? {

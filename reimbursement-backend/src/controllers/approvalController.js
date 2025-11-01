@@ -2,7 +2,12 @@
 import { User, Reimbursement, Approval } from "../models/index.js";
 import { getNextApprover, findApproverBySapCode } from '../utils/approvalFlow.js';
 import { sendEmail } from '../utils/sendEmail.js';
-import { approvalProgressTemplate, finalApprovalTemplate, rejectionTemplate } from '../utils/emailTemplates.js';
+import { 
+  approvalProgressTemplate, 
+  finalApprovalTemplate, 
+  rejectionTemplate,
+  nextApproverNotificationTemplate
+} from '../utils/emailTemplates.js';
 
 /**
  * Approve a reimbursement (by current approver with SAP code routing)
@@ -134,7 +139,7 @@ export async function approve(req, res) {
         }
       }
 
-      // 📧 Send intermediate approval email to requester
+      // 📧 Send intermediate approval email to REQUESTER
       try {
         const emailHtml = approvalProgressTemplate(
           r, 
@@ -154,6 +159,44 @@ export async function approve(req, res) {
       } catch (emailError) {
         console.error('❌ Failed to send progress email:', emailError);
         // Don't fail the approval if email fails
+      }
+
+      // 📧 Send email to NEXT APPROVER
+      if (nextApprover) {
+        try {
+          const nextApprovalLevel = pendingApproval.approval_level + 1;
+          const emailHtml = nextApproverNotificationTemplate(
+            {
+              sap_code: r.sap_code,
+              category: r.category,
+              total: r.total,
+              items: r.items,
+              description: r.description,
+              date_of_expense: r.date_of_expense
+            },
+            {
+              name: r.user.name,
+              role: r.user.role
+            },
+            {
+              name: approver.name,
+              role: approver.role
+            },
+            nextApprover.name,
+            nextApprovalLevel
+          );
+          
+          await sendEmail(
+            nextApprover.email,
+            `📋 Reimbursement Ready for Your Approval - Level ${nextApprovalLevel}`,
+            emailHtml
+          );
+          
+          console.log(`📧 Next approver notification sent to ${nextApprover.name} (${nextApprover.email})`);
+        } catch (emailError) {
+          console.error('❌ Failed to send next approver notification:', emailError);
+          // Don't fail the approval if email fails
+        }
       }
 
     } else {
@@ -184,7 +227,7 @@ export async function approve(req, res) {
     res.json({ 
       ok: true, 
       message: nextRole 
-        ? 'Approval recorded successfully. Email notification sent to requester.' 
+        ? 'Approval recorded successfully. Email notifications sent to requester and next approver.' 
         : 'Reimbursement fully approved! Email notification sent to requester.',
       reimbursement: r,
       nextApprover: nextRole

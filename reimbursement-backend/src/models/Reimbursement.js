@@ -1,4 +1,4 @@
-// first-test/src/models/Reimbursement.js
+// reimbursement-backend/src/models/Reimbursement.js
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/db.js';
 

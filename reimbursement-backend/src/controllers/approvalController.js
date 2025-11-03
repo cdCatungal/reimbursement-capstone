@@ -1,6 +1,6 @@
 // reimbursement-backend/src/controllers/approvalController.js
 import { User, Reimbursement, Approval } from "../models/index.js";
-import { getNextApprover, findApproverBySapCode } from '../utils/approvalFlow.js';
+import { getNextApprover, findApproverBySapCode, getApprovalFlow } from '../utils/approvalFlow.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { 
   approvalProgressTemplate, 
@@ -240,7 +240,6 @@ export async function approve(req, res) {
 
 /**
  * Reject a reimbursement (by current approver)
- * Sends rejection email to requester with CC to other approvers at the same level
  */
 export async function reject(req, res) {
   try {
@@ -258,7 +257,7 @@ export async function reject(req, res) {
 
     console.log(`👤 ${approver.name} (${approver.role}) attempting to reject reimbursement #${id}`);
 
-    // ✅ Fetch reimbursement with user and approvals
+    // ✅ Fetch reimbursement with user and all approvals
     const r = await Reimbursement.findByPk(id, {
       include: [
         {
@@ -364,26 +363,32 @@ export async function reject(req, res) {
 
     console.log(`✅ Reimbursement marked as Rejected`);
 
-    // ✅ NEW: Find other approvers at the same level to CC
+    // 📧 Collect CC recipients (all other approvers in the approval chain)
     const allUsers = await User.findAll();
+    const approvalFlow = getApprovalFlow(r.user.role);
     const ccEmails = [];
-    
-    // For SUL and Account Manager roles, find other approvers with the same SAP code
-    if (['SUL', 'Account Manager'].includes(approver.role)) {
-      const otherApprovers = allUsers.filter(u => 
-        u.role === approver.role && // Same role
-        u.id !== approver.id && // Not the current approver
-        (u.sap_code_1 === r.sap_code || u.sap_code_2 === r.sap_code) // Has same SAP code
-      );
+
+    console.log(`📧 Building CC list from approval flow:`, approvalFlow);
+
+    for (const approverRole of approvalFlow) {
+      // Skip the current approver who rejected (they don't need to be CC'd)
+      if (approverRole === approver.role) {
+        console.log(`   Skipping ${approverRole} (rejector)`);
+        continue;
+      }
+
+      // Find the approver for this role
+      const approverUser = findApproverBySapCode(approverRole, r.sap_code, allUsers);
       
-      otherApprovers.forEach(user => {
-        if (user.email && user.email.trim()) {
-          ccEmails.push(user.email);
-        }
-      });
-      
-      console.log(`📧 Found ${otherApprovers.length} other ${approver.role}(s) with SAP code ${r.sap_code} to CC`);
+      if (approverUser && approverUser.email) {
+        ccEmails.push(approverUser.email);
+        console.log(`   Added ${approverRole}: ${approverUser.email}`);
+      } else {
+        console.log(`   Could not find ${approverRole} for SAP code ${r.sap_code}`);
+      }
     }
+
+    console.log(`📧 Final CC list (${ccEmails.length}):`, ccEmails);
 
     // 📧 Send rejection email to requester with CC to other approvers
     try {
@@ -399,12 +404,12 @@ export async function reject(req, res) {
         r.user.email,
         `❌ Reimbursement Rejected - ${r.sap_code}`,
         emailHtml,
-        ccEmails.length > 0 ? ccEmails : null // Pass CC emails if any
+        ccEmails.length > 0 ? ccEmails : null // CC other approvers
       );
       
       console.log(`📧 Rejection email sent to ${r.user.email}`);
       if (ccEmails.length > 0) {
-        console.log(`📧 CC sent to: ${ccEmails.join(', ')}`);
+        console.log(`📧 CC sent to ${ccEmails.length} approver(s): ${ccEmails.join(', ')}`);
       }
     } catch (emailError) {
       console.error('❌ Failed to send rejection email:', emailError);
@@ -413,11 +418,8 @@ export async function reject(req, res) {
 
     res.json({ 
       ok: true, 
-      message: ccEmails.length > 0 
-        ? `Reimbursement rejected successfully. Email notifications sent to requester and ${ccEmails.length} other approver(s).`
-        : 'Reimbursement rejected successfully. Email notification sent to requester.',
-      reimbursement: r,
-      ccSent: ccEmails.length
+      message: 'Reimbursement rejected successfully. Email notification sent to requester and other approvers.',
+      reimbursement: r 
     });
   } catch (err) {
     console.error('❌ Error rejecting reimbursement:', err);

@@ -69,7 +69,7 @@ function ManageUsers() {
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === "All" || user.role === roleFilter;
     return matchesSearch && matchesRole;
-  });
+  }).sort((a, b) => a.name.localeCompare(b.name));
 
   // Reset page when filters change
   useEffect(() => {

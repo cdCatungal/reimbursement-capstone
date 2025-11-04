@@ -170,7 +170,7 @@ function ReimbursementList() {
 
   // Get unique statuses
   const getUniqueStatuses = () => {
-    return ["All Status", "Pending", "Approved", "Rejected", "Validated"];
+    return ["All Status", "Pending", "Approved", "Rejected",];
   };
 
   // Get unique categories
@@ -180,7 +180,7 @@ function ReimbursementList() {
       "Transportation (Commute)",
       "Transportation (Drive)",
       "Meal with Client",
-      "OverTime Meal",
+      "Overtime Meal",
       "Accomodation",
     ];
   };
@@ -331,8 +331,6 @@ function ReimbursementList() {
         return "success";
       case "Rejected":
         return "error";
-      case "Validated":
-        return "info";
       default:
         return "default";
     }

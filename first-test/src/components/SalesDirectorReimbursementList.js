@@ -218,7 +218,7 @@ function SalesDirectorReimbursementList() {
 
   // Get unique statuses
   const getUniqueStatuses = () => {
-    return ["All Status", "Pending", "Approved", "Rejected", "Validated"];
+    return ["All Status", "Pending", "Approved", "Rejected",];
   };
 
   // Get unique categories
@@ -228,7 +228,7 @@ function SalesDirectorReimbursementList() {
       "Transportation (Commute)",
       "Transportation (Drive)",
       "Meal with Client",
-      "OverTime Meal",
+      "Overtime Meal",
       "Accomodation",
     ];
   };
@@ -379,8 +379,6 @@ function SalesDirectorReimbursementList() {
         return "success";
       case "Rejected":
         return "error";
-      case "Validated":
-        return "info";
       default:
         return "default";
     }
@@ -751,6 +749,7 @@ function SalesDirectorReimbursementList() {
                   borderColor: "divider",
                 }}
               >
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <Avatar
                     src={selectedTicket.user?.profile_picture}
@@ -773,6 +772,20 @@ function SalesDirectorReimbursementList() {
                     <Typography variant="body2" color="text.secondary">
                       Email: {selectedTicket.user?.email || "N/A"}
                     </Typography>
+                  </Box>
+                </Box>
+
+                  {/* SAP Code Display - Right side */}
+                  <Box sx={{ textAlign: "right" }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                      SAP Code
+                    </Typography>
+                    <Chip 
+                      label={selectedTicket.sapCode || "N/A"}
+                      color="primary"
+                      variant="outlined"
+                      sx={{ fontWeight: 600, fontSize: "0.875rem" }}
+                    />
                   </Box>
                 </Box>
               </Box>

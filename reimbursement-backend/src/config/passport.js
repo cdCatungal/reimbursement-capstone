@@ -96,6 +96,10 @@ passport.use(
         user.profilePicture = profilePicture;  // ✅ Update on each login
         await user.save();
       }
+      if (!user.isActive) {
+  console.log("❌ User account is inactive:", email);
+  return done(new Error("Your account has been deactivated. Please contact your administrator."), null);
+}
 
       console.log("✅ User authenticated successfully");
       done(null, user);

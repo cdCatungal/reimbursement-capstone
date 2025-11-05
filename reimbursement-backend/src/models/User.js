@@ -50,6 +50,13 @@ const User = sequelize.define('User', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  isActive: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: true,
+  allowNull: false,
+  field: 'isActive',
+  comment: 'Whether the user account is active or inactive'
+},
   // NEW: SAP Code fields
   sap_code_1: {
     type: DataTypes.STRING(20),
@@ -72,7 +79,12 @@ const User = sequelize.define('User', {
 // Add validation to ensure only Employees can have 2 SAP codes
 User.beforeValidate((user) => {
   if (user.sap_code_2 && !['Employee'].includes(user.role)) {
-    user.sap_code_2 = null; // Clear second SAP code for non-Employees
+    user.sap_code_2 = null;
+  }
+  
+  if (['Sales Director', 'Invoice Specialist', 'Finance Officer', 'Admin'].includes(user.role)) {
+    user.sap_code_1 = null;
+    user.sap_code_2 = null;
   }
   
   // Ensure Sales Director, Invoice Specialist, Finance Officer have no SAP codes

@@ -25,6 +25,13 @@ export const login = async (req, res) => {
 
     const user = await User.findOne({ where: { email } });
     if (!user) return res.status(404).json({ message: "User not found" });
+    
+    // Check if account is active
+    if (!user.isActive) {
+      return res.status(403).json({ 
+        message: "Your account has been deactivated. Please contact your administrator." 
+      });
+    }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ message: "Invalid credentials" });
@@ -36,18 +43,19 @@ export const login = async (req, res) => {
     );
 
     res.json({
-  message: "Login successful",
-  token,
-  user: {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    profilePicture: user.profilePicture,
-    sap_code_1: user.sap_code_1,
-    sap_code_2: user.sap_code_2
-  }
-});
+      message: "Login successful",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        profilePicture: user.profilePicture,
+        sap_code_1: user.sap_code_1,
+        sap_code_2: user.sap_code_2,
+        isActive: user.isActive
+      }
+    });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error" });

@@ -68,34 +68,40 @@ function ReceiptUpload() {
       
       // Set a default SAP code for Invoice Specialists
       if (isInvoiceSpecialist) {
-        setFormData(prev => ({ ...prev, sap_code: 'N/A' }));
+        setFormData(prev => ({ ...prev, sap_code: 'INVOICE_SPECIALIST' }));
       }
     }
   }, [user, isInvoiceSpecialist]);
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        showNotification('File size must be less than 5MB', 'error');
-        return;
-      }
-      if (!file.type.startsWith('image/')) {
-        showNotification('Please upload an image file', 'error');
-        return;
-      }
+  const file = e.target.files[0];
+  if (file) {
+    const allowedTypes = ['image/jpeg', 'image/png'];
+    const allowedExtensions = ['jpg', 'jpeg', 'png'];
 
-      setImage(file);
-      setExtractedText('');
-      setErrors((prev) => ({ ...prev, image: '' }));
+    const fileExtension = file.name.split('.').pop().toLowerCase();
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImagePreview(event.target.result);
-      };
-      reader.readAsDataURL(file);
+    // ✅ Check MIME + extension
+    if (!allowedTypes.includes(file.type) || !allowedExtensions.includes(fileExtension)) {
+      showNotification('Only JPG, JPEG, or PNG files are allowed', 'error');
+      return;
     }
-  };
+
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification('File size must be less than 5MB', 'error');
+      return;
+    }
+
+    setImage(file);
+    setExtractedText('');
+    setErrors(prev => ({ ...prev, image: '' }));
+
+    const reader = new FileReader();
+    reader.onload = (event) => setImagePreview(event.target.result);
+    reader.readAsDataURL(file);
+  }
+};
+
 
   const handleOCR = async () => {
     if (!image) {
@@ -312,7 +318,7 @@ function ReceiptUpload() {
         description: '',
         category: 'Meal with Client',
         merchant: '',
-        sap_code: isInvoiceSpecialist ? 'N/A' : (availableSapCodes.length === 1 ? availableSapCodes[0] : ''),
+        sap_code: isInvoiceSpecialist ? 'INVOICE_SPECIALIST' : (availableSapCodes.length === 1 ? availableSapCodes[0] : ''),
       });
       setImage(null);
       setImagePreview(null);
@@ -418,7 +424,7 @@ function ReceiptUpload() {
                     <input
                       id="receipt-upload"
                       type="file"
-                      accept="image/*"
+                      accept=".jpg, .jpeg, .png"
                       onChange={handleImageChange}
                       style={{ display: 'none' }}
                     />

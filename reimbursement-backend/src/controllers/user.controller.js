@@ -78,7 +78,6 @@ export const updateUser = async (req, res) => {
       });
     }
 
-    // Check if user is Admin
     if (!['Admin', 'Sales Director'].includes(req.user.role)) {
       return res.status(403).json({ 
         success: false, 
@@ -87,7 +86,7 @@ export const updateUser = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { role, sap_code_1, sap_code_2 } = req.body;
+    const { role, sap_code_1, sap_code_2, isActive } = req.body;
 
     const user = await User.findByPk(id);
     if (!user) {
@@ -97,11 +96,15 @@ export const updateUser = async (req, res) => {
       });
     }
 
-    // Update fields
     const updateData = {};
     
     if (role !== undefined) {
       updateData.role = role;
+    }
+    
+    // Add isActive toggle
+    if (isActive !== undefined) {
+      updateData.isActive = isActive;
     }
 
     // Handle SAP codes based on role
@@ -109,17 +112,14 @@ export const updateUser = async (req, res) => {
     const rolesWithoutSapCodes = ['Admin', 'Invoice Specialist', 'Sales Director', 'Finance Officer'];
     
     if (rolesWithoutSapCodes.includes(finalRole)) {
-      // Clear SAP codes for roles that don't need them
       updateData.sap_code_1 = null;
       updateData.sap_code_2 = null;
     } else {
-      // Update SAP codes for other roles
       if (sap_code_1 !== undefined) {
         updateData.sap_code_1 = sap_code_1 || null;
       }
       
       if (sap_code_2 !== undefined) {
-        // Only Employee can have 2 SAP codes
         if (finalRole === 'Employee') {
           updateData.sap_code_2 = sap_code_2 || null;
         } else {
@@ -130,7 +130,6 @@ export const updateUser = async (req, res) => {
 
     await user.update(updateData);
 
-    // Fetch updated user without password
     const updatedUser = await User.findByPk(id, {
       attributes: { exclude: ['password'] }
     });

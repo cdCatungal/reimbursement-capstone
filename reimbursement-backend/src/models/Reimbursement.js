@@ -41,10 +41,19 @@ const Reimbursement = sequelize.define('Reimbursement', {
   
   // NEW: SAP Code tracking
   sap_code: {
-    type: DataTypes.STRING(20),
+    type: DataTypes.STRING(30),
     allowNull: false,
     validate: {
-      is: /^E-\d{5}-\d{4}$/i,
+      isValidSapCode(value) {
+        // Allow special value for Invoice Specialists
+        if (value === 'INVOICE_SPECIALIST') {
+          return true;
+        }
+        // Otherwise, validate standard SAP code format
+        if (!/^E-\d{5}-\d{4}$/i.test(value)) {
+          throw new Error('SAP code must be in format E-XXXXX-YYYY or INVOICE_SPECIALIST');
+        }
+      }
     },
     comment: 'SAP code used for this reimbursement submission'
   },

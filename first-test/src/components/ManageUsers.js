@@ -23,6 +23,9 @@ import {
   DialogActions,
   CircularProgress,
   Pagination,
+  Switch,
+  FormControlLabel,
+  Tooltip,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -31,6 +34,8 @@ import {
   People as PeopleIcon,
   Search as SearchIcon,
   Close as CloseIcon,
+  Block as BlockIcon,
+  CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
 import { useManageUsersStore } from "../store/manageUsersStore.js";
 import { useManageSapCodesStore } from "../store/manageSapCodesStore.js";
@@ -43,6 +48,7 @@ function ManageUsers() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -50,6 +56,7 @@ function ManageUsers() {
     role: "",
     sap_code_1: "",
     sap_code_2: "",
+    isActive: true,
   });
   const [formErrors, setFormErrors] = useState({});
 
@@ -68,13 +75,17 @@ function ManageUsers() {
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === "All" || user.role === roleFilter;
-    return matchesSearch && matchesRole;
+    const matchesStatus = 
+      statusFilter === "All" || 
+      (statusFilter === "Active" && user.isActive) ||
+      (statusFilter === "Inactive" && !user.isActive);
+    return matchesSearch && matchesRole && matchesStatus;
   }).sort((a, b) => a.name.localeCompare(b.name));
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, roleFilter]);
+  }, [searchTerm, roleFilter, statusFilter]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -122,6 +133,7 @@ function ManageUsers() {
       role: user.role,
       sap_code_1: user.sap_code_1 || "",
       sap_code_2: user.sap_code_2 || "",
+      isActive: user.isActive !== undefined ? user.isActive : true,
     });
     setFormErrors({});
     setEditDialogOpen(true);
@@ -130,7 +142,7 @@ function ManageUsers() {
   const handleCloseEditDialog = () => {
     setEditDialogOpen(false);
     setSelectedUser(null);
-    setFormData({ role: "", sap_code_1: "", sap_code_2: "" });
+    setFormData({ role: "", sap_code_1: "", sap_code_2: "", isActive: true });
     setFormErrors({});
   };
 
@@ -156,8 +168,6 @@ function ManageUsers() {
       ) {
         errors.sap_code_2 = "Invalid format. Use: E-00000-0000";
       }
-
-      // Note: We allow empty SAP codes now, so user can remove them
     }
 
     if (Object.keys(errors).length > 0) {
@@ -208,7 +218,7 @@ function ManageUsers() {
         </Box>
 
         {/* Filters */}
-        <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+        <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
           <TextField
             fullWidth
             placeholder="Search users by name or email..."
@@ -219,13 +229,14 @@ function ManageUsers() {
                 <SearchIcon sx={{ mr: 1, color: "action.active" }} />
               ),
             }}
+            sx={{ flexBasis: { xs: "100%", sm: "auto" }, flexGrow: 1 }}
           />
           <TextField
             select
             label="Filter by Role"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            sx={{ minWidth: 200 }}
+            sx={{ minWidth: 180 }}
           >
             <MenuItem value="All">All Roles</MenuItem>
             {roles.map((role) => (
@@ -233,6 +244,17 @@ function ManageUsers() {
                 {role}
               </MenuItem>
             ))}
+          </TextField>
+          <TextField
+            select
+            label="Filter by Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            sx={{ minWidth: 180 }}
+          >
+            <MenuItem value="All">All Status</MenuItem>
+            <MenuItem value="Active">Active</MenuItem>
+            <MenuItem value="Inactive">Inactive</MenuItem>
           </TextField>
         </Box>
 
@@ -256,6 +278,7 @@ function ManageUsers() {
                     <TableCell sx={{ fontWeight: "bold" }}>User</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>Role</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>SAP Code(s)</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }} align="right">
                       Actions
@@ -267,9 +290,17 @@ function ManageUsers() {
                     const userSapCodes = [];
                     if (user.sap_code_1) userSapCodes.push(user.sap_code_1);
                     if (user.sap_code_2) userSapCodes.push(user.sap_code_2);
+                    const isActive = user.isActive !== undefined ? user.isActive : true;
 
                     return (
-                      <TableRow key={user.id} hover>
+                      <TableRow 
+                        key={user.id} 
+                        hover
+                        sx={{ 
+                          opacity: isActive ? 1 : 0.6,
+                          bgcolor: isActive ? 'inherit' : 'action.hover'
+                        }}
+                      >
                         <TableCell>
                           <Box
                             sx={{ display: "flex", alignItems: "center", gap: 2 }}
@@ -277,7 +308,7 @@ function ManageUsers() {
                             <Avatar
                               src={user.profilePicture}
                               sx={{
-                                bgcolor: "primary.main",
+                                bgcolor: isActive ? "primary.main" : "grey.500",
                                 width: 40,
                                 height: 40,
                               }}
@@ -299,6 +330,15 @@ function ManageUsers() {
                             label={user.role}
                             size="small"
                             color={getRoleColor(user.role)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={isActive ? <CheckCircleIcon /> : <BlockIcon />}
+                            label={isActive ? "Active" : "Inactive"}
+                            size="small"
+                            color={isActive ? "success" : "default"}
+                            variant={isActive ? "filled" : "outlined"}
                           />
                         </TableCell>
                         <TableCell>
@@ -338,20 +378,24 @@ function ManageUsers() {
                               justifyContent: "flex-end",
                             }}
                           >
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => handleEditClick(user)}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleDeleteClick(user)}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
+                            <Tooltip title="Edit user">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => handleEditClick(user)}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete user">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleDeleteClick(user)}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                           </Box>
                         </TableCell>
                       </TableRow>
@@ -398,10 +442,18 @@ function ManageUsers() {
               borderRadius: 1,
               display: "flex",
               justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 2,
             }}
           >
             <Typography variant="body2" color="text.secondary">
               Total Users: <strong>{users.length}</strong>
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Active: <strong>{users.filter(u => u.isActive !== false).length}</strong>
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Inactive: <strong>{users.filter(u => u.isActive === false).length}</strong>
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Showing: <strong>{filteredUsers.length}</strong> users
@@ -425,6 +477,39 @@ function ManageUsers() {
                   <Typography variant="body2" color="text.secondary">User Details</Typography>
                   <Typography variant="body1" fontWeight="bold">{selectedUser.name}</Typography>
                   <Typography variant="body2" color="text.secondary">{selectedUser.email}</Typography>
+                </Box>
+
+                {/* Account Status Toggle */}
+                <Box 
+                  sx={{ 
+                    p: 2, 
+                    bgcolor: formData.isActive ? "success.lighter" : "error.lighter", 
+                    borderRadius: 1,
+                    border: 1,
+                    borderColor: formData.isActive ? "success.main" : "error.main"
+                  }}
+                >
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                        color={formData.isActive ? "success" : "default"}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold">
+                          Account Status: {formData.isActive ? "Active" : "Inactive"}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formData.isActive 
+                            ? "User can log in and access the system" 
+                            : "User cannot log in (for resigned employees)"}
+                        </Typography>
+                      </Box>
+                    }
+                  />
                 </Box>
 
                 <TextField
@@ -473,7 +558,7 @@ function ManageUsers() {
                       </MenuItem>
                       {sapCodes.map((code) => (
                         <MenuItem key={code.id} value={code.code}>
-                          {code.code} – {code.name}
+                          {code.code} — {code.name}
                         </MenuItem>
                       ))}
                     </TextField>
@@ -495,7 +580,7 @@ function ManageUsers() {
                         </MenuItem>
                         {sapCodes.map((code) => (
                           <MenuItem key={code.id} value={code.code}>
-                            {code.code} – {code.name}
+                            {code.code} — {code.name}
                           </MenuItem>
                         ))}
                       </TextField>

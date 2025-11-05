@@ -14,17 +14,19 @@ import approvalRoutes from "./routes/approvalRoutes.js";
 import userRoutes from "./routes/user.routes.js";
 import ocrRoutes from "./routes/ocrRoutes.js";
 import adminRoutes from "./routes/admin.route.js";
-import sapCodeRoutes from './routes/sapCode.routes.js';
+import sapCodeRoutes from "./routes/sapCode.routes.js";
 import { verifyEmailConfig } from "./utils/sendEmail.js"; // Add this import
 
 dotenv.config();
+// Fix __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-app.set("trust proxy", 1);
 
 // ✅ Cookie parser first
 app.use(cookieParser());
-
+app.set("trust proxy", 1);
 // ✅ Session middleware (must come before passport)
 app.use(
   session({
@@ -44,8 +46,15 @@ app.use(
 app.use(flash());
 
 // ✅ CORS (allow cookies)
+// const corsOptions = {
+//   origin: process.env.CLIENT_URL || "http://localhost:3000",
+//   credentials: true,
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+// };
+
 const corsOptions = {
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  origin: ["http://localhost:3000", "https://reimbursement-acu1.onrender.com"],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -76,7 +85,16 @@ app.use("/api/approvals", approvalRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/admin", adminRoutes);
-app.use('/api/sap-codes', sapCodeRoutes);
+app.use("/api/sap-codes", sapCodeRoutes);
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.resolve(__dirname, "../../first-test/build")));
+
+  // ✅ WORKS on Express 5.x — matches everything that’s not handled above
+  app.use((req, res) => {
+    res.sendFile(path.resolve(__dirname, "../../first-test/build/index.html"));
+  });
+}
 
 // ✅ Health check
 app.get("/", (req, res) => {
@@ -100,18 +118,24 @@ const PORT = process.env.PORT || 5000;
 (async () => {
   try {
     // Check email configuration
-    console.log('\n📧 Checking email configuration...');
-    await verifyEmailConfig();
-    
+    console.log("\n📧 Checking email configuration...");
+    // await verifyEmailConfig();
+
     // Sync database
     await sequelize.sync({ alter: false });
     console.log("✅ Database synced successfully");
-    
+
     // Start server
     app.listen(PORT, () => {
       console.log(`\n🚀 Server running: http://localhost:${PORT}`);
-      console.log(`🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`);
-      console.log(`📧 Email notifications: ${process.env.EMAIL_USER ? '✅ Configured' : '❌ Not configured'}\n`);
+      console.log(
+        `🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`
+      );
+      console.log(
+        `📧 Email notifications: ${
+          process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured"
+        }\n`
+      );
     });
   } catch (err) {
     console.error("❌ Server startup error:", err);

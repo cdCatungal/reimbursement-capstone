@@ -18,15 +18,10 @@ import {
   List,
   ListItemText,
   Avatar,
-  Collapse,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import ListAltIcon from "@mui/icons-material/ListAlt";
-import ReceiptIcon from "@mui/icons-material/Receipt";
-import TrackChangesIcon from "@mui/icons-material/TrackChanges";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
-import ExpandLess from "@mui/icons-material/ExpandLess";
-import ExpandMore from "@mui/icons-material/ExpandMore";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import CodeIcon from "@mui/icons-material/Code";
 import PeopleIcon from "@mui/icons-material/People";
@@ -304,16 +299,13 @@ function SalesDirectorDashboard() {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <img
-              src={
-                theme.palette.mode === "dark"
-                  ? "/erni-logo-darkmode.png"
-                  : "/erni-logo.png"
-              }
-              alt="ERNI Logo"
-              style={{ height: "40px" }}
-            />
-          </Box>
+  <img
+    src={theme.palette.mode === "dark" ? "/erni-logo-darkmode.png" : "/erni-logo.png"}
+    alt="ERNI Logo"
+    style={{ height: "40px", cursor: "pointer" }}
+    onClick={() => handleTabChange(0)}
+  />
+</Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Typography variant="h6">Welcome, {firstName}</Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>

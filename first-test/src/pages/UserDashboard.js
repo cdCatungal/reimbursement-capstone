@@ -183,12 +183,13 @@ useEffect(() => {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <img
-              src={theme.palette.mode === "dark" ? "/erni-logo-darkmode.png" : "/erni-logo.png"}
-              alt="ERNI Logo"
-              style={{ height: "40px" }}
-            />
-          </Box>
+  <img
+    src={theme.palette.mode === "dark" ? "/erni-logo-darkmode.png" : "/erni-logo.png"}
+    alt="ERNI Logo"
+    style={{ height: "40px", cursor: "pointer" }}
+    onClick={() => handleTabChange(0)}
+  />
+</Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Typography variant="h6">Welcome, {firstName}</Typography>

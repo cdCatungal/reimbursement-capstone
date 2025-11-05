@@ -55,6 +55,8 @@ function ReceiptUpload() {
     'Other',
   ];
 
+  const isInvoiceSpecialist = user?.role === 'Invoice Specialist';
+
   useEffect(() => {
     if (user) {
       const codes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
@@ -63,8 +65,13 @@ function ReceiptUpload() {
       if (codes.length === 1) {
         setFormData(prev => ({ ...prev, sap_code: codes[0] }));
       }
+      
+      // Set a default SAP code for Invoice Specialists
+      if (isInvoiceSpecialist) {
+        setFormData(prev => ({ ...prev, sap_code: 'N/A' }));
+      }
     }
-  }, [user]);
+  }, [user, isInvoiceSpecialist]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -236,7 +243,12 @@ function ReceiptUpload() {
     if (!formData.category) newErrors.category = 'Category is required';
     if (!formData.items.trim()) newErrors.items = 'Purpose is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
-    if (!formData.sap_code) newErrors.sap_code = 'SAP code is required';
+    
+    // Only validate SAP code if user is NOT an Invoice Specialist
+    if (!isInvoiceSpecialist && !formData.sap_code) {
+      newErrors.sap_code = 'SAP code is required';
+    }
+    
     if (!image) newErrors.image = 'Receipt image is required';
    
     setErrors(newErrors);
@@ -300,7 +312,7 @@ function ReceiptUpload() {
         description: '',
         category: 'Meal with Client',
         merchant: '',
-        sap_code: availableSapCodes.length === 1 ? availableSapCodes[0] : '',
+        sap_code: isInvoiceSpecialist ? 'N/A' : (availableSapCodes.length === 1 ? availableSapCodes[0] : ''),
       });
       setImage(null);
       setImagePreview(null);
@@ -329,7 +341,7 @@ function ReceiptUpload() {
             Upload Receipt for Reimbursement
           </Typography>
 
-          {availableSapCodes.length === 0 && (
+          {availableSapCodes.length === 0 && !isInvoiceSpecialist && (
             <Alert severity="warning" sx={{ mb: 3 }}>
               No SAP codes assigned to your account. Please contact your administrator.
             </Alert>
@@ -454,23 +466,25 @@ function ReceiptUpload() {
 
             <Grid item xs={12} md={6}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                <TextField
-                  select
-                  label="SAP Code *"
-                  name="sap_code"
-                  value={formData.sap_code}
-                  onChange={handleChange}
-                  fullWidth
-                  error={!!errors.sap_code}
-                  helperText={errors.sap_code || 'Select the department/project for this expense'}
-                  disabled={availableSapCodes.length === 0}
-                >
-                  {availableSapCodes.map((code) => (
-                    <MenuItem key={code} value={code}>
-                      {code}
-                    </MenuItem>
-                  ))}
-                </TextField>
+                {!isInvoiceSpecialist && (
+                  <TextField
+                    select
+                    label="SAP Code *"
+                    name="sap_code"
+                    value={formData.sap_code}
+                    onChange={handleChange}
+                    fullWidth
+                    error={!!errors.sap_code}
+                    helperText={errors.sap_code || 'Select the department/project for this expense'}
+                    disabled={availableSapCodes.length === 0}
+                  >
+                    {availableSapCodes.map((code) => (
+                      <MenuItem key={code} value={code}>
+                        {code}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
 
                 <TextField
                   select
@@ -573,7 +587,7 @@ function ReceiptUpload() {
                       color: 'action.disabled',
                     },
                   }}
-                  disabled={loading || availableSapCodes.length === 0 || submitting}
+                  disabled={loading || (!isInvoiceSpecialist && availableSapCodes.length === 0) || submitting}
                 >
                   {submitting ? 'Submitting...' : 'Submit for Approval'}
                 </Button>
@@ -607,4 +621,4 @@ function ReceiptUpload() {
   );
 }
 
-export default ReceiptUpload
+export default ReceiptUpload;

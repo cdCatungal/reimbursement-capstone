@@ -86,8 +86,6 @@ export const finalApprovalTemplate = (reimbursement, approverName, approverRole)
           <h1>🎉 Reimbursement Fully Approved!</h1>
         </div>
         <div class="content">
-          <p>Good day,</p>
-          
           <div class="success-box">
             <h2 style="color: #4CAF50; margin: 0 0 10px 0;">✅ All Approvals Complete!</h2>
             <p style="margin: 0;">Your reimbursement request has been approved by all required approvers.</p>
@@ -101,7 +99,7 @@ export const finalApprovalTemplate = (reimbursement, approverName, approverRole)
             <p><span class="label">Date of Expense:</span> ${reimbursement.date_of_expense ? new Date(reimbursement.date_of_expense).toLocaleDateString() : 'N/A'}</p>
             <p><span class="label">Final Approved by:</span> ${approverName} (${approverRole})</p>
           </div>
-          
+          <p>Good day,</p>
           <p>Your reimbursement will be processed according to company policy and you will receive payment in the next payroll cycle.</p>
           <p>Thank you for using ERNIt Back!</p>
         </div>
@@ -221,7 +219,7 @@ export const newSubmissionToApproverTemplate = (reimbursement, requester, approv
           <div class="action-box">
             <p style="margin: 0 0 15px 0; font-weight: bold;">⏰ Action Required</p>
             <p style="margin: 0 0 15px 0;">This request is waiting for your review and approval.</p>
-            <a href="${process.env.CLIENT_URL}/dashboard" class="button">Review Request</a>
+            <a href="${process.env.CLIENT_URL}/dashboard" class="button" style="color: #ffffff !important; text-decoration: none;">Review Request</a>
           </div>
           
           <p>Please log in to the ERNIt Back system to review the complete details including the receipt and make your decision.</p>
@@ -288,7 +286,7 @@ export const nextApproverNotificationTemplate = (reimbursement, requester, previ
           <div class="action-box">
             <p style="margin: 0 0 15px 0; font-weight: bold;">⏰ Your Approval Needed - Level ${approvalLevel}</p>
             <p style="margin: 0 0 15px 0;">This request is now waiting for your review.</p>
-            <a href="${process.env.CLIENT_URL}/dashboard" class="button">Review & Approve</a>
+            <a href="${process.env.CLIENT_URL}/dashboard" class="button" style="color: #ffffff !important; text-decoration: none;">Review & Approve</a>
           </div>
           
           <p>Please review the complete request details including the receipt and approval history in the ERNIt Back system.</p>

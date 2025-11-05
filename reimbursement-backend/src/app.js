@@ -17,6 +17,7 @@ import adminRoutes from "./routes/admin.route.js";
 import sapCodeRoutes from "./routes/sapCode.routes.js";
 import { verifyEmailConfig } from "./utils/sendEmail.js"; // Add this import
 import { fileURLToPath } from "url";
+import path from "path";
 
 dotenv.config();
 // Fix __dirname for ES modules

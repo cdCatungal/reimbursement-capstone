@@ -124,7 +124,7 @@ const PORT = process.env.PORT || 5000;
   try {
     // Check email configuration
     console.log("\n📧 Checking email configuration...");
-    // await verifyEmailConfig();
+    await verifyEmailConfig();
 
     // Sync database
     await sequelize.sync({ alter: false });

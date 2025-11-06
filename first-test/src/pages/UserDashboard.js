@@ -58,15 +58,14 @@ function UserDashboard() {
       //   method: "GET",
       //   credentials: "include",
       // });
-      const apiUrl =
-        process.env.NODE_ENV === "development"
-          ? "http://localhost:5000"
-          : process.env.REACT_APP_API_URL;
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL}/auth/logout`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
 
-      const response = await fetch(`${apiUrl}/auth/logout`, {
-        method: "GET",
-        credentials: "include",
-      });
       if (response.ok) {
         setIsAuthenticated(false);
         setIsAdmin(false);

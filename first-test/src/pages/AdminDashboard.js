@@ -48,47 +48,32 @@ function AdminDashboard() {
     setAnchorEl(null);
   };
 
-  // const handleLogoutClick = async () => {
-  //   try {
-  //     const response = await fetch("http://localhost:5000/auth/logout", {
-  //       method: "GET",
-  //       credentials: "include",
-  //     });
-
-  //     if (response.ok) {
-  //       setIsAuthenticated(false);
-  //       setIsAdmin(false);
-  //       setUser(null);
-  //       showNotification("Logged out successfully", "success");
-  //       navigate("/login");
-  //     } else {
-  //       showNotification("Logout failed", "error");
-  //     }
-  //   } catch (error) {
-  //     console.error("Logout error:", error);
-  //     setIsAuthenticated(false);
-  //     setIsAdmin(false);
-  //     setUser(null);
-  //     navigate("/login");
-  //   }
-  //   handleProfileClose();
-  // };
-
   const handleLogoutClick = async () => {
     try {
-      // For Azure AD logout, we need to handle the redirect
-      window.location.href = `${
-        process.env.REACT_APP_API_URL || "http://localhost:5000"
-      }/auth/logout`;
+      // const response = await fetch("http://localhost:5000/auth/logout", {
+      //   method: "GET",
+      //   credentials: "include",
+      // });
 
-      // Clear local state immediately
-      setIsAuthenticated(false);
-      setIsAdmin(false);
-      setUser(null);
-      showNotification("Logging out...", "info");
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL}/auth/logout`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
+
+      if (response.ok) {
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+        setUser(null);
+        showNotification("Logged out successfully", "success");
+        navigate("/login");
+      } else {
+        showNotification("Logout failed", "error");
+      }
     } catch (error) {
       console.error("Logout error:", error);
-      // Still clear local state even if there's an error
       setIsAuthenticated(false);
       setIsAdmin(false);
       setUser(null);

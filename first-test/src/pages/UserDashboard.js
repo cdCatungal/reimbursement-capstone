@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useTheme } from '@mui/material';
+import { useTheme } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import MonthlyStats from "../components/MonthlyStats.js";
 import {
@@ -14,7 +14,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Avatar,  // ✅ Add this
+  Avatar, // ✅ Add this
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import ReceiptIcon from "@mui/icons-material/Receipt";
@@ -54,11 +54,19 @@ function UserDashboard() {
 
   const handleLogoutClick = async () => {
     try {
-      const response = await fetch("http://localhost:5000/auth/logout", {
+      // const response = await fetch("http://localhost:5000/auth/logout", {
+      //   method: "GET",
+      //   credentials: "include",
+      // });
+      const apiUrl =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:5000"
+          : process.env.REACT_APP_API_URL;
+
+      const response = await fetch(`${apiUrl}/auth/logout`, {
         method: "GET",
         credentials: "include",
       });
-
       if (response.ok) {
         setIsAuthenticated(false);
         setIsAdmin(false);
@@ -80,9 +88,9 @@ function UserDashboard() {
 
   const { getUser, user: storeUser } = userUserStore();
 
-useEffect(() => {
-  getUser(); // fetches Microsoft profile info (including profilePicture)
-}, []);
+  useEffect(() => {
+    getUser(); // fetches Microsoft profile info (including profilePicture)
+  }, []);
 
   const tabs = [
     {
@@ -157,11 +165,10 @@ useEffect(() => {
         </List>
 
         {drawerOpen && (
-          <Box sx={{ mt: 'auto' }}>
+          <Box sx={{ mt: "auto" }}>
             <MonthlyStats />
           </Box>
         )}
-
       </Drawer>
 
       <Box
@@ -183,13 +190,17 @@ useEffect(() => {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-  <img
-    src={theme.palette.mode === "dark" ? "/erni-logo-darkmode.png" : "/erni-logo.png"}
-    alt="ERNI Logo"
-    style={{ height: "40px", cursor: "pointer" }}
-    onClick={() => handleTabChange(0)}
-  />
-</Box>
+            <img
+              src={
+                theme.palette.mode === "dark"
+                  ? "/erni-logo-darkmode.png"
+                  : "/erni-logo.png"
+              }
+              alt="ERNI Logo"
+              style={{ height: "40px", cursor: "pointer" }}
+              onClick={() => handleTabChange(0)}
+            />
+          </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Typography variant="h6">Welcome, {firstName}</Typography>
@@ -203,19 +214,19 @@ useEffect(() => {
                 size="large"
               >
                 <Avatar
-  src={storeUser?.profilePicture}
-  alt={storeUser?.name || storeUser?.username}
-  sx={{
-    width: 32,
-    height: 32,
-    bgcolor: "primary.main",
-    fontSize: "0.9rem",
-  }}
->
-  {!storeUser?.profilePicture &&
-    (storeUser?.name?.charAt(0).toUpperCase() ||
-      storeUser?.username?.charAt(0).toUpperCase())}
-</Avatar>
+                  src={storeUser?.profilePicture}
+                  alt={storeUser?.name || storeUser?.username}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    bgcolor: "primary.main",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {!storeUser?.profilePicture &&
+                    (storeUser?.name?.charAt(0).toUpperCase() ||
+                      storeUser?.username?.charAt(0).toUpperCase())}
+                </Avatar>
               </IconButton>
             </Box>
 
@@ -250,8 +261,7 @@ useEffect(() => {
               alignItems: "center",
               mb: 3,
             }}
-          >
-          </Box>
+          ></Box>
           <Box sx={{ px: 0.5 }}>
             {tabValue === -1
               ? settingsTab.component

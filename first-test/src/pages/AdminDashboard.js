@@ -48,24 +48,47 @@ function AdminDashboard() {
     setAnchorEl(null);
   };
 
+  // const handleLogoutClick = async () => {
+  //   try {
+  //     const response = await fetch("http://localhost:5000/auth/logout", {
+  //       method: "GET",
+  //       credentials: "include",
+  //     });
+
+  //     if (response.ok) {
+  //       setIsAuthenticated(false);
+  //       setIsAdmin(false);
+  //       setUser(null);
+  //       showNotification("Logged out successfully", "success");
+  //       navigate("/login");
+  //     } else {
+  //       showNotification("Logout failed", "error");
+  //     }
+  //   } catch (error) {
+  //     console.error("Logout error:", error);
+  //     setIsAuthenticated(false);
+  //     setIsAdmin(false);
+  //     setUser(null);
+  //     navigate("/login");
+  //   }
+  //   handleProfileClose();
+  // };
+
   const handleLogoutClick = async () => {
     try {
-      const response = await fetch("http://localhost:5000/auth/logout", {
-        method: "GET",
-        credentials: "include",
-      });
+      // For Azure AD logout, we need to handle the redirect
+      window.location.href = `${
+        process.env.REACT_APP_API_URL || "http://localhost:5000"
+      }/auth/logout`;
 
-      if (response.ok) {
-        setIsAuthenticated(false);
-        setIsAdmin(false);
-        setUser(null);
-        showNotification("Logged out successfully", "success");
-        navigate("/login");
-      } else {
-        showNotification("Logout failed", "error");
-      }
+      // Clear local state immediately
+      setIsAuthenticated(false);
+      setIsAdmin(false);
+      setUser(null);
+      showNotification("Logging out...", "info");
     } catch (error) {
       console.error("Logout error:", error);
+      // Still clear local state even if there's an error
       setIsAuthenticated(false);
       setIsAdmin(false);
       setUser(null);
@@ -120,7 +143,7 @@ function AdminDashboard() {
   ];
 
   // Filter tabs based on visibility
-  const visibleTabs = allTabs.filter(tab => tab.visible);
+  const visibleTabs = allTabs.filter((tab) => tab.visible);
 
   const settingsTab = {
     label: "Settings",
@@ -220,13 +243,17 @@ function AdminDashboard() {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-  <img
-    src={theme.palette.mode === "dark" ? "/erni-logo-darkmode.png" : "/erni-logo.png"}
-    alt="ERNI Logo"
-    style={{ height: "40px", cursor: "pointer" }}
-    onClick={() => handleTabChange(0)}
-  />
-</Box>
+            <img
+              src={
+                theme.palette.mode === "dark"
+                  ? "/erni-logo-darkmode.png"
+                  : "/erni-logo.png"
+              }
+              alt="ERNI Logo"
+              style={{ height: "40px", cursor: "pointer" }}
+              onClick={() => handleTabChange(0)}
+            />
+          </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Typography variant="h6">Welcome, {firstName}</Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>

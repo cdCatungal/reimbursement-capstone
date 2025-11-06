@@ -119,7 +119,7 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Enhanced server startup with email verification
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 (async () => {
   try {
     // Check email configuration
@@ -132,10 +132,10 @@ const PORT = process.env.PORT || 5000;
 
     // Start server
     app.listen(PORT, () => {
-      console.log(`\n🚀 Server running: http://localhost:${PORT}`);
-      console.log(
-        `🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`
-      );
+      console.log(`\n🚀 Server running on port: ${PORT}`);
+      // console.log(
+      //   `🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`
+      // );
       console.log(
         `📧 Email notifications: ${
           process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured"

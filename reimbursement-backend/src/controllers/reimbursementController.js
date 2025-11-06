@@ -316,22 +316,25 @@ export async function getPendingApprovals(req, res) {
     let filteredReimbursements = allReimbursements.filter(r => {
       // Find the approval record for this user's role
       const userApproval = r.approvals.find(a => a.approver_role === user.role);
-      
-      if (!userApproval) {
-        return false; // User's role not in approval chain
-      }
-      
-      // Check if all previous approval levels are approved
-      const previousApprovals = r.approvals.filter(
-        a => a.approval_level < userApproval.approval_level
-      );
-      
-      // Only show if:
-      // 1. All previous levels are approved (or no previous levels exist)
-      // 2. The user's approval is still pending (or show approved/rejected for history)
-      const allPreviousApproved = previousApprovals.every(a => a.status === 'Approved');
-      
-      return allPreviousApproved;
+if (!userApproval) return false;
+
+const previousApprovals = r.approvals.filter(
+  a => a.approval_level < userApproval.approval_level
+);
+
+// ✅ CASE 1: User is current approver → show only if previous are approved
+if (userApproval.status === 'Pending') {
+  return previousApprovals.every(a => a.status === 'Approved');
+}
+
+// ✅ CASE 2: User already approved → ALWAYS allowed to see it
+if (userApproval.status === 'Approved') {
+  return true;
+}
+
+// ✅ CASE 3: Rejected or other → hide
+return false;
+
     });
 
     // ✅ If user is SUL or Account Manager, filter by SAP code

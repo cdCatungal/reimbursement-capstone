@@ -14,7 +14,7 @@ import {
   CheckCircleOutline,
 } from "@mui/icons-material";
 import { useAppContext } from "../App";
-import { axiosInstance } from "../lib/axios.js";
+import { axiosInstance, axiosInstanceWithAuth } from "../lib/axios.js";
 import { baseURL } from "../lib/baseUrl.js";
 
 function Login() {
@@ -36,7 +36,7 @@ function Login() {
         //   credentials: "include",
         // });
 
-        const response = await axiosInstance.get("/auth/me");
+        const response = await axiosInstanceWithAuth.get("/auth/me");
         const data = response.data;
         // if (response.ok) {
         // const data = await response.json();

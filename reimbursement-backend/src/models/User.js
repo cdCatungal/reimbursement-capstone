@@ -1,4 +1,3 @@
-// src/models/User.js
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/db.js';
 
@@ -51,47 +50,43 @@ const User = sequelize.define('User', {
     allowNull: true,
   },
   isActive: {
-  type: DataTypes.BOOLEAN,
-  defaultValue: true,
-  allowNull: false,
-  field: 'isActive',
-  comment: 'Whether the user account is active or inactive'
-},
-  // NEW: SAP Code fields
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    allowNull: false,
+    comment: 'Whether the user account is active or inactive'
+  },
+  
+  // ✅ NEW: Manual SUL assignment (for Employees only)
+  assigned_sul_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'SUL manually assigned to this Employee by Sales Director'
+  },
+  
+  // ❌ DEPRECATED: Remove old SAP code fields (keep for migration, will drop later)
   sap_code_1: {
     type: DataTypes.STRING(20),
     allowNull: true,
-    validate: {
-      is: /^E-\d{5}-\d{4}$/i, // Format: E-00000-0000
-    },
-    comment: 'Primary SAP code (format: E-00000-0000)'
   },
   sap_code_2: {
     type: DataTypes.STRING(20),
     allowNull: true,
-    validate: {
-      is: /^E-\d{5}-\d{4}$/i,
-    },
-    comment: 'Secondary SAP code (only for Employees, format: E-00000-0000)'
   },
 });
 
-// Add validation to ensure only Employees can have 2 SAP codes
-User.beforeValidate((user) => {
-  if (user.sap_code_2 && !['Employee'].includes(user.role)) {
-    user.sap_code_2 = null;
-  }
-  
-  if (['Sales Director', 'Invoice Specialist', 'Finance Officer', 'Admin'].includes(user.role)) {
-    user.sap_code_1 = null;
-    user.sap_code_2 = null;
-  }
-  
-  // Ensure Sales Director, Invoice Specialist, Finance Officer have no SAP codes
-  if (['Sales Director', 'Invoice Specialist', 'Finance Officer', 'Admin'].includes(user.role)) {
-    user.sap_code_1 = null;
-    user.sap_code_2 = null;
-  }
+// ✅ NEW: Self-referencing relationship for SUL assignment
+User.belongsTo(User, {
+  foreignKey: 'assigned_sul_id',
+  as: 'assignedSUL'
+});
+
+User.hasMany(User, {
+  foreignKey: 'assigned_sul_id',
+  as: 'managedEmployees'
 });
 
 export default User;

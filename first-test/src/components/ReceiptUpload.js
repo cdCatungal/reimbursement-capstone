@@ -58,20 +58,40 @@ function ReceiptUpload() {
   const isInvoiceSpecialist = user?.role === 'Invoice Specialist';
 
   useEffect(() => {
-    if (user) {
-      const codes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
+  if (user) {
+    // Fetch user's SAP codes from settings endpoint
+    fetchUserSapCodes();
+    
+    // Set default for Invoice Specialist
+    if (isInvoiceSpecialist) {
+      setFormData(prev => ({ ...prev, sap_code: 'INVOICE_SPECIALIST' }));
+    }
+  }
+}, [user, isInvoiceSpecialist]);
+
+const fetchUserSapCodes = async () => {
+  try {
+    const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/settings`, {
+      credentials: 'include'
+    });
+    const data = await response.json();
+    
+    if (data.data && data.data.sapCodes) {
+      const codes = data.data.sapCodes.map(sc => sc.code);
       setAvailableSapCodes(codes);
       
+      // Auto-select if only one SAP code
       if (codes.length === 1) {
         setFormData(prev => ({ ...prev, sap_code: codes[0] }));
       }
       
-      // Set a default SAP code for Invoice Specialists
-      if (isInvoiceSpecialist) {
-        setFormData(prev => ({ ...prev, sap_code: 'INVOICE_SPECIALIST' }));
-      }
+      console.log(`✅ ${user.role} has ${codes.length} assigned SAP codes:`, codes);
     }
-  }, [user, isInvoiceSpecialist]);
+  } catch (error) {
+    console.error('Failed to fetch SAP codes:', error);
+    showNotification('Failed to load SAP codes', 'error');
+  }
+};
 
   const handleImageChange = (e) => {
   const file = e.target.files[0];
@@ -348,10 +368,10 @@ function ReceiptUpload() {
           </Typography>
 
           {availableSapCodes.length === 0 && !isInvoiceSpecialist && (
-            <Alert severity="warning" sx={{ mb: 3 }}>
-              No SAP codes assigned to your account. Please contact your administrator.
-            </Alert>
-          )}
+  <Alert severity="warning" sx={{ mb: 3 }}>
+    No SAP codes assigned to your account. Please contact your Sales Director.
+  </Alert>
+)}
 
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
@@ -473,24 +493,29 @@ function ReceiptUpload() {
             <Grid item xs={12} md={6}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 {!isInvoiceSpecialist && (
-                  <TextField
-                    select
-                    label="SAP Code *"
-                    name="sap_code"
-                    value={formData.sap_code}
-                    onChange={handleChange}
-                    fullWidth
-                    error={!!errors.sap_code}
-                    helperText={errors.sap_code || 'Select the department/project for this expense'}
-                    disabled={availableSapCodes.length === 0}
-                  >
-                    {availableSapCodes.map((code) => (
-                      <MenuItem key={code} value={code}>
-                        {code}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
+  <TextField
+    select
+    label="SAP Code *"
+    name="sap_code"
+    value={formData.sap_code}
+    onChange={handleChange}
+    fullWidth
+    error={!!errors.sap_code}
+    helperText={
+      errors.sap_code || 
+      (user?.role === 'Account Manager' 
+        ? 'Select SAP code for your reimbursement submission' 
+        : 'Select the department/project for this expense')
+    }
+    disabled={availableSapCodes.length === 0}
+  >
+    {availableSapCodes.map((code) => (
+      <MenuItem key={code} value={code}>
+        {code}
+      </MenuItem>
+    ))}
+  </TextField>
+)}
 
                 <TextField
                   select

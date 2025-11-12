@@ -1,6 +1,6 @@
 // reimbursement-backend/src/controllers/approvalController.js
-import { User, Reimbursement, Approval } from "../models/index.js";
-import { getNextApprover, findApproverBySapCode } from '../utils/approvalFlow.js';
+import { User, Reimbursement, Approval, SapCode } from "../models/index.js";
+import { getNextApprover, findAssignedSUL, findAccountManagerForSapCode } from '../utils/approvalFlow.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { 
   approvalProgressTemplate, 
@@ -10,7 +10,7 @@ import {
 } from '../utils/emailTemplates.js';
 
 /**
- * Approve a reimbursement (by current approver with SAP code routing)
+ * ✅ UPDATED: Approve a reimbursement with new routing logic
  */
 export async function approve(req, res) {
   try {
@@ -30,7 +30,8 @@ export async function approve(req, res) {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email', 'role']
+          attributes: ['id', 'name', 'email', 'role'],
+          include: [{ model: User, as: 'assignedSUL' }] // Include assigned SUL
         },
         {
           model: Approval,
@@ -62,16 +63,27 @@ export async function approve(req, res) {
       });
     }
 
-    // ✅ For SUL and Account Manager, verify SAP code match
-    if (['SUL', 'Account Manager'].includes(approver.role)) {
-      const approverSapCodes = [approver.sap_code_1, approver.sap_code_2].filter(Boolean);
-      
-      if (!approverSapCodes.includes(r.sap_code)) {
-        console.log(`❌ SAP code mismatch. Request: ${r.sap_code}, Approver: ${approverSapCodes.join(', ')}`);
+    // ✅ NEW: Role-specific authorization
+    if (approver.role === 'SUL') {
+      // Verify SUL is assigned to this employee
+      if (r.user.assigned_sul_id !== approver.id) {
+        console.log(`❌ SUL not assigned to employee. Assigned SUL ID: ${r.user.assigned_sul_id}, Current SUL ID: ${approver.id}`);
         return res.status(403).json({
-          error: 'This reimbursement is not assigned to your SAP code',
-          requestSapCode: r.sap_code,
-          yourSapCodes: approverSapCodes
+          error: 'You are not the assigned SUL for this employee',
+          assignedSUL: r.user.assignedSUL?.name || 'Unknown'
+        });
+      }
+    } else if (approver.role === 'Account Manager') {
+      // Verify AM manages this SAP code
+      const sapCode = await SapCode.findOne({
+        where: { code: r.sap_code }
+      });
+      
+      if (!sapCode || sapCode.account_manager_id !== approver.id) {
+        console.log(`❌ Account Manager not assigned to SAP code. SAP: ${r.sap_code}, AM ID: ${approver.id}`);
+        return res.status(403).json({
+          error: 'You are not the Account Manager for this SAP code',
+          sapCode: r.sap_code
         });
       }
     }
@@ -108,15 +120,25 @@ export async function approve(req, res) {
     const nextRole = getNextApprover(r.user.role, approver.role);
     
     if (nextRole) {
-      // 📧 Still has more approvers - send progress email
       console.log(`➡️ Moving to next approver: ${nextRole}`);
       
-      // ✅ Find next approver based on SAP code (if applicable)
-      const allUsers = await User.findAll();
-      const nextApprover = findApproverBySapCode(nextRole, r.sap_code, allUsers);
+      // ✅ NEW: Find next approver based on role
+      let nextApprover = null;
+      
+      if (nextRole === 'Account Manager') {
+        // Find AM for this SAP code
+        const sapCode = await SapCode.findOne({
+          where: { code: r.sap_code },
+          include: [{ model: User, as: 'accountManager' }]
+        });
+        nextApprover = sapCode ? sapCode.accountManager : null;
+      } else {
+        // Find any user with this role
+        nextApprover = await User.findOne({ where: { role: nextRole } });
+      }
       
       if (!nextApprover) {
-        console.log(`⚠️ Warning: No ${nextRole} found for SAP code ${r.sap_code}`);
+        console.log(`⚠️ Warning: No ${nextRole} found`);
       }
       
       r.current_approver = nextRole;
@@ -158,7 +180,6 @@ export async function approve(req, res) {
         console.log(`📧 Progress email sent to ${r.user.email}`);
       } catch (emailError) {
         console.error('❌ Failed to send progress email:', emailError);
-        // Don't fail the approval if email fails
       }
 
       // 📧 Send email to NEXT APPROVER
@@ -195,7 +216,6 @@ export async function approve(req, res) {
           console.log(`📧 Next approver notification sent to ${nextApprover.name} (${nextApprover.email})`);
         } catch (emailError) {
           console.error('❌ Failed to send next approver notification:', emailError);
-          // Don't fail the approval if email fails
         }
       }
 
@@ -220,7 +240,6 @@ export async function approve(req, res) {
         console.log(`📧 Final approval email sent to ${r.user.email}`);
       } catch (emailError) {
         console.error('❌ Failed to send final approval email:', emailError);
-        // Don't fail the approval if email fails
       }
     }
 
@@ -239,7 +258,7 @@ export async function approve(req, res) {
 }
 
 /**
- * Reject a reimbursement (by current approver)
+ * ✅ UPDATED: Reject a reimbursement with new routing logic
  */
 export async function reject(req, res) {
   try {
@@ -263,7 +282,8 @@ export async function reject(req, res) {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email', 'role']
+          attributes: ['id', 'name', 'email', 'role'],
+          include: [{ model: User, as: 'assignedSUL' }]
         },
         {
           model: Approval,
@@ -295,16 +315,25 @@ export async function reject(req, res) {
       });
     }
 
-    // ✅ For SUL and Account Manager, verify SAP code match
-    if (['SUL', 'Account Manager'].includes(approver.role)) {
-      const approverSapCodes = [approver.sap_code_1, approver.sap_code_2].filter(Boolean);
-      
-      if (!approverSapCodes.includes(r.sap_code)) {
-        console.log(`❌ SAP code mismatch. Request: ${r.sap_code}, Approver: ${approverSapCodes.join(', ')}`);
+    // ✅ NEW: Role-specific authorization
+    if (approver.role === 'SUL') {
+      if (r.user.assigned_sul_id !== approver.id) {
+        console.log(`❌ SUL not assigned to employee`);
         return res.status(403).json({
-          error: 'This reimbursement is not assigned to your SAP code',
-          requestSapCode: r.sap_code,
-          yourSapCodes: approverSapCodes
+          error: 'You are not the assigned SUL for this employee',
+          assignedSUL: r.user.assignedSUL?.name || 'Unknown'
+        });
+      }
+    } else if (approver.role === 'Account Manager') {
+      const sapCode = await SapCode.findOne({
+        where: { code: r.sap_code }
+      });
+      
+      if (!sapCode || sapCode.account_manager_id !== approver.id) {
+        console.log(`❌ Account Manager not assigned to SAP code`);
+        return res.status(403).json({
+          error: 'You are not the Account Manager for this SAP code',
+          sapCode: r.sap_code
         });
       }
     }
@@ -363,13 +392,12 @@ export async function reject(req, res) {
 
     console.log(`✅ Reimbursement marked as Rejected`);
 
-    // 📧 NEW LOGIC: Collect CC recipients (ONLY approvers who already APPROVED in previous stages)
+    // 📧 Collect CC recipients (previous approvers who approved)
     const ccEmails = [];
     
     console.log(`📧 Building CC list from approvals that were already APPROVED...`);
     console.log(`   Current rejection level: ${pendingApproval.approval_level}`);
 
-    // Get all approvals that were approved BEFORE this rejection
     const previouslyApprovedApprovals = r.approvals.filter(approval => 
       approval.status === 'Approved' && 
       approval.approval_level < pendingApproval.approval_level
@@ -377,7 +405,6 @@ export async function reject(req, res) {
 
     console.log(`   Found ${previouslyApprovedApprovals.length} previously approved stages`);
 
-    // Add emails of approvers who already approved
     for (const approval of previouslyApprovedApprovals) {
       if (approval.approver && approval.approver.email) {
         ccEmails.push(approval.approver.email);
@@ -393,7 +420,7 @@ export async function reject(req, res) {
     try {
       const emailHtml = rejectionTemplate(
         r,
-        r.user.name,              // Requester's name for salutation
+        r.user.name,
         approver.name, 
         approver.role, 
         remarks,
@@ -404,7 +431,7 @@ export async function reject(req, res) {
         r.user.email,
         `❌ Reimbursement Rejected - ${r.sap_code}`,
         emailHtml,
-        ccEmails.length > 0 ? ccEmails : null // CC only previous approvers who approved
+        ccEmails.length > 0 ? ccEmails : null
       );
       
       console.log(`📧 Rejection email sent to ${r.user.email}`);
@@ -415,7 +442,6 @@ export async function reject(req, res) {
       }
     } catch (emailError) {
       console.error('❌ Failed to send rejection email:', emailError);
-      // Don't fail the rejection if email fails
     }
 
     res.json({ 

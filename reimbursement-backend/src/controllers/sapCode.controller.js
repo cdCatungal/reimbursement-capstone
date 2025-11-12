@@ -1,7 +1,7 @@
-import { SapCode } from "../models/index.js";
+import { SapCode, User } from "../models/index.js";
 
 /**
- * Get all SAP codes
+ * ✅ UPDATED: Get all SAP codes with Account Manager info
  */
 export const getAllSapCodes = async (req, res) => {
   try {
@@ -12,7 +12,6 @@ export const getAllSapCodes = async (req, res) => {
       });
     }
 
-    // Only Admin and Sales Director can view the full SAP code list
     if (!["Admin", "Sales Director"].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
@@ -21,6 +20,13 @@ export const getAllSapCodes = async (req, res) => {
     }
 
     const sapCodes = await SapCode.findAll({
+      include: [
+        {
+          model: User,
+          as: 'accountManager',
+          attributes: ['id', 'name', 'email', 'role']
+        }
+      ],
       order: [["createdAt", "DESC"]],
     });
 
@@ -38,12 +44,19 @@ export const getAllSapCodes = async (req, res) => {
 };
 
 /**
- * ✅ NEW: Get only Active SAP codes (no role restriction)
+ * ✅ Get only Active SAP codes with Account Manager info
  */
 export const getActiveSapCodes = async (req, res) => {
   try {
     const sapCodes = await SapCode.findAll({
       where: { status: "Active" },
+      include: [
+        {
+          model: User,
+          as: 'accountManager',
+          attributes: ['id', 'name', 'email']
+        }
+      ],
       order: [["name", "ASC"]],
     });
 
@@ -61,7 +74,7 @@ export const getActiveSapCodes = async (req, res) => {
 };
 
 /**
- * Create new SAP code
+ * ✅ UPDATED: Create new SAP code with Account Manager assignment
  */
 export const createSapCode = async (req, res) => {
   try {
@@ -79,7 +92,7 @@ export const createSapCode = async (req, res) => {
       });
     }
 
-    const { code, name, description, status } = req.body;
+    const { code, name, description, status, account_manager_id } = req.body;
 
     // Validate required fields
     if (!code || !name) {
@@ -98,17 +111,46 @@ export const createSapCode = async (req, res) => {
       });
     }
 
+    // ✅ NEW: Validate Account Manager if provided
+    if (account_manager_id) {
+      const accountManager = await User.findByPk(account_manager_id);
+      if (!accountManager) {
+        return res.status(400).json({
+          success: false,
+          message: "Account Manager not found"
+        });
+      }
+      if (accountManager.role !== 'Account Manager') {
+        return res.status(400).json({
+          success: false,
+          message: "Selected user is not an Account Manager"
+        });
+      }
+    }
+
     const sapCode = await SapCode.create({
       code,
       name,
       description: description || null,
-      status: status || 'Active'
+      status: status || 'Active',
+      account_manager_id: account_manager_id || null
+    });
+
+    // Fetch the created SAP code with Account Manager info
+    const sapCodeWithAM = await SapCode.findByPk(sapCode.id, {
+      include: [
+        {
+          model: User,
+          as: 'accountManager',
+          attributes: ['id', 'name', 'email', 'role']
+        }
+      ]
     });
 
     res.status(201).json({
       success: true,
       message: "SAP code created successfully",
-      data: sapCode
+      data: sapCodeWithAM
     });
   } catch (error) {
     console.error("Error creating SAP code:", error);
@@ -120,7 +162,7 @@ export const createSapCode = async (req, res) => {
 };
 
 /**
- * Update SAP code
+ * ✅ UPDATED: Update SAP code with Account Manager assignment
  */
 export const updateSapCode = async (req, res) => {
   try {
@@ -139,7 +181,7 @@ export const updateSapCode = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { code, name, description, status } = req.body;
+    const { code, name, description, status, account_manager_id } = req.body;
 
     const sapCode = await SapCode.findByPk(id);
     if (!sapCode) {
@@ -160,19 +202,50 @@ export const updateSapCode = async (req, res) => {
       }
     }
 
+    // ✅ NEW: Validate Account Manager if provided
+    if (account_manager_id !== undefined) {
+      if (account_manager_id !== null) {
+        const accountManager = await User.findByPk(account_manager_id);
+        if (!accountManager) {
+          return res.status(400).json({
+            success: false,
+            message: "Account Manager not found"
+          });
+        }
+        if (accountManager.role !== 'Account Manager') {
+          return res.status(400).json({
+            success: false,
+            message: "Selected user is not an Account Manager"
+          });
+        }
+      }
+    }
+
     // Update fields
     const updateData = {};
     if (code !== undefined) updateData.code = code;
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (status !== undefined) updateData.status = status;
+    if (account_manager_id !== undefined) updateData.account_manager_id = account_manager_id;
 
     await sapCode.update(updateData);
+
+    // Fetch updated SAP code with Account Manager info
+    const sapCodeWithAM = await SapCode.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'accountManager',
+          attributes: ['id', 'name', 'email', 'role']
+        }
+      ]
+    });
 
     res.status(200).json({
       success: true,
       message: "SAP code updated successfully",
-      data: sapCode
+      data: sapCodeWithAM
     });
   } catch (error) {
     console.error("Error updating SAP code:", error);
@@ -184,7 +257,7 @@ export const updateSapCode = async (req, res) => {
 };
 
 /**
- * Delete SAP code
+ * ✅ Delete SAP code
  */
 export const deleteSapCode = async (req, res) => {
   try {

@@ -1,6 +1,6 @@
-// reimbursement-backend/src/utils/approvalFlow.js
+// src/utils/approvalFlow.js
 
-// Define all possible approval chains based on submitter's role
+// ✅ UPDATED: Approval flows based on submitter's role
 const approvalFlows = {
   Employee: ["SUL", "Account Manager", "Invoice Specialist", "Finance Officer"],
   SUL: ["Sales Director", "Invoice Specialist", "Finance Officer"],
@@ -8,13 +8,11 @@ const approvalFlows = {
   "Invoice Specialist": ["Sales Director", "Invoice Specialist", "Finance Officer"],
 };
 
-// Roles that don't need SAP code matching (can approve any request at their level)
+// Roles that don't need SAP code matching
 const NON_SAP_DEPENDENT_ROLES = ["Sales Director", "Invoice Specialist", "Finance Officer"];
 
 /**
  * Get the full approval flow for a submitter
- * @param {string} submitterRole - The role of the person submitting
- * @returns {Array} Array of approval roles in order
  */
 export function getApprovalFlow(submitterRole) {
   return approvalFlows[submitterRole] || [];
@@ -22,46 +20,85 @@ export function getApprovalFlow(submitterRole) {
 
 /**
  * Get the next approver role in the sequence
- * @param {string} submitterRole - The role of the submitter
- * @param {string} currentApproverRole - Current approver's role
- * @returns {string|null} Next approver role or null if complete
  */
 export function getNextApprover(submitterRole, currentApproverRole = null) {
   const flow = approvalFlows[submitterRole];
   if (!flow || flow.length === 0) return null;
 
-  // If no current approver, return the first in the flow
   if (!currentApproverRole) return flow[0];
 
-  // Otherwise, find next in sequence
   const idx = flow.indexOf(currentApproverRole);
   if (idx === -1) return null;
-  return flow[idx + 1] || null; // return null if last approver
+  return flow[idx + 1] || null;
 }
 
 /**
  * Check if a role requires SAP code matching for approval
- * @param {string} role - The approver's role
- * @returns {boolean} True if SAP code matching is required
  */
 export function requiresSapCodeMatch(role) {
   return !NON_SAP_DEPENDENT_ROLES.includes(role);
 }
 
 /**
- * Find eligible approver with matching SAP code
- * @param {string} role - Target approver role
- * @param {string} sapCode - SAP code from reimbursement request
- * @param {Array} users - List of users to search from
- * @returns {Object|null} Matching user or null
+ * ✅ NEW: Find SUL assigned to an employee
+ * @param {Object} employee - Employee user object with assignedSUL included
+ * @returns {Object|null} Assigned SUL user or null
+ */
+export function findAssignedSUL(employee) {
+  if (!employee) return null;
+  
+  // Check if assignedSUL is already loaded (from include)
+  if (employee.assignedSUL) {
+    return employee.assignedSUL;
+  }
+  
+  // Check if assigned_sul_id exists
+  if (employee.assigned_sul_id) {
+    console.log(`✅ Employee ${employee.name} has assigned SUL ID: ${employee.assigned_sul_id}`);
+    return { id: employee.assigned_sul_id }; // Return minimal object for further query
+  }
+  
+  console.log(`⚠️ Employee ${employee.name} has NO assigned SUL`);
+  return null;
+}
+
+/**
+ * ✅ NEW: Find Account Manager assigned to a SAP Code
+ * @param {string} sapCodeValue - SAP code string (e.g., "E-12345-6789")
+ * @param {Array} sapCodes - Array of SapCode objects with accountManager included
+ * @returns {Object|null} Account Manager user or null
+ */
+export function findAccountManagerForSapCode(sapCodeValue, sapCodes) {
+  if (!sapCodeValue || !sapCodes) return null;
+  
+  const sapCodeObj = sapCodes.find(sc => sc.code === sapCodeValue);
+  
+  if (!sapCodeObj) {
+    console.log(`⚠️ SAP Code ${sapCodeValue} not found`);
+    return null;
+  }
+  
+  if (sapCodeObj.accountManager) {
+    console.log(`✅ Found Account Manager for ${sapCodeValue}: ${sapCodeObj.accountManager.name}`);
+    return sapCodeObj.accountManager;
+  }
+  
+  console.log(`⚠️ SAP Code ${sapCodeValue} has NO assigned Account Manager`);
+  return null;
+}
+
+/**
+ * ❌ DEPRECATED: Old function - kept for backward compatibility during transition
+ * Use findAssignedSUL() and findAccountManagerForSapCode() instead
  */
 export function findApproverBySapCode(role, sapCode, users) {
+  console.warn('⚠️ findApproverBySapCode() is deprecated. Use new functions instead.');
+  
   if (!requiresSapCodeMatch(role)) {
-    // For non-SAP dependent roles, return any user with that role
     return users.find(u => u.role === role) || null;
   }
   
-  // For SUL and Account Manager, match SAP code
+  // Old logic for backward compatibility
   return users.find(u => 
     u.role === role && 
     (u.sap_code_1 === sapCode || u.sap_code_2 === sapCode)

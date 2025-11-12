@@ -1,0 +1,247 @@
+name: CI/CD Pipeline - React & Node.js
+
+on:
+  push:
+    branches: [deployment, Deployment-ci/cd]
+  pull_request:
+    branches: [deployment, Deployment-ci/cd]
+
+env:
+  NODE_VERSION: "22.x"
+
+jobs:
+  # Frontend Job - React + Zustand
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: first-test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: first-test/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # - name: Run ESLint
+      #   run: npm run lint
+      #   continue-on-error: true
+
+      - name: Run tests
+        run: npm test -- --passWithNoTests --coverage
+        env:
+          CI: true
+
+      - name: Build React app
+        run: npm run build
+        # env:
+        # CI: false
+
+      # - name: Upload build artifacts
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: frontend-build
+      #     path: frontend/build
+      #     retention-days: 7
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-test-coverage
+          path: first-test/coverage
+          retention-days: 7
+
+  # Backend Job - Node.js + Express
+  backend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: reimbursement-backend
+
+    # services:
+    #   postgres:
+    #     image: postgres:15
+    #     env:
+    #       POSTGRES_USER: test_user
+    #       POSTGRES_PASSWORD: test_password
+    #       POSTGRES_DB: test_db
+    #     options: >-
+    #       --health-cmd pg_isready
+    #       --health-interval 10s
+    #       --health-timeout 5s
+    #       --health-retries 5
+    #     ports:
+    #       - 5432:5432
+
+    env:
+      NODE_ENV: test
+      # Database - use local test instance
+      DB_NAME: test_db
+      DB_USER: test_user
+      DB_PASS: test_password
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_SSL: "false"
+      DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+
+      # App config
+      PORT: 5000
+      CLIENT_URL: http://localhost:3000
+
+      # Secrets - use GitHub Secrets (NEVER hardcode)
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+
+      # Azure - use test values or secrets
+      AZURE_CLIENT_ID: "test-client-id"
+      AZURE_CLIENT_SECRET: "test-client-secret"
+      AZURE_TENANT_ID: "test-tenant"
+      AZURE_REDIRECT_URL: "http://localhost:5000/auth/microsoft/callback"
+
+      # Gemini - use test key
+      GEMINI_API_KEY: "test-api-key"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: reimbursement-backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # - name: Wait for PostgreSQL
+      #   run: |
+      #     for i in {1..30}; do
+      #       pg_isready -h localhost -p 5432 -U test_user && break
+      #       sleep 1
+      #     done
+
+      - name: Run database migrations
+        run: |
+          # If using Sequelize migrations
+          npx sequelize-cli db:migrate:undo:all || true
+          npx sequelize-cli db:migrate
+        env:
+          NODE_ENV: test
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run security audit
+        run: |
+          npm audit --audit-level=high
+          npx scanjs . --ignore-test-files
+        continue-on-error: true
+
+      - name: Check for exposed secrets
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .gitleaks.toml
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage --verbose
+        env:
+          # Override any production values
+          DB_SSL: "false"
+          NODE_ENV: test
+
+      - name: Run integration tests
+        run: npm run test:integration || echo "No integration tests"
+        continue-on-error: true
+
+      - name: Test database connection
+        run: node -e "
+          const sequelize = require('./src/config/db.js').default;
+          sequelize.authenticate()
+          .then(() => { console.log('✅ Database connection OK'); process.exit(0); })
+          .catch(err => { console.error('❌ Database connection failed:', err); process.exit(1); })"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: |
+            reimbursement-backend/coverage/
+            reimbursement-backend/test-results/
+          retention-days: 7
+
+  # Security and Code Quality
+  # security-scan:
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+
+  #     - name: Run npm audit - Frontend
+  #       run: npm audit --audit-level=moderate
+  #       working-directory: frontend
+  #       continue-on-error: true
+
+  #     - name: Run npm audit - Backend
+  #       run: npm audit --audit-level=moderate
+  #       working-directory: backend
+  #       continue-on-error: true
+
+  # Deploy Job
+  # deploy:
+  #   needs: [frontend, backend, security-scan]
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+
+  #     - name: Download frontend artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: frontend-build
+  #         path: ./frontend/build
+
+  #     - name: Deploy Frontend
+  #       run: |
+  #         echo "Deploying frontend..."
+  #         # Example: Deploy to Vercel
+  #         # npm install -g vercel
+  #         # vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  #         # Example: Deploy to Netlify
+  #         # npm install -g netlify-cli
+  #         # netlify deploy --prod --dir=frontend/build --auth=${{ secrets.NETLIFY_TOKEN }}
+
+  #         # Example: Deploy to AWS S3
+  #         # aws s3 sync frontend/build s3://your-bucket-name --delete
+
+  #     - name: Deploy Backend
+  #       run: |
+  #         echo "Deploying backend..."
+  #         # Example: Deploy to Heroku
+  #         # git subtree push --prefix backend heroku main
+
+  #         # Example: Deploy to AWS Elastic Beanstalk
+  #         # eb deploy
+
+  #         # Example: Deploy via SSH
+  #         # ssh user@server 'cd /var/www/api && git pull && pm2 restart all'
+
+  #     - name: Post-deployment health check
+  #       run: |
+  #         echo "Running health checks..."
+  #         # curl -f https://your-api.com/health || exit 1

@@ -20,6 +20,7 @@ import {
   Chip,
   MenuItem,
   Pagination,
+  Alert,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -29,6 +30,7 @@ import {
   Close as CloseIcon,
 } from "@mui/icons-material";
 import { useManageSapCodesStore } from "../store/manageSapCodesStore.js";
+import { axiosInstance } from "../lib/axios.js"; // ✅ ADD THIS IMPORT
 
 function ManageSAPCodes() {
   const { sapCodes, loading, fetchSapCodes, createSapCode, updateSapCode, deleteSapCode } = useManageSapCodesStore();
@@ -38,11 +40,15 @@ function ManageSAPCodes() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedSapCode, setSelectedSapCode] = useState(null);
+  const [accountManagers, setAccountManagers] = useState([]);
+  const [loadingAccountManagers, setLoadingAccountManagers] = useState(false); // ✅ ADD THIS
+  const [accountManagerError, setAccountManagerError] = useState(null); // ✅ ADD THIS
   const [formData, setFormData] = useState({
     code: "",
     name: "",
     description: "",
     status: "Active",
+    account_manager_id: null,
   });
   const [formErrors, setFormErrors] = useState({});
 
@@ -54,6 +60,36 @@ function ManageSAPCodes() {
   useEffect(() => {
     fetchSapCodes();
   }, [fetchSapCodes]);
+
+  // ✅ FIXED: Fetch Account Managers on mount
+  useEffect(() => {
+    fetchAccountManagers();
+  }, []);
+
+  const fetchAccountManagers = async () => {
+    setLoadingAccountManagers(true);
+    setAccountManagerError(null);
+    
+    try {
+      const response = await axiosInstance.get("/users");
+      console.log("✅ Users response:", response.data);
+      
+      // Filter for Account Managers only
+      const ams = response.data.data.filter(u => u.role === 'Account Manager');
+      console.log("✅ Found Account Managers:", ams);
+      
+      setAccountManagers(ams);
+      
+      if (ams.length === 0) {
+        setAccountManagerError("No Account Managers found in the system");
+      }
+    } catch (error) {
+      console.error("❌ Failed to fetch Account Managers:", error);
+      setAccountManagerError(error.response?.data?.message || "Failed to load Account Managers");
+    } finally {
+      setLoadingAccountManagers(false);
+    }
+  };
 
   // Filter SAP codes and reset page when search changes
   const filteredCodes = sapCodes.filter(
@@ -94,6 +130,7 @@ function ManageSAPCodes() {
       name: "",
       description: "",
       status: "Active",
+      account_manager_id: null,
     });
     setFormErrors({});
     setAddDialogOpen(true);
@@ -101,7 +138,13 @@ function ManageSAPCodes() {
 
   const handleCloseAddDialog = () => {
     setAddDialogOpen(false);
-    setFormData({ code: "", name: "", description: "", status: "Active" });
+    setFormData({ 
+      code: "", 
+      name: "", 
+      description: "", 
+      status: "Active",
+      account_manager_id: null,
+    });
     setFormErrors({});
   };
 
@@ -131,6 +174,7 @@ function ManageSAPCodes() {
       name: sapCode.name,
       description: sapCode.description || "",
       status: sapCode.status,
+      account_manager_id: sapCode.account_manager_id || null,
     });
     setFormErrors({});
     setEditDialogOpen(true);
@@ -139,7 +183,13 @@ function ManageSAPCodes() {
   const handleCloseEditDialog = () => {
     setEditDialogOpen(false);
     setSelectedSapCode(null);
-    setFormData({ code: "", name: "", description: "", status: "Active" });
+    setFormData({ 
+      code: "", 
+      name: "", 
+      description: "", 
+      status: "Active",
+      account_manager_id: null,
+    });
     setFormErrors({});
   };
 
@@ -183,6 +233,13 @@ function ManageSAPCodes() {
     return status === "Active" ? "success" : "default";
   };
 
+  // ✅ Helper function to get Account Manager name
+  const getAccountManagerName = (accountManagerId) => {
+    if (!accountManagerId) return "Not assigned";
+    const am = accountManagers.find(a => a.id === accountManagerId);
+    return am ? am.name : "Unknown";
+  };
+
   return (
     <Card sx={{ mt: 3, boxShadow: 3 }}>
       <CardContent sx={{ p: 3 }}>
@@ -206,6 +263,13 @@ function ManageSAPCodes() {
             Add New SAP Code
           </Button>
         </Box>
+
+        {/* ✅ ADD: Account Manager Loading/Error Alert */}
+        {accountManagerError && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            {accountManagerError}
+          </Alert>
+        )}
 
         {/* Search */}
         <TextField
@@ -290,6 +354,10 @@ function ManageSAPCodes() {
                                 {code.description}
                               </Typography>
                             )}
+                            {/* ✅ ADD: Display Account Manager */}
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                              Account Manager: <strong>{getAccountManagerName(code.account_manager_id)}</strong>
+                            </Typography>
                             <Typography variant="caption" color="text.secondary">
                               Created: {new Date(code.createdAt).toLocaleDateString()}
                             </Typography>
@@ -418,6 +486,32 @@ function ManageSAPCodes() {
                 <MenuItem value="Active">Active</MenuItem>
                 <MenuItem value="Inactive">Inactive</MenuItem>
               </TextField>
+
+              {/* ✅ FIXED: Account Manager dropdown */}
+              <TextField
+                select
+                label="Account Manager"
+                value={formData.account_manager_id || ''}
+                onChange={(e) => setFormData({ ...formData, account_manager_id: e.target.value || null })}
+                fullWidth
+                disabled={loadingAccountManagers || accountManagers.length === 0}
+                helperText={
+                  loadingAccountManagers 
+                    ? "Loading Account Managers..." 
+                    : accountManagers.length === 0 
+                    ? "No Account Managers available" 
+                    : "Assign an Account Manager to this SAP code"
+                }
+              >
+                <MenuItem value="">
+                  <em>None (No Account Manager)</em>
+                </MenuItem>
+                {accountManagers.map((am) => (
+                  <MenuItem key={am.id} value={am.id}>
+                    {am.name} ({am.email})
+                  </MenuItem>
+                ))}
+              </TextField>
             </Box>
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
@@ -492,6 +586,32 @@ function ManageSAPCodes() {
                 >
                   <MenuItem value="Active">Active</MenuItem>
                   <MenuItem value="Inactive">Inactive</MenuItem>
+                </TextField>
+
+                {/* ✅ FIXED: Account Manager dropdown in edit */}
+                <TextField
+                  select
+                  label="Account Manager"
+                  value={formData.account_manager_id || ''}
+                  onChange={(e) => setFormData({ ...formData, account_manager_id: e.target.value || null })}
+                  fullWidth
+                  disabled={loadingAccountManagers || accountManagers.length === 0}
+                  helperText={
+                    loadingAccountManagers 
+                      ? "Loading Account Managers..." 
+                      : accountManagers.length === 0 
+                      ? "No Account Managers available" 
+                      : "Assign an Account Manager to this SAP code"
+                  }
+                >
+                  <MenuItem value="">
+                    <em>None (No Account Manager)</em>
+                  </MenuItem>
+                  {accountManagers.map((am) => (
+                    <MenuItem key={am.id} value={am.id}>
+                      {am.name} ({am.email})
+                    </MenuItem>
+                  ))}
                 </TextField>
               </Box>
             )}

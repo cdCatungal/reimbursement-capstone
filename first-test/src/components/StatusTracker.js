@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -44,6 +43,13 @@ import {
 import { useAppContext } from "../App";
 import { useTheme } from "@mui/material/styles";
 import { userUserStore } from "../store/userUserStore";
+
+const isPDF = (receipt) => {
+  if (typeof receipt === "string") {
+    return receipt.toLowerCase().endsWith('.pdf');
+  }
+  return receipt?.mimetype === "application/pdf";
+};
 
 function StatusTracker() {
   const { user, showNotification } = useAppContext();
@@ -495,7 +501,7 @@ function StatusTracker() {
         </>
       )}
 
-      {/* Details Dialog - Rest of your existing dialog code remains the same */}
+      {/* Details Dialog */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -546,12 +552,6 @@ function StatusTracker() {
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                    {/* <Avatar
-                      sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
-                    >
-                      <PersonIcon sx={{ fontSize: 32 }} />
-                    </Avatar> */}
-
                     <Avatar
                       src={UserData?.profilePicture}
                       alt={UserData?.name || UserData?.username}
@@ -617,6 +617,57 @@ function StatusTracker() {
                       </Typography>
                     </Box>
 
+                    {selectedTicket.category === 'Meal with Client' && selectedTicket.number_of_people && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Number of People:
+                        </Typography>
+                        <Typography variant="body2">
+                          {selectedTicket.number_of_people} {selectedTicket.number_of_people === 1 ? 'person' : 'people'}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_days && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Number of Days:
+                        </Typography>
+                        <Typography variant="body2">
+                          {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {selectedTicket.reimbursable_amount && selectedTicket.reimbursable_amount < selectedTicket.total && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Reimbursable Amount:
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>
+                          ₱{parseFloat(selectedTicket.reimbursable_amount).toLocaleString('en-PH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
+                        </Typography>
+                        <Typography variant="caption" color="warning.main">
+                          (Limited by category maximum)
+                        </Typography>
+                      </Box>
+                    )}
+
                     <Box sx={{ mb: 2 }}>
                       <Typography
                         variant="body2"
@@ -659,37 +710,37 @@ function StatusTracker() {
                       </Typography>
                     </Box>
 
-                  <Box sx={{ mb: 2 }}>
-  <Typography
-    variant="body2"
-    color="text.secondary"
-    sx={{ fontWeight: 600 }}
-  >
-    Date Submitted:
-  </Typography>
-  <Typography variant="body2">
-    {new Date(
-      selectedTicket.submittedAt
-    ).toLocaleDateString()}
-  </Typography>
-</Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        Date Submitted:
+                      </Typography>
+                      <Typography variant="body2">
+                        {new Date(
+                          selectedTicket.submittedAt
+                        ).toLocaleDateString()}
+                      </Typography>
+                    </Box>
 
-<Box sx={{ mb: 2 }}>
-  <Typography
-    variant="body2"
-    color="text.secondary"
-    sx={{ fontWeight: 600 }}
-  >
-    SAP Code:
-  </Typography>
-  <Chip 
-    label={selectedTicket.sapCode || "N/A"}
-    color="primary"
-    variant="outlined"
-    size="small"
-    sx={{ fontWeight: 600, mt: 0.5 }}
-  />
-</Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        SAP Code:
+                      </Typography>
+                      <Chip 
+                        label={selectedTicket.sapCode || "N/A"}
+                        color="primary"
+                        variant="outlined"
+                        size="small"
+                        sx={{ fontWeight: 600, mt: 0.5 }}
+                      />
+                    </Box>
 
                     {selectedTicket.merchant && (
                       <Box sx={{ mb: 2 }}>
@@ -732,7 +783,7 @@ function StatusTracker() {
                       </Box>
                     )}
 
-                    {/* Updated Receipt Display with Base64 Support */}
+                    {/* Updated Receipt Display with PDF Support */}
                     {selectedTicket.receipt && (
                       <Box sx={{ mt: 3 }}>
                         <Box
@@ -751,22 +802,26 @@ function StatusTracker() {
                             Receipt:
                           </Typography>
                           <Box sx={{ display: "flex", gap: 1 }}>
-                            <IconButton
-                              size="small"
-                              onClick={handleZoomOut}
-                              disabled={receiptZoom <= 0.5}
-                              title="Zoom Out"
-                            >
-                              <ZoomOutIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={handleZoomIn}
-                              disabled={receiptZoom >= 3}
-                              title="Zoom In"
-                            >
-                              <ZoomInIcon fontSize="small" />
-                            </IconButton>
+                            {!isPDF(selectedTicket.receipt) && (
+                              <>
+                                <IconButton
+                                  size="small"
+                                  onClick={handleZoomOut}
+                                  disabled={receiptZoom <= 0.5}
+                                  title="Zoom Out"
+                                >
+                                  <ZoomOutIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={handleZoomIn}
+                                  disabled={receiptZoom >= 3}
+                                  title="Zoom In"
+                                >
+                                  <ZoomInIcon fontSize="small" />
+                                </IconButton>
+                              </>
+                            )}
                             <IconButton
                               size="small"
                               onClick={handleDownloadReceipt}
@@ -796,29 +851,57 @@ function StatusTracker() {
                           {receiptLoading && (
                             <CircularProgress sx={{ position: "absolute" }} />
                           )}
-                          <Box
-                            component="img"
-                            src={`data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`}
-                            alt="Receipt"
-                            sx={{
-                              maxWidth: "100%",
-                              maxHeight: "480px",
-                              objectFit: "contain",
-                              transform: `scale(${receiptZoom})`,
-                              transition: "transform 0.2s ease-in-out",
-                              display: receiptLoading ? "none" : "block",
-                            }}
-                            onLoad={() => setReceiptLoading(false)}
-                            onLoadStart={() => setReceiptLoading(true)}
-                            onError={(e) => {
-                              console.error("Failed to load receipt");
-                              setReceiptLoading(false);
-                              showNotification(
-                                "Failed to load receipt image",
-                                "error"
-                              );
-                            }}
-                          />
+                          
+                          {isPDF(selectedTicket.receipt) ? (
+                            // PDF Viewer
+                            <Box
+                              component="iframe"
+                              src={`data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`}
+                              sx={{
+                                width: "100%",
+                                height: "480px",
+                                border: "none",
+                                borderRadius: 1,
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error("Failed to load receipt PDF");
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt PDF",
+                                  "error"
+                                );
+                              }}
+                              title="Receipt PDF"
+                            />
+                          ) : (
+                            // Image Viewer
+                            <Box
+                              component="img"
+                              src={`data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`}
+                              alt="Receipt"
+                              sx={{
+                                maxWidth: "100%",
+                                maxHeight: "480px",
+                                objectFit: "contain",
+                                transform: `scale(${receiptZoom})`,
+                                transition: "transform 0.2s ease-in-out",
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error("Failed to load receipt");
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt image",
+                                  "error"
+                                );
+                              }}
+                            />
+                          )}
                         </Box>
 
                         {selectedTicket.receipt.filename && (
@@ -832,6 +915,7 @@ function StatusTracker() {
                             }}
                           >
                             {selectedTicket.receipt.filename}
+                            {isPDF(selectedTicket.receipt) && " (PDF)"}
                           </Typography>
                         )}
                       </Box>

@@ -83,6 +83,16 @@ const Reimbursement = sequelize.define('Reimbursement', {
     comment: 'Date when the expense occurred'
   },
   
+  number_of_people: {
+  type: DataTypes.INTEGER,
+  allowNull: true,
+  defaultValue: 1,
+  validate: {
+    min: 1
+  },
+  comment: 'Number of people for Meal with Client category'
+},
+
   submitted_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

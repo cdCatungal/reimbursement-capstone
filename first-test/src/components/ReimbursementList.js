@@ -1,5 +1,3 @@
-//first-test/src/components/ReimbursementLists.js
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
@@ -40,6 +38,13 @@ import {
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useAppContext } from "../App";
+
+const isPDF = (receipt) => {
+  if (typeof receipt === "string") {
+    return receipt.toLowerCase().endsWith('.pdf');
+  }
+  return receipt?.mimetype === "application/pdf";
+};
 
 function ReimbursementList() {
   const { user, showNotification } = useAppContext();
@@ -580,7 +585,7 @@ function ReimbursementList() {
         </>
       )}
 
-      {/* Details Dialog */}
+      {/* Details Dialog - WITH PDF SUPPORT */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -709,6 +714,57 @@ function ReimbursementList() {
                       </Typography>
                     </Box>
 
+                    {selectedTicket.category === 'Meal with Client' && selectedTicket.number_of_people && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Number of People:
+                        </Typography>
+                        <Typography variant="body2">
+                          {selectedTicket.number_of_people} {selectedTicket.number_of_people === 1 ? 'person' : 'people'}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_days && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Number of Days:
+                        </Typography>
+                        <Typography variant="body2">
+                          {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {selectedTicket.reimbursable_amount && selectedTicket.reimbursable_amount < selectedTicket.total && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Reimbursable Amount:
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>
+                          ₱{parseFloat(selectedTicket.reimbursable_amount).toLocaleString('en-PH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
+                        </Typography>
+                        <Typography variant="caption" color="warning.main">
+                          (Limited by category maximum)
+                        </Typography>
+                      </Box>
+                    )}
+
                     <Box sx={{ mb: 2 }}>
                       <Typography
                         variant="body2"
@@ -805,6 +861,7 @@ function ReimbursementList() {
                       </Box>
                     )}
 
+                    {/* Receipt Display WITH PDF SUPPORT */}
                     {selectedTicket.receipt && (
                       <Box sx={{ mt: 3 }}>
                         <Box
@@ -823,22 +880,26 @@ function ReimbursementList() {
                             Receipt:
                           </Typography>
                           <Box sx={{ display: "flex", gap: 1 }}>
-                            <IconButton
-                              size="small"
-                              onClick={handleZoomOut}
-                              disabled={receiptZoom <= 0.5}
-                              title="Zoom Out"
-                            >
-                              <ZoomOutIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={handleZoomIn}
-                              disabled={receiptZoom >= 3}
-                              title="Zoom In"
-                            >
-                              <ZoomInIcon fontSize="small" />
-                            </IconButton>
+                            {!isPDF(selectedTicket.receipt) && (
+                              <>
+                                <IconButton
+                                  size="small"
+                                  onClick={handleZoomOut}
+                                  disabled={receiptZoom <= 0.5}
+                                  title="Zoom Out"
+                                >
+                                  <ZoomOutIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={handleZoomIn}
+                                  disabled={receiptZoom >= 3}
+                                  title="Zoom In"
+                                >
+                                  <ZoomInIcon fontSize="small" />
+                                </IconButton>
+                              </>
+                            )}
                             <IconButton
                               size="small"
                               onClick={handleDownloadReceipt}
@@ -868,36 +929,71 @@ function ReimbursementList() {
                           {receiptLoading && (
                             <CircularProgress sx={{ position: "absolute" }} />
                           )}
-                          <Box
-                            component="img"
-                            src={
-                              typeof selectedTicket.receipt === "string"
-                                ? `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`
-                                : `data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`
-                            }
-                            alt="Receipt"
-                            sx={{
-                              maxWidth: "100%",
-                              maxHeight: "480px",
-                              objectFit: "contain",
-                              transform: `scale(${receiptZoom})`,
-                              transition: "transform 0.2s ease-in-out",
-                              display: receiptLoading ? "none" : "block",
-                            }}
-                            onLoad={() => setReceiptLoading(false)}
-                            onLoadStart={() => setReceiptLoading(true)}
-                            onError={(e) => {
-                              console.error(
-                                "Failed to load receipt:",
-                                selectedTicket.receipt
-                              );
-                              setReceiptLoading(false);
-                              showNotification(
-                                "Failed to load receipt image",
-                                "error"
-                              );
-                            }}
-                          />
+                          
+                          {isPDF(selectedTicket.receipt) ? (
+                            // PDF Viewer
+                            <Box
+                              component="iframe"
+                              src={
+                                typeof selectedTicket.receipt === "string"
+                                  ? `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`
+                                  : `data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`
+                              }
+                              sx={{
+                                width: "100%",
+                                height: "480px",
+                                border: "none",
+                                borderRadius: 1,
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error(
+                                  "Failed to load receipt PDF:",
+                                  selectedTicket.receipt
+                                );
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt PDF",
+                                  "error"
+                                );
+                              }}
+                              title="Receipt PDF"
+                            />
+                          ) : (
+                            // Image Viewer
+                            <Box
+                              component="img"
+                              src={
+                                typeof selectedTicket.receipt === "string"
+                                  ? `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`
+                                  : `data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`
+                              }
+                              alt="Receipt"
+                              sx={{
+                                maxWidth: "100%",
+                                maxHeight: "480px",
+                                objectFit: "contain",
+                                transform: `scale(${receiptZoom})`,
+                                transition: "transform 0.2s ease-in-out",
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error(
+                                  "Failed to load receipt:",
+                                  selectedTicket.receipt
+                                );
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt image",
+                                  "error"
+                                );
+                              }}
+                            />
+                          )}
                         </Box>
 
                         {selectedTicket.receipt.filename && (
@@ -911,6 +1007,7 @@ function ReimbursementList() {
                             }}
                           >
                             {selectedTicket.receipt.filename}
+                            {isPDF(selectedTicket.receipt) && " (PDF)"}
                           </Typography>
                         )}
                       </Box>

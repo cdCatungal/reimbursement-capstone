@@ -23,6 +23,7 @@ import {
   Delete,
   CheckCircle,
   Refresh,
+  PictureAsPdf,
 } from '@mui/icons-material';
 
 function ReceiptUpload() {
@@ -58,74 +59,76 @@ function ReceiptUpload() {
   const isInvoiceSpecialist = user?.role === 'Invoice Specialist';
 
   useEffect(() => {
-  if (user) {
-    // Fetch user's SAP codes from settings endpoint
-    fetchUserSapCodes();
-    
-    // Set default for Invoice Specialist
-    if (isInvoiceSpecialist) {
-      setFormData(prev => ({ ...prev, sap_code: 'INVOICE_SPECIALIST' }));
-    }
-  }
-}, [user, isInvoiceSpecialist]);
-
-const fetchUserSapCodes = async () => {
-  try {
-    const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/settings`, {
-      credentials: 'include'
-    });
-    const data = await response.json();
-    
-    if (data.data && data.data.sapCodes) {
-      const codes = data.data.sapCodes.map(sc => sc.code);
-      setAvailableSapCodes(codes);
+    if (user) {
+      fetchUserSapCodes();
       
-      // Auto-select if only one SAP code
-      if (codes.length === 1) {
-        setFormData(prev => ({ ...prev, sap_code: codes[0] }));
+      if (isInvoiceSpecialist) {
+        setFormData(prev => ({ ...prev, sap_code: 'INVOICE_SPECIALIST' }));
       }
-      
-      console.log(`✅ ${user.role} has ${codes.length} assigned SAP codes:`, codes);
     }
-  } catch (error) {
-    console.error('Failed to fetch SAP codes:', error);
-    showNotification('Failed to load SAP codes', 'error');
-  }
-};
+  }, [user, isInvoiceSpecialist]);
+
+  const fetchUserSapCodes = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/users/settings`, {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      
+      if (data.data && data.data.sapCodes) {
+        const codes = data.data.sapCodes.map(sc => sc.code);
+        setAvailableSapCodes(codes);
+        
+        if (codes.length === 1) {
+          setFormData(prev => ({ ...prev, sap_code: codes[0] }));
+        }
+        
+        console.log(`✅ ${user.role} has ${codes.length} assigned SAP codes:`, codes);
+      }
+    } catch (error) {
+      console.error('Failed to fetch SAP codes:', error);
+      showNotification('Failed to load SAP codes', 'error');
+    }
+  };
 
   const handleImageChange = (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    const allowedTypes = ['image/jpeg', 'image/png'];
-    const allowedExtensions = ['jpg', 'jpeg', 'png'];
+    const file = e.target.files[0];
+    if (file) {
+      // ✅ UPDATED: Added PDF support
+      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+      const allowedExtensions = ['jpg', 'jpeg', 'png', 'pdf'];
 
-    const fileExtension = file.name.split('.').pop().toLowerCase();
+      const fileExtension = file.name.split('.').pop().toLowerCase();
 
-    // ✅ Check MIME + extension
-    if (!allowedTypes.includes(file.type) || !allowedExtensions.includes(fileExtension)) {
-      showNotification('Only JPG, JPEG, or PNG files are allowed', 'error');
-      return;
+      // ✅ Check MIME + extension
+      if (!allowedTypes.includes(file.type) || !allowedExtensions.includes(fileExtension)) {
+        showNotification('Only JPG, JPEG, PNG, or PDF files are allowed', 'error');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification('File size must be less than 5MB', 'error');
+        return;
+      }
+
+      setImage(file);
+      setExtractedText('');
+      setErrors(prev => ({ ...prev, image: '' }));
+
+      // ✅ UPDATED: Only create preview for image files, not PDFs
+      if (file.type !== 'application/pdf') {
+        const reader = new FileReader();
+        reader.onload = (event) => setImagePreview(event.target.result);
+        reader.readAsDataURL(file);
+      } else {
+        setImagePreview('pdf');
+      }
     }
-
-    if (file.size > 5 * 1024 * 1024) {
-      showNotification('File size must be less than 5MB', 'error');
-      return;
-    }
-
-    setImage(file);
-    setExtractedText('');
-    setErrors(prev => ({ ...prev, image: '' }));
-
-    const reader = new FileReader();
-    reader.onload = (event) => setImagePreview(event.target.result);
-    reader.readAsDataURL(file);
-  }
-};
-
+  };
 
   const handleOCR = async () => {
     if (!image) {
-      showNotification('Please select an image first', 'warning');
+      showNotification('Please select a file first', 'warning');
       return;
     }
  
@@ -270,12 +273,11 @@ const fetchUserSapCodes = async () => {
     if (!formData.items.trim()) newErrors.items = 'Purpose is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
     
-    // Only validate SAP code if user is NOT an Invoice Specialist
     if (!isInvoiceSpecialist && !formData.sap_code) {
       newErrors.sap_code = 'SAP code is required';
     }
     
-    if (!image) newErrors.image = 'Receipt image is required';
+    if (!image) newErrors.image = 'Receipt file is required';
    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -295,7 +297,6 @@ const fetchUserSapCodes = async () => {
     setSubmitting(true);
 
     try {
-      // Create FormData for multipart upload
       const formDataToSend = new FormData();
       formDataToSend.append('category', formData.category);
       formDataToSend.append('type', formData.category);
@@ -306,7 +307,6 @@ const fetchUserSapCodes = async () => {
       formDataToSend.append('date_of_expense', formData.date);
       formDataToSend.append('sap_code', formData.sap_code);
       
-      // Append the actual image file
       if (image) {
         formDataToSend.append('receipt', image);
       }
@@ -330,7 +330,6 @@ const fetchUserSapCodes = async () => {
       showNotification('Reimbursement submitted successfully!', 'success');
       console.log('Created reimbursement:', data);
 
-      // Reset form
       setFormData({
         date: new Date().toISOString().split('T')[0],
         items: '',
@@ -368,10 +367,10 @@ const fetchUserSapCodes = async () => {
           </Typography>
 
           {availableSapCodes.length === 0 && !isInvoiceSpecialist && (
-  <Alert severity="warning" sx={{ mb: 3 }}>
-    No SAP codes assigned to your account. Please contact your Sales Director.
-  </Alert>
-)}
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              No SAP codes assigned to your account. Please contact your Sales Director.
+            </Alert>
+          )}
 
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
@@ -395,17 +394,46 @@ const fetchUserSapCodes = async () => {
                 {imagePreview ? (
                   <Box>
                     <Box sx={{ position: 'relative', mb: 2 }}>
-                      <img
-                        src={imagePreview}
-                        alt="Receipt preview"
-                        style={{
-                          maxWidth: '100%',
-                          maxHeight: '400px',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        }}
-                        onError={() => showNotification('Failed to load image preview', 'error')}
-                      />
+                      {/* ✅ UPDATED: Handle PDF preview differently */}
+                      {image && image.type === 'application/pdf' ? (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minHeight: '200px',
+                            bgcolor: 'background.paper',
+                            borderRadius: '8px',
+                            border: '2px solid',
+                            borderColor: 'primary.main',
+                            p: 3,
+                          }}
+                        >
+                          <PictureAsPdf sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            PDF Receipt Uploaded
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            {image.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {(image.size / 1024 / 1024).toFixed(2)} MB
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <img
+                          src={imagePreview}
+                          alt="Receipt preview"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '400px',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          }}
+                          onError={() => showNotification('Failed to load image preview', 'error')}
+                        />
+                      )}
                       <IconButton
                         onClick={handleClearImage}
                         sx={{
@@ -441,10 +469,11 @@ const fetchUserSapCodes = async () => {
                   </Box>
                 ) : (
                   <label htmlFor="receipt-upload" style={{ cursor: 'pointer', display: 'block' }}>
+                    {/* ✅ UPDATED: Added .pdf to accept attribute */}
                     <input
                       id="receipt-upload"
                       type="file"
-                      accept=".jpg, .jpeg, .png"
+                      accept=".jpg, .jpeg, .png, .pdf"
                       onChange={handleImageChange}
                       style={{ display: 'none' }}
                     />
@@ -456,8 +485,9 @@ const fetchUserSapCodes = async () => {
                     <Typography variant="h6" sx={{ mb: 1 }}>
                       Click to Upload Receipt
                     </Typography>
+                    {/* ✅ UPDATED: Added PDF to supported formats */}
                     <Typography variant="body2" color="text.secondary">
-                      Supported formats: JPG, PNG, JPEG (Max 5MB)
+                      Supported formats: JPG, PNG, JPEG, PDF (Max 5MB)
                     </Typography>
                   </label>
                 )}
@@ -493,29 +523,29 @@ const fetchUserSapCodes = async () => {
             <Grid item xs={12} md={6}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 {!isInvoiceSpecialist && (
-  <TextField
-    select
-    label="SAP Code *"
-    name="sap_code"
-    value={formData.sap_code}
-    onChange={handleChange}
-    fullWidth
-    error={!!errors.sap_code}
-    helperText={
-      errors.sap_code || 
-      (user?.role === 'Account Manager' 
-        ? 'Select SAP code for your reimbursement submission' 
-        : 'Select the department/project for this expense')
-    }
-    disabled={availableSapCodes.length === 0}
-  >
-    {availableSapCodes.map((code) => (
-      <MenuItem key={code} value={code}>
-        {code}
-      </MenuItem>
-    ))}
-  </TextField>
-)}
+                  <TextField
+                    select
+                    label="SAP Code *"
+                    name="sap_code"
+                    value={formData.sap_code}
+                    onChange={handleChange}
+                    fullWidth
+                    error={!!errors.sap_code}
+                    helperText={
+                      errors.sap_code || 
+                      (user?.role === 'Account Manager' 
+                        ? 'Select SAP code for your reimbursement submission' 
+                        : 'Select the department/project for this expense')
+                    }
+                    disabled={availableSapCodes.length === 0}
+                  >
+                    {availableSapCodes.map((code) => (
+                      <MenuItem key={code} value={code}>
+                        {code}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
 
                 <TextField
                   select
@@ -628,7 +658,6 @@ const fetchUserSapCodes = async () => {
         </CardContent>
       </Card>
 
-      {/* Backdrop Loader for Submission */}
       <Backdrop
         sx={{
           color: '#fff',

@@ -1,3 +1,4 @@
+//reimbursement-capstone/reimbursement-backend/src/controllers/ocrController.js
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 dotenv.config();

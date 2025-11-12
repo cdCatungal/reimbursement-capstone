@@ -5,7 +5,7 @@ import { bufferToBase64 } from "../middlewares/upload.js";
 import { newSubmissionToApproverTemplate } from '../utils/emailTemplates.js';
 
 /**
- * ✅ UPDATED: Create new reimbursement - supports Account Manager submissions
+ * ✅ UPDATED: Create new reimbursement - SUL and Invoice Specialist bypass SAP validation
  */
 export async function createReimbursement(req, res) {
   try {
@@ -19,11 +19,11 @@ export async function createReimbursement(req, res) {
     console.log("📋 Creating reimbursement for user:", user.name, user.role);
     console.log("📅 Received date_of_expense:", payload.date_of_expense);
 
-    const isInvoiceSpecialist = user.role === 'Invoice Specialist';
+    // ✅ NEW: Roles that bypass SAP code validation
+    const bypassSapValidation = ['Invoice Specialist', 'SUL'].includes(user.role);
 
-    // ✅ UPDATED: Validate SAP code (skip for Invoice Specialists)
-    // Now works for BOTH Employees AND Account Managers
-    if (!isInvoiceSpecialist) {
+    // ✅ UPDATED: Validate SAP code (skip for Invoice Specialists AND SULs)
+    if (!bypassSapValidation) {
       if (!payload.sap_code) {
         return res.status(400).json({ error: "SAP code is required" });
       }
@@ -48,10 +48,13 @@ export async function createReimbursement(req, res) {
       
       console.log(`✅ ${user.role} ${user.name} validated for SAP code: ${payload.sap_code}`);
     } else {
+      // ✅ Auto-assign special SAP code for roles that bypass validation
       if (!payload.sap_code) {
-        payload.sap_code = 'INVOICE_SPECIALIST';
+        payload.sap_code = user.role === 'Invoice Specialist' 
+          ? 'INVOICE_SPECIALIST' 
+          : 'SUL_DIRECT';
       }
-      console.log("✅ Invoice Specialist submission - bypassing SAP code validation");
+      console.log(`✅ ${user.role} submission - bypassing SAP code validation (using: ${payload.sap_code})`);
     }
 
     // ✅ Get the full approval flow

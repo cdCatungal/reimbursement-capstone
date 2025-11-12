@@ -62,7 +62,7 @@ function ReceiptUpload() {
 const CATEGORY_LIMITS = {
   'Overtime Meal': { maxPerUnit: 300, unit: 'fixed' },
   'Meal with Client': { maxPerUnit: 800, unit: 'person' },
-  'Accomodation': { maxPerUnit: 2500, unit: 'day' }
+  'Accomodation': { maxPerUnit: 2500, unit: 'person-day' }
 };
 
 // Calculate reimbursable amount based on category
@@ -84,7 +84,7 @@ const calculateReimbursableAmount = (category, total, numPeople = 1, numDays = 1
       maxReimbursable = Math.min(totalAmount, limit.maxPerUnit * numPeople);
       break;
     case 'Accomodation':
-      maxReimbursable = Math.min(totalAmount, limit.maxPerUnit * numDays);
+      maxReimbursable = Math.min(totalAmount, limit.maxPerUnit * numPeople * numDays);
       break;
     default:
       maxReimbursable = totalAmount;
@@ -104,8 +104,8 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
       return `Maximum reimbursable: ₱${limit.maxPerUnit.toFixed(2)}`;
     case 'Meal with Client':
       return `Maximum reimbursable: ₱${(limit.maxPerUnit * numPeople).toFixed(2)} (₱${limit.maxPerUnit}/person × ${numPeople} ${numPeople === 1 ? 'person' : 'people'})`;
-    case 'Accomodation':
-      return `Maximum reimbursable: ₱${(limit.maxPerUnit * numDays).toFixed(2)} (₱${limit.maxPerUnit}/day × ${numDays} ${numDays === 1 ? 'day' : 'days'})`;
+   case 'Accomodation':
+    return `Maximum reimbursable: ₱${(limit.maxPerUnit * numPeople * numDays).toFixed(2)} (₱${limit.maxPerUnit}/person/day × ${numPeople} ${numPeople === 1 ? 'person' : 'people'} × ${numDays} ${numDays === 1 ? 'day' : 'days'})`;
     default:
       return '';
   }
@@ -363,6 +363,10 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
     if (!numDays || numDays < 1) {
       newErrors.number_of_days = 'Number of days must be at least 1';
     }
+    const numPeople = parseInt(formData.number_of_people);
+    if (!numPeople || numPeople < 1) {
+      newErrors.number_of_people = 'Number of people must be at least 1';
+    }
   }
   
   // Only validate SAP code if user doesn't bypass validation
@@ -416,6 +420,7 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
     }
     if (formData.category === 'Accomodation') {
       formDataToSend.append('number_of_days', parseInt(formData.number_of_days));
+      formDataToSend.append('number_of_people', parseInt(formData.number_of_people));
     }
     
     // Append the actual file (image or PDF)
@@ -742,6 +747,7 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
 
 {/* Show Number of Days field for Accommodation */}
 {formData.category === 'Accomodation' && (
+  <>
   <TextField
     label="Number of Days *"
     name="number_of_days"
@@ -753,6 +759,18 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
     error={!!errors.number_of_days}
     helperText={errors.number_of_days || 'How many days of accommodation?'}
   />
+    <TextField
+      label="Number of People *"
+      name="number_of_people"
+      type="number"
+      value={formData.number_of_people}
+      onChange={handleChange}
+      fullWidth
+      inputProps={{ step: '1', min: '1' }}
+      error={!!errors.number_of_people}
+      helperText={errors.number_of_people || 'How many people will use the accommodation?'}
+    />
+</>
 )}
 
 {/* Reimbursable Amount Display - Show for categories with limits */}

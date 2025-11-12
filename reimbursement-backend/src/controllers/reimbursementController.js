@@ -77,7 +77,7 @@ export async function createReimbursement(req, res) {
     } else if (payload.category === 'Meal with Client') {
       calculatedReimbursable = Math.min(totalAmount, CATEGORY_LIMITS['Meal with Client'] * numPeople);
     } else if (payload.category === 'Accomodation') {
-      calculatedReimbursable = Math.min(totalAmount, CATEGORY_LIMITS['Accomodation'] * numDays);
+      calculatedReimbursable = Math.min(totalAmount, CATEGORY_LIMITS['Accomodation'] * numPeople * numDays);
     }
 
     console.log(`💰 Total: ₱${totalAmount}, Reimbursable: ₱${calculatedReimbursable}`);
@@ -183,7 +183,7 @@ export async function createReimbursement(req, res) {
       merchant: payload.merchant,
       total: payload.total,
       reimbursable_amount: calculatedReimbursable,  // NEW
-      number_of_people: payload.category === 'Meal with Client' ? numPeople : null,  // NEW
+      number_of_people: (payload.category === 'Meal with Client' || payload.category === 'Accomodation') ? numPeople : null,  // NEW
       number_of_days: payload.category === 'Accomodation' ? numDays : null,  // NEW
       status: "Pending",
       current_approver: firstApproverRole,

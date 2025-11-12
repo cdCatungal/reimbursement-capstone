@@ -132,13 +132,13 @@ jobs:
       #       sleep 1
       #     done
 
-      - name: Run database migrations
-        run: |
-          # If using Sequelize migrations
-          npx sequelize-cli db:migrate:undo:all || true
-          npx sequelize-cli db:migrate
-        env:
-          NODE_ENV: test
+      # - name: Run database migrations
+      #   run: |
+      #     # If using Sequelize migrations
+      #     npx sequelize-cli db:migrate:undo:all || true
+      #     npx sequelize-cli db:migrate
+      #   env:
+      #     NODE_ENV: test
 
       - name: Run ESLint
         run: npm run lint

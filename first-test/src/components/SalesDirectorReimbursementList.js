@@ -3,7 +3,10 @@
 // 2. Modified receipt viewer section to conditionally render iframe for PDFs or img for images
 // 3. Hide zoom controls for PDF files (only show download button)
 // 4. Updated filename display to show "(PDF)" suffix for PDF files
+// 5. ✅ NEW: Added Number of People display for Accommodation category
+// 6. ✅ NEW: Enhanced reimbursable amount display with calculation breakdown for Accommodation (₱2,500/person/day)
 
+// first-test/src/components/SalesDirectorReimbursementList.js
 import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
@@ -718,7 +721,7 @@ function SalesDirectorReimbursementList() {
         </>
       )}
 
-      {/* Details Dialog - WITH PDF SUPPORT */}
+      {/* Details Dialog - WITH PDF SUPPORT AND ACCOMMODATION UPDATES */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -846,6 +849,7 @@ function SalesDirectorReimbursementList() {
                       </Typography>
                     </Box>
 
+                    {/* ✅ STEP 1: Show Number of People for Meal with Client */}
                     {selectedTicket.category === 'Meal with Client' && selectedTicket.number_of_people && (
                       <Box sx={{ mb: 2 }}>
                         <Typography
@@ -861,21 +865,42 @@ function SalesDirectorReimbursementList() {
                       </Box>
                     )}
 
-                    {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_days && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Number of Days:
-                        </Typography>
-                        <Typography variant="body2">
-                          {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'}
-                        </Typography>
-                      </Box>
+                    {/* ✅ STEP 1: Show Number of Days AND Number of People for Accommodation */}
+                    {selectedTicket.category === 'Accomodation' && (
+                      <>
+                        {selectedTicket.number_of_days && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Number of Days:
+                            </Typography>
+                            <Typography variant="body2">
+                              {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'}
+                            </Typography>
+                          </Box>
+                        )}
+                        
+                        {selectedTicket.number_of_people && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Number of People:
+                            </Typography>
+                            <Typography variant="body2">
+                              {selectedTicket.number_of_people} {selectedTicket.number_of_people === 1 ? 'person' : 'people'}
+                            </Typography>
+                          </Box>
+                        )}
+                      </>
                     )}
 
+                    {/* ✅ STEP 2: Enhanced Reimbursable Amount Display with Calculation Breakdown */}
                     {selectedTicket.reimbursable_amount && selectedTicket.reimbursable_amount < selectedTicket.total && (
                       <Box sx={{ mb: 2 }}>
                         <Typography
@@ -891,9 +916,18 @@ function SalesDirectorReimbursementList() {
                             maximumFractionDigits: 2
                           })}
                         </Typography>
-                        <Typography variant="caption" color="warning.main">
+                        <Typography variant="caption" color="warning.main" sx={{ display: 'block' }}>
                           (Limited by category maximum)
                         </Typography>
+                        {/* ✅ Show detailed calculation for Accommodation */}
+                        {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_people && selectedTicket.number_of_days && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                            Maximum: ₱2,500/person/day × {selectedTicket.number_of_people} {selectedTicket.number_of_people === 1 ? 'person' : 'people'} × {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'} = ₱{(2500 * selectedTicket.number_of_people * selectedTicket.number_of_days).toLocaleString('en-PH', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            })}
+                          </Typography>
+                        )}
                       </Box>
                     )}
 

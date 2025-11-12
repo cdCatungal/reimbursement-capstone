@@ -729,19 +729,38 @@ function ReimbursementList() {
                       </Box>
                     )}
 
-                    {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_days && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Number of Days:
-                        </Typography>
-                        <Typography variant="body2">
-                          {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'}
-                        </Typography>
-                      </Box>
+                    {selectedTicket.category === 'Accomodation' && (
+                      <>
+                        {selectedTicket.number_of_days && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Number of Days:
+                            </Typography>
+                            <Typography variant="body2">
+                              {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'}
+                            </Typography>
+                          </Box>
+                        )}
+                        
+                        {selectedTicket.number_of_people && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Number of People:
+                            </Typography>
+                            <Typography variant="body2">
+                              {selectedTicket.number_of_people} {selectedTicket.number_of_people === 1 ? 'person' : 'people'}
+                            </Typography>
+                          </Box>
+                        )}
+                      </>
                     )}
 
                     {selectedTicket.reimbursable_amount && selectedTicket.reimbursable_amount < selectedTicket.total && (
@@ -759,9 +778,17 @@ function ReimbursementList() {
                             maximumFractionDigits: 2
                           })}
                         </Typography>
-                        <Typography variant="caption" color="warning.main">
+                        <Typography variant="caption" color="warning.main" sx={{ display: 'block' }}>
                           (Limited by category maximum)
                         </Typography>
+                        {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_people && selectedTicket.number_of_days && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                            Maximum: ₱2,500/person/day × {selectedTicket.number_of_people} {selectedTicket.number_of_people === 1 ? 'person' : 'people'} × {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'} = ₱{(2500 * selectedTicket.number_of_people * selectedTicket.number_of_days).toLocaleString('en-PH', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            })}
+                          </Typography>
+                        )}
                       </Box>
                     )}
 

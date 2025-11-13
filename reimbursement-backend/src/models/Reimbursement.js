@@ -39,23 +39,24 @@ const Reimbursement = sequelize.define('Reimbursement', {
     type: DataTypes.STRING
   },
   
-  // NEW: SAP Code tracking
+  // ✅ UPDATED: SAP Code tracking with special values for Invoice Specialist and SUL
   sap_code: {
     type: DataTypes.STRING(30),
     allowNull: false,
     validate: {
       isValidSapCode(value) {
-        // Allow special value for Invoice Specialists
-        if (value === 'INVOICE_SPECIALIST') {
+        // Allow special values for Invoice Specialists and SULs
+        const specialCodes = ['INVOICE_SPECIALIST', 'SUL_DIRECT'];
+        if (specialCodes.includes(value)) {
           return true;
         }
         // Otherwise, validate standard SAP code format
         if (!/^E-\d{5}-\d{4}$/i.test(value)) {
-          throw new Error('SAP code must be in format E-XXXXX-YYYY or INVOICE_SPECIALIST');
+          throw new Error('SAP code must be in format E-XXXXX-YYYY, INVOICE_SPECIALIST, or SUL_DIRECT');
         }
       }
     },
-    comment: 'SAP code used for this reimbursement submission'
+    comment: 'SAP code used for this reimbursement submission (or special code for Invoice Specialist/SUL)'
   },
   
   // Store receipt image data directly in database
@@ -75,7 +76,7 @@ const Reimbursement = sequelize.define('Reimbursement', {
     comment: 'Original filename'
   },
   
-  // ✅ FIX: Add date_of_expense field
+  // ✅ Date of expense field
   date_of_expense: {
     type: DataTypes.DATEONLY, // DATEONLY stores date without time
     allowNull: true,

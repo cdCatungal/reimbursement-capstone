@@ -353,6 +353,14 @@ function ReceiptUpload() {
       console.log("Created reimbursement:", data);
 
       // Reset form
+      const defaultSapCode = bypassesSapValidation
+        ? user.role === "Invoice Specialist"
+          ? "INVOICE_SPECIALIST"
+          : "SUL_DIRECT"
+        : availableSapCodes.length === 1
+        ? availableSapCodes[0]
+        : "";
+
       setFormData({
         date: new Date().toISOString().split("T")[0],
         items: "",
@@ -491,7 +499,7 @@ function ReceiptUpload() {
                     <input
                       id="receipt-upload"
                       type="file"
-                      accept=".jpg, .jpeg, .png"
+                      accept=".jpg, .jpeg, .png, .pdf"
                       onChange={handleImageChange}
                       style={{ display: "none" }}
                     />
@@ -508,8 +516,9 @@ function ReceiptUpload() {
                     <Typography variant="h6" sx={{ mb: 1 }}>
                       Click to Upload Receipt
                     </Typography>
+                    {/* ✅ UPDATED: Added PDF to supported formats */}
                     <Typography variant="body2" color="text.secondary">
-                      Supported formats: JPG, PNG, JPEG (Max 5MB)
+                      Supported formats: JPG, PNG, JPEG, PDF (Max 5MB)
                     </Typography>
                   </label>
                 )}

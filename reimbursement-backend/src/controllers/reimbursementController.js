@@ -70,6 +70,47 @@ export async function createReimbursement(req, res) {
       );
     }
 
+    // ✅ NEW: Parse category-specific fields
+    const numPeople = payload.number_of_people
+      ? parseInt(payload.number_of_people)
+      : 1;
+    const numDays = payload.number_of_days
+      ? parseInt(payload.number_of_days)
+      : 1;
+    const totalAmount = parseFloat(payload.total);
+    const reimbursableAmount =
+      parseFloat(payload.reimbursable_amount) || totalAmount;
+
+    // ✅ NEW: Validate reimbursable amount on backend
+    const CATEGORY_LIMITS = {
+      "Overtime Meal": 300,
+      "Meal with Client": 800,
+      Accomodation: 2500,
+    };
+
+    let calculatedReimbursable = totalAmount;
+
+    if (payload.category === "Overtime Meal") {
+      calculatedReimbursable = Math.min(
+        totalAmount,
+        CATEGORY_LIMITS["Overtime Meal"]
+      );
+    } else if (payload.category === "Meal with Client") {
+      calculatedReimbursable = Math.min(
+        totalAmount,
+        CATEGORY_LIMITS["Meal with Client"] * numPeople
+      );
+    } else if (payload.category === "Accomodation") {
+      calculatedReimbursable = Math.min(
+        totalAmount,
+        CATEGORY_LIMITS["Accomodation"] * numDays
+      );
+    }
+
+    console.log(
+      `💰 Total: ₱${totalAmount}, Reimbursable: ₱${calculatedReimbursable}`
+    );
+
     // ✅ Get the full approval flow
     const approvalFlow = getApprovalFlow(user.role);
 
@@ -174,6 +215,10 @@ export async function createReimbursement(req, res) {
       items: payload.items,
       merchant: payload.merchant,
       total: payload.total,
+      reimbursable_amount: calculatedReimbursable, // NEW
+      number_of_people:
+        payload.category === "Meal with Client" ? numPeople : null, // NEW
+      number_of_days: payload.category === "Accomodation" ? numDays : null, // NEW
       status: "Pending",
       current_approver: firstApproverRole,
       sap_code: payload.sap_code,

@@ -1,3 +1,9 @@
+// Key changes made to integrate PDF viewer:
+// 1. Added isPDF helper function at the top
+// 2. Modified receipt viewer section to conditionally render iframe for PDFs or img for images
+// 3. Hide zoom controls for PDF files (only show download button)
+// 4. Updated filename display to show "(PDF)" suffix for PDF files
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
@@ -43,6 +49,14 @@ import {
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useAppContext } from "../App";
+
+// Helper function to check if receipt is PDF
+const isPDF = (receipt) => {
+  if (typeof receipt === "string") {
+    return receipt.toLowerCase().endsWith(".pdf");
+  }
+  return receipt?.mimetype === "application/pdf";
+};
 
 function SalesDirectorReimbursementList() {
   const { user, showNotification } = useAppContext();
@@ -177,7 +191,6 @@ function SalesDirectorReimbursementList() {
   // Status filter handler
   const handleStatusFilter = (searchValue) => {
     setStatusFilter(searchValue);
-    // Clear search when changing status filter for better UX
     if (searchValue !== "All Status") {
       setSearchTerm("");
     }
@@ -186,7 +199,6 @@ function SalesDirectorReimbursementList() {
   // Category filter handler
   const handleCategoryFilter = (searchValue) => {
     setCategoryFilter(searchValue);
-    // Clear search when changing category filter for better UX
     if (searchValue !== "All Categories") {
       setSearchTerm("");
     }
@@ -218,7 +230,7 @@ function SalesDirectorReimbursementList() {
 
   // Get unique statuses
   const getUniqueStatuses = () => {
-    return ["All Status", "Pending", "Approved", "Rejected",];
+    return ["All Status", "Pending", "Approved", "Rejected"];
   };
 
   // Get unique categories
@@ -592,106 +604,112 @@ function SalesDirectorReimbursementList() {
       </Box>
 
       {loading ? (
-  <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-    <CircularProgress />
-  </Box>
-) : error ? (
-  <Alert severity="error">{error}</Alert>
-) : filteredPendings.length === 0 ? (
-  <Box sx={{ textAlign: "center", py: 4 }}>
-    <Typography color="text.secondary">
-      {pendings.length === 0
-        ? "No pending approvals at this time"
-        : "No requests match your search criteria"}
-    </Typography>
-  </Box>
-) : (
-  <>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: "bold" }}>EMPLOYEE</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>REQUEST</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>AMOUNT</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>DATES</TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-               {paginatedPendings.map((item) => (
-                  <TableRow key={item.id} hover>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: "medium" }}>
-                        {item.user?.name || "Unknown"}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {item.user?.role || "Unknown Role"}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: "medium" }}>
-                        {item.items || `${item.category} Reimbursement`}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {item.description || "No description provided"}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: "medium" }}>
-                      ₱
-                      {parseFloat(item.total).toLocaleString("en-PH", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{item.category}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2">
-                        {item.date ? formatDate(item.date) : "N/A"}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Submitted: {formatDate(item.submittedAt)}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={item.status}
-                      size="small"
-                      color={getStatusColor(item.status)}
-                      sx={{
-                        fontWeight: 600,
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpenDetails(item)}
-                      title="View Details"
-                    >
-                      <VisibilityIcon />
-                    </IconButton>
-                  </TableCell>
+        <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Alert severity="error">{error}</Alert>
+      ) : filteredPendings.length === 0 ? (
+        <Box sx={{ textAlign: "center", py: 4 }}>
+          <Typography color="text.secondary">
+            {pendings.length === 0
+              ? "No pending approvals at this time"
+              : "No requests match your search criteria"}
+          </Typography>
+        </Box>
+      ) : (
+        <>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: "bold" }}>EMPLOYEE</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>REQUEST</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>AMOUNT</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>DATES</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
+                  <TableCell></TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      
-        {/*Pagination*/}
-         {totalPages > 1 && (
+              </TableHead>
+              <TableBody>
+                {paginatedPendings.map((item) => (
+                  <TableRow key={item.id} hover>
+                    <TableCell>
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: "medium" }}
+                        >
+                          {item.user?.name || "Unknown"}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.user?.role || "Unknown Role"}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: "medium" }}
+                        >
+                          {item.items || `${item.category} Reimbursement`}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.description || "No description provided"}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                        ₱
+                        {parseFloat(item.total).toLocaleString("en-PH", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{item.category}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2">
+                          {item.date ? formatDate(item.date) : "N/A"}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Submitted: {formatDate(item.submittedAt)}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={item.status}
+                        size="small"
+                        color={getStatusColor(item.status)}
+                        sx={{
+                          fontWeight: 600,
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenDetails(item)}
+                        title="View Details"
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
             <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
               <Pagination
                 count={totalPages}
@@ -705,9 +723,8 @@ function SalesDirectorReimbursementList() {
           )}
         </>
       )}
-      
 
-      {/* Details Dialog */}
+      {/* Details Dialog - WITH PDF SUPPORT */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -749,38 +766,51 @@ function SalesDirectorReimbursementList() {
                   borderColor: "divider",
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Avatar
-                    src={selectedTicket.user?.profile_picture}
-                    alt={
-                      selectedTicket.user?.name || selectedTicket.user?.username
-                    }
-                    sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
-                  >
-                    {!selectedTicket.user?.profile_picture &&
-                      (selectedTicket.user?.name?.charAt(0).toUpperCase() ||
-                        selectedTicket.user?.username?.charAt(0).toUpperCase())}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {selectedTicket.user?.name || "N/A"}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Role: {selectedTicket.user?.role || "N/A"}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Email: {selectedTicket.user?.email || "N/A"}
-                    </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <Avatar
+                      src={selectedTicket.user?.profile_picture}
+                      alt={
+                        selectedTicket.user?.name ||
+                        selectedTicket.user?.username
+                      }
+                      sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
+                    >
+                      {!selectedTicket.user?.profile_picture &&
+                        (selectedTicket.user?.name?.charAt(0).toUpperCase() ||
+                          selectedTicket.user?.username
+                            ?.charAt(0)
+                            .toUpperCase())}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {selectedTicket.user?.name || "N/A"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Role: {selectedTicket.user?.role || "N/A"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Email: {selectedTicket.user?.email || "N/A"}
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
 
                   {/* SAP Code Display - Right side */}
                   <Box sx={{ textAlign: "right" }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mb: 0.5 }}
+                    >
                       SAP Code
                     </Typography>
-                    <Chip 
+                    <Chip
                       label={selectedTicket.sapCode || "N/A"}
                       color="primary"
                       variant="outlined"
@@ -834,6 +864,73 @@ function SalesDirectorReimbursementList() {
                         )}
                       </Typography>
                     </Box>
+
+                    {selectedTicket.category === "Meal with Client" &&
+                      selectedTicket.number_of_people && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Number of People:
+                          </Typography>
+                          <Typography variant="body2">
+                            {selectedTicket.number_of_people}{" "}
+                            {selectedTicket.number_of_people === 1
+                              ? "person"
+                              : "people"}
+                          </Typography>
+                        </Box>
+                      )}
+
+                    {selectedTicket.category === "Accomodation" &&
+                      selectedTicket.number_of_days && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Number of Days:
+                          </Typography>
+                          <Typography variant="body2">
+                            {selectedTicket.number_of_days}{" "}
+                            {selectedTicket.number_of_days === 1
+                              ? "day"
+                              : "days"}
+                          </Typography>
+                        </Box>
+                      )}
+
+                    {selectedTicket.reimbursable_amount &&
+                      selectedTicket.reimbursable_amount <
+                        selectedTicket.total && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Reimbursable Amount:
+                          </Typography>
+                          <Typography
+                            variant="h6"
+                            sx={{ fontWeight: 700, color: "success.main" }}
+                          >
+                            ₱
+                            {parseFloat(
+                              selectedTicket.reimbursable_amount
+                            ).toLocaleString("en-PH", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </Typography>
+                          <Typography variant="caption" color="warning.main">
+                            (Limited by category maximum)
+                          </Typography>
+                        </Box>
+                      )}
 
                     <Box sx={{ mb: 2 }}>
                       <Typography
@@ -931,6 +1028,7 @@ function SalesDirectorReimbursementList() {
                       </Box>
                     )}
 
+                    {/* Receipt Display WITH PDF SUPPORT */}
                     {selectedTicket.receipt && (
                       <Box sx={{ mt: 3 }}>
                         <Box
@@ -949,22 +1047,26 @@ function SalesDirectorReimbursementList() {
                             Receipt:
                           </Typography>
                           <Box sx={{ display: "flex", gap: 1 }}>
-                            <IconButton
-                              size="small"
-                              onClick={handleZoomOut}
-                              disabled={receiptZoom <= 0.5}
-                              title="Zoom Out"
-                            >
-                              <ZoomOutIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={handleZoomIn}
-                              disabled={receiptZoom >= 3}
-                              title="Zoom In"
-                            >
-                              <ZoomInIcon fontSize="small" />
-                            </IconButton>
+                            {!isPDF(selectedTicket.receipt) && (
+                              <>
+                                <IconButton
+                                  size="small"
+                                  onClick={handleZoomOut}
+                                  disabled={receiptZoom <= 0.5}
+                                  title="Zoom Out"
+                                >
+                                  <ZoomOutIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={handleZoomIn}
+                                  disabled={receiptZoom >= 3}
+                                  title="Zoom In"
+                                >
+                                  <ZoomInIcon fontSize="small" />
+                                </IconButton>
+                              </>
+                            )}
                             <IconButton
                               size="small"
                               onClick={handleDownloadReceipt}
@@ -994,36 +1096,71 @@ function SalesDirectorReimbursementList() {
                           {receiptLoading && (
                             <CircularProgress sx={{ position: "absolute" }} />
                           )}
-                          <Box
-                            component="img"
-                            src={
-                              typeof selectedTicket.receipt === "string"
-                                ? `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`
-                                : `data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`
-                            }
-                            alt="Receipt"
-                            sx={{
-                              maxWidth: "100%",
-                              maxHeight: "480px",
-                              objectFit: "contain",
-                              transform: `scale(${receiptZoom})`,
-                              transition: "transform 0.2s ease-in-out",
-                              display: receiptLoading ? "none" : "block",
-                            }}
-                            onLoad={() => setReceiptLoading(false)}
-                            onLoadStart={() => setReceiptLoading(true)}
-                            onError={(e) => {
-                              console.error(
-                                "Failed to load receipt:",
-                                selectedTicket.receipt
-                              );
-                              setReceiptLoading(false);
-                              showNotification(
-                                "Failed to load receipt image",
-                                "error"
-                              );
-                            }}
-                          />
+
+                          {isPDF(selectedTicket.receipt) ? (
+                            // PDF Viewer
+                            <Box
+                              component="iframe"
+                              src={
+                                typeof selectedTicket.receipt === "string"
+                                  ? `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`
+                                  : `data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`
+                              }
+                              sx={{
+                                width: "100%",
+                                height: "480px",
+                                border: "none",
+                                borderRadius: 1,
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error(
+                                  "Failed to load receipt PDF:",
+                                  selectedTicket.receipt
+                                );
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt PDF",
+                                  "error"
+                                );
+                              }}
+                              title="Receipt PDF"
+                            />
+                          ) : (
+                            // Image Viewer
+                            <Box
+                              component="img"
+                              src={
+                                typeof selectedTicket.receipt === "string"
+                                  ? `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`
+                                  : `data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`
+                              }
+                              alt="Receipt"
+                              sx={{
+                                maxWidth: "100%",
+                                maxHeight: "480px",
+                                objectFit: "contain",
+                                transform: `scale(${receiptZoom})`,
+                                transition: "transform 0.2s ease-in-out",
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error(
+                                  "Failed to load receipt:",
+                                  selectedTicket.receipt
+                                );
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt image",
+                                  "error"
+                                );
+                              }}
+                            />
+                          )}
                         </Box>
 
                         {selectedTicket.receipt.filename && (
@@ -1037,6 +1174,7 @@ function SalesDirectorReimbursementList() {
                             }}
                           >
                             {selectedTicket.receipt.filename}
+                            {isPDF(selectedTicket.receipt) && " (PDF)"}
                           </Typography>
                         )}
                       </Box>

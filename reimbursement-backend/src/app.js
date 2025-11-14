@@ -141,6 +141,26 @@ const PORT = process.env.PORT || 4000;
           process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured"
         }\n`
       );
+
+      // ✅ ADD KEEP-ALIVE CODE HERE (after server starts)
+      const https = require("https");
+
+      function keepAlive() {
+        https
+          .get("https://reimbursement-capstone-main.onrender.com", (res) => {
+            console.log(`✅ Keep-alive ping: ${new Date().toISOString()}`);
+          })
+          .on("error", (err) => {
+            console.log("❌ Keep-alive failed:", err.message);
+          });
+      }
+
+      // Start pinging 30 seconds after startup, then every 10 minutes
+      setTimeout(() => {
+        keepAlive(); // Initial ping
+        setInterval(keepAlive, 10 * 60 * 1000); // Subsequent pings every 10 minutes
+        console.log("🔄 Keep-alive service started");
+      }, 30000);
     });
   } catch (err) {
     console.error("❌ Server startup error:", err);

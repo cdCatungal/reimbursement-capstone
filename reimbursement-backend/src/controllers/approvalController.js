@@ -24,14 +24,18 @@ export async function approve(req, res) {
 
     console.log(`👤 ${approver.name} (${approver.role}) attempting to approve reimbursement #${id}`);
 
-    // ✅ Fetch reimbursement with user and approvals
+    // ✅ Fetch reimbursement with user and approvals - FIXED INCLUDE
     const r = await Reimbursement.findByPk(id, {
       include: [
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email', 'role'],
-          include: [{ model: User, as: 'assignedSUL' }] // Include assigned SUL
+          attributes: ['id', 'name', 'email', 'role', 'assigned_sul_id'], // ← EXPLICITLY INCLUDE assigned_sul_id
+          include: [{ 
+            model: User, 
+            as: 'assignedSUL',
+            attributes: ['id', 'name', 'email', 'role']
+          }]
         },
         {
           model: Approval,
@@ -52,6 +56,7 @@ export async function approve(req, res) {
     }
 
     console.log(`📋 Reimbursement SAP Code: ${r.sap_code}, status: ${r.status}, current_approver: ${r.current_approver}`);
+    console.log(`👤 User assigned_sul_id: ${r.user.assigned_sul_id}, Current approver ID: ${approver.id}`); // ← DEBUG LOG
 
     // ✅ Check if it's this approver's turn
     if (r.current_approver !== approver.role) {
@@ -63,29 +68,52 @@ export async function approve(req, res) {
       });
     }
 
-    // ✅ NEW: Role-specific authorization
+    // ✅ FIXED: Role-specific authorization with better logging
     if (approver.role === 'SUL') {
       // Verify SUL is assigned to this employee
+      console.log(`🔍 Checking SUL assignment: assigned_sul_id=${r.user.assigned_sul_id}, approver.id=${approver.id}`);
+      
+      if (!r.user.assigned_sul_id) {
+        console.log(`❌ Employee has no assigned SUL`);
+        return res.status(403).json({
+          error: 'This employee has no assigned SUL',
+          employeeName: r.user.name
+        });
+      }
+      
       if (r.user.assigned_sul_id !== approver.id) {
         console.log(`❌ SUL not assigned to employee. Assigned SUL ID: ${r.user.assigned_sul_id}, Current SUL ID: ${approver.id}`);
         return res.status(403).json({
           error: 'You are not the assigned SUL for this employee',
-          assignedSUL: r.user.assignedSUL?.name || 'Unknown'
+          assignedSUL: r.user.assignedSUL?.name || 'Unknown',
+          assignedSULId: r.user.assigned_sul_id
         });
       }
+      console.log(`✅ SUL assignment verified`);
     } else if (approver.role === 'Account Manager') {
       // Verify AM manages this SAP code
       const sapCode = await SapCode.findOne({
         where: { code: r.sap_code }
       });
       
-      if (!sapCode || sapCode.account_manager_id !== approver.id) {
-        console.log(`❌ Account Manager not assigned to SAP code. SAP: ${r.sap_code}, AM ID: ${approver.id}`);
+      console.log(`🔍 Checking AM assignment: SAP=${r.sap_code}, AM from DB=${sapCode?.account_manager_id}, approver.id=${approver.id}`);
+      
+      if (!sapCode) {
+        console.log(`❌ SAP code not found: ${r.sap_code}`);
+        return res.status(403).json({
+          error: 'SAP code not found in system',
+          sapCode: r.sap_code
+        });
+      }
+      
+      if (sapCode.account_manager_id !== approver.id) {
+        console.log(`❌ Account Manager not assigned to SAP code. SAP: ${r.sap_code}, Expected AM ID: ${sapCode.account_manager_id}, Current AM ID: ${approver.id}`);
         return res.status(403).json({
           error: 'You are not the Account Manager for this SAP code',
           sapCode: r.sap_code
         });
       }
+      console.log(`✅ Account Manager assignment verified`);
     }
 
     // ✅ Find the pending approval record for this user's role
@@ -276,14 +304,18 @@ export async function reject(req, res) {
 
     console.log(`👤 ${approver.name} (${approver.role}) attempting to reject reimbursement #${id}`);
 
-    // ✅ Fetch reimbursement with user and all approvals
+    // ✅ Fetch reimbursement with user and all approvals - FIXED INCLUDE
     const r = await Reimbursement.findByPk(id, {
       include: [
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email', 'role'],
-          include: [{ model: User, as: 'assignedSUL' }]
+          attributes: ['id', 'name', 'email', 'role', 'assigned_sul_id'], // ← EXPLICITLY INCLUDE assigned_sul_id
+          include: [{ 
+            model: User, 
+            as: 'assignedSUL',
+            attributes: ['id', 'name', 'email', 'role']
+          }]
         },
         {
           model: Approval,
@@ -304,6 +336,7 @@ export async function reject(req, res) {
     }
 
     console.log(`📋 Reimbursement SAP Code: ${r.sap_code}, status: ${r.status}, current_approver: ${r.current_approver}`);
+    console.log(`👤 User assigned_sul_id: ${r.user.assigned_sul_id}, Current approver ID: ${approver.id}`); // ← DEBUG LOG
 
     // ✅ Check if it's this approver's turn
     if (r.current_approver !== approver.role) {
@@ -315,27 +348,50 @@ export async function reject(req, res) {
       });
     }
 
-    // ✅ NEW: Role-specific authorization
+    // ✅ FIXED: Role-specific authorization with better logging
     if (approver.role === 'SUL') {
+      console.log(`🔍 Checking SUL assignment: assigned_sul_id=${r.user.assigned_sul_id}, approver.id=${approver.id}`);
+      
+      if (!r.user.assigned_sul_id) {
+        console.log(`❌ Employee has no assigned SUL`);
+        return res.status(403).json({
+          error: 'This employee has no assigned SUL',
+          employeeName: r.user.name
+        });
+      }
+      
       if (r.user.assigned_sul_id !== approver.id) {
         console.log(`❌ SUL not assigned to employee`);
         return res.status(403).json({
           error: 'You are not the assigned SUL for this employee',
-          assignedSUL: r.user.assignedSUL?.name || 'Unknown'
+          assignedSUL: r.user.assignedSUL?.name || 'Unknown',
+          assignedSULId: r.user.assigned_sul_id
         });
       }
+      console.log(`✅ SUL assignment verified`);
     } else if (approver.role === 'Account Manager') {
       const sapCode = await SapCode.findOne({
         where: { code: r.sap_code }
       });
       
-      if (!sapCode || sapCode.account_manager_id !== approver.id) {
+      console.log(`🔍 Checking AM assignment: SAP=${r.sap_code}, AM from DB=${sapCode?.account_manager_id}, approver.id=${approver.id}`);
+      
+      if (!sapCode) {
+        console.log(`❌ SAP code not found: ${r.sap_code}`);
+        return res.status(403).json({
+          error: 'SAP code not found in system',
+          sapCode: r.sap_code
+        });
+      }
+      
+      if (sapCode.account_manager_id !== approver.id) {
         console.log(`❌ Account Manager not assigned to SAP code`);
         return res.status(403).json({
           error: 'You are not the Account Manager for this SAP code',
           sapCode: r.sap_code
         });
       }
+      console.log(`✅ Account Manager assignment verified`);
     }
 
     // ✅ Find the pending approval record

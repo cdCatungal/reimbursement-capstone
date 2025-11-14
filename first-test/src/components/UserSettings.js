@@ -191,41 +191,76 @@ const UserSettings = () => {
               
               {/* SAP Code Section - Only show if user has SAP codes */}
               {hasSapCodes && (
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    py: 1.5,
-                    borderBottom: 1,
-                    borderColor: "divider",
-                  }}
-                >
-                  <Typography sx={{ color: "text.secondary" }}>
-                    {sapCodes.length > 1 ? "SAP Codes" : "SAP Code"}
-                  </Typography>
-                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    {sapCodes.length > 0 ? (
-                      sapCodes.map((code, index) => (
-                        <Chip
-                          key={index}
-                          label={code}
-                          color="primary"
-                          variant="outlined"
-                          size="small"
-                          sx={{ fontWeight: 600 }}
-                        />
-                      ))
-                    ) : (
-                      <Typography
-                        sx={{ color: "warning.main", fontWeight: "medium", fontSize: "0.875rem" }}
-                      >
-                        No SAP codes assigned
-                      </Typography>
-                    )}
-                  </Box>
-                </Box>
-              )}
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      py: 1.5,
+      borderBottom: 1,
+      borderColor: "divider",
+    }}
+  >
+    <Typography sx={{ color: "text.secondary" }}>
+      {user?.role === 'Employee' ? "SAP Codes" : "Managed SAP Codes"}
+    </Typography>
+    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+      {user?.sapCodes && user.sapCodes.length > 0 ? (
+        user.sapCodes.map((sapCode, index) => (
+          <Chip
+            key={index}
+            label={sapCode.code}
+            color="primary"
+            variant="outlined"
+            size="small"
+            sx={{ fontWeight: 600 }}
+          />
+        ))
+      ) : (
+        <Typography
+          sx={{ color: "warning.main", fontWeight: "medium", fontSize: "0.875rem" }}
+        >
+          No SAP codes assigned
+        </Typography>
+      )}
+    </Box>
+  </Box>
+)}
+
+{/* Assigned SUL - Only for Employees */}
+{user?.role === 'Employee' && (
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      py: 1.5,
+      borderBottom: 1,
+      borderColor: "divider",
+    }}
+  >
+    <Typography sx={{ color: "text.secondary" }}>
+      Assigned SUL
+    </Typography>
+    <Box>
+      {user?.assignedSUL ? (
+        <Chip
+          label={user.assignedSUL.name}
+          color="info"
+          variant="outlined"
+          size="small"
+          sx={{ fontWeight: 600 }}
+        />
+      ) : (
+        <Typography
+          sx={{ color: "warning.main", fontWeight: "medium", fontSize: "0.875rem" }}
+        >
+          No SUL assigned
+        </Typography>
+      )}
+    </Box>
+  </Box>
+)}
               
             </Box>
           </Paper>

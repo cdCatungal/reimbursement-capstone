@@ -12,7 +12,7 @@ const SapCode = sequelize.define('SapCode', {
     allowNull: false,
     unique: true,
     validate: {
-      is: /^E-\d{5}-\d{4}$/i, // Format: E-00000-0000
+      is: /^E-\d{5}-\d{4}$/i,
     },
   },
   name: {
@@ -29,10 +29,21 @@ const SapCode = sequelize.define('SapCode', {
     type: DataTypes.ENUM('Active', 'Inactive'),
     defaultValue: 'Active',
   },
+  
+  // ✅ NEW: Each SAP Code has ONE assigned Account Manager
+  account_manager_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'Account Manager assigned to this SAP Code'
+  }
 });
 
-  SapCode.addScope("active", {
-    where: { status: "active" }
-  });
+SapCode.addScope("active", {
+  where: { status: "Active" }
+});
 
 export default SapCode;

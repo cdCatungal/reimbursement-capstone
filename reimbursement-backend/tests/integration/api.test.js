@@ -9,8 +9,8 @@ import reimbursementRoutes from '../../src/routes/reimbursementRoutes.js';
 import sapCodeRoutes from '../../src/routes/sapCode.routes.js';
 
 // Mock models
-jest.mock('../../models/index.js');
-jest.mock('../../config/passport.js');
+jest.mock('../../src/models/index.js');
+jest.mock('../../src/config/passport.js');
 
 describe('API Integration Tests', () => {
   let app;

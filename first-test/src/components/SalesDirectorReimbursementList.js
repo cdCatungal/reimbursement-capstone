@@ -436,7 +436,7 @@ function SalesDirectorReimbursementList() {
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: "bold", mb: 3 }}>
-        Pending Approvals - {user?.role}
+        Reimbursement List - {user?.role}
       </Typography>
 
       {/* Search and Filter Section */}

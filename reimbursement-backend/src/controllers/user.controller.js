@@ -1,22 +1,33 @@
-import { User } from "../models/index.js";
+import { User, SapCode, UserSapCode } from "../models/index.js";
+import { Op } from "sequelize";
 
 /**
- * Get current user's settings
+ * Get current user's settings with SAP codes and assigned SUL
  */
 export const userSettings = async (req, res) => {
   try {
-    const user = req.user;
+    const user = await User.findByPk(req.user.id, {
+      include: [
+        {
+          model: SapCode,
+          as: 'sapCodes',
+          attributes: ['id', 'code', 'name'],
+          through: { attributes: [] } // Exclude junction table fields
+        },
+        {
+          model: User,
+          as: 'assignedSUL',
+          attributes: ['id', 'name', 'email']
+        }
+      ],
+      attributes: { exclude: ['password'] }
+    });
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    // Remove sensitive data
-    const userWithoutPassword = { ...user.toJSON() };
-    delete userWithoutPassword.password;
-    delete userWithoutPassword.id;
 
-    res.status(200).json({
-      data: userWithoutPassword,
-    });
+    res.status(200).json({ data: user });
   } catch (error) {
     console.error("Error in user settings:", error);
     return res.status(500).json({
@@ -27,7 +38,7 @@ export const userSettings = async (req, res) => {
 };
 
 /**
- * Get all users (Admin only)
+ * Get all users with SAP codes and SUL assignments
  */
 export const getAllUsers = async (req, res) => {
   try {
@@ -38,8 +49,6 @@ export const getAllUsers = async (req, res) => {
       });
     }
 
-    // Check if user is Admin
-    console.log("Current user role:", req.user.role); // Debug log
     if (!['Admin', 'Sales Director'].includes(req.user.role)){
       return res.status(403).json({ 
         success: false, 
@@ -48,6 +57,24 @@ export const getAllUsers = async (req, res) => {
     }
 
     const users = await User.findAll({
+      include: [
+        {
+          model: SapCode,
+          as: 'sapCodes',
+          attributes: ['id', 'code', 'name'],
+          through: { attributes: [] }
+        },
+        {
+          model: User,
+          as: 'assignedSUL',
+          attributes: ['id', 'name', 'email']
+        },
+        {
+          model: SapCode,
+          as: 'managedSapCodes',
+          attributes: ['id', 'code', 'name']
+        }
+      ],
       attributes: { exclude: ['password'] },
       order: [['createdAt', 'DESC']]
     });
@@ -67,7 +94,8 @@ export const getAllUsers = async (req, res) => {
 };
 
 /**
- * Update user (Admin only)
+ * ✅ UPDATED: Update user with multiple SAP codes and SUL assignment
+ * Now supports Account Managers having assigned SAP codes
  */
 export const updateUser = async (req, res) => {
   try {
@@ -86,7 +114,7 @@ export const updateUser = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { role, sap_code_1, sap_code_2, isActive } = req.body;
+    const { role, sap_code_ids, assigned_sul_id, isActive } = req.body;
 
     const user = await User.findByPk(id);
     if (!user) {
@@ -102,35 +130,78 @@ export const updateUser = async (req, res) => {
       updateData.role = role;
     }
     
-    // Add isActive toggle
     if (isActive !== undefined) {
       updateData.isActive = isActive;
     }
 
-    // Handle SAP codes based on role
-    const finalRole = role || user.role;
-    const rolesWithoutSapCodes = ['Admin', 'Invoice Specialist', 'Sales Director', 'Finance Officer'];
-    
-    if (rolesWithoutSapCodes.includes(finalRole)) {
-      updateData.sap_code_1 = null;
-      updateData.sap_code_2 = null;
-    } else {
-      if (sap_code_1 !== undefined) {
-        updateData.sap_code_1 = sap_code_1 || null;
-      }
-      
-      if (sap_code_2 !== undefined) {
-        if (finalRole === 'Employee') {
-          updateData.sap_code_2 = sap_code_2 || null;
-        } else {
-          updateData.sap_code_2 = null;
+    // ✅ Handle SUL assignment for Employees
+    if (assigned_sul_id !== undefined) {
+      if (assigned_sul_id !== null) {
+        // Validate the SUL exists and is actually a SUL
+        const sul = await User.findByPk(assigned_sul_id);
+        if (!sul) {
+          return res.status(400).json({
+            success: false,
+            message: "Assigned SUL not found"
+          });
+        }
+        if (sul.role !== 'SUL') {
+          return res.status(400).json({
+            success: false,
+            message: "Selected user is not a SUL"
+          });
         }
       }
+      updateData.assigned_sul_id = assigned_sul_id;
     }
 
     await user.update(updateData);
 
+    // ✅ UPDATED: Handle SAP codes for BOTH Employees AND Account Managers
+    const finalRole = role || user.role;
+    
+    if ((finalRole === 'Employee' || finalRole === 'Account Manager') && sap_code_ids !== undefined) {
+      // Clear existing SAP codes
+      await UserSapCode.destroy({ where: { user_id: id } });
+      
+      // Add new SAP codes
+      if (Array.isArray(sap_code_ids) && sap_code_ids.length > 0) {
+        const sapCodeRecords = sap_code_ids.map(sap_code_id => ({
+          user_id: id,
+          sap_code_id: sap_code_id
+        }));
+        await UserSapCode.bulkCreate(sapCodeRecords);
+      }
+    } else if (['SUL', 'Sales Director', 'Invoice Specialist', 'Finance Officer', 'Admin'].includes(finalRole)) {
+      // These roles should NOT have SAP codes in junction table
+      await UserSapCode.destroy({ where: { user_id: id } });
+      
+      // Clear SUL assignment if changing to non-Employee role
+      if (finalRole !== 'Employee') {
+        updateData.assigned_sul_id = null;
+      }
+    }
+
+    // Fetch updated user with associations
     const updatedUser = await User.findByPk(id, {
+      include: [
+        {
+          model: SapCode,
+          as: 'sapCodes',
+          attributes: ['id', 'code', 'name'],
+          through: { attributes: [] }
+        },
+        {
+          model: User,
+          as: 'assignedSUL',
+          attributes: ['id', 'name', 'email']
+        },
+        {
+          model: SapCode,
+          as: 'managedSapCodes',
+          attributes: ['id', 'code', 'name']
+        }
+      ],
       attributes: { exclude: ['password'] }
     });
 
@@ -149,7 +220,7 @@ export const updateUser = async (req, res) => {
 };
 
 /**
- * Delete user (Admin only)
+ * Delete user
  */
 export const deleteUser = async (req, res) => {
   try {
@@ -160,7 +231,6 @@ export const deleteUser = async (req, res) => {
       });
     }
 
-    // Check if user is Admin
     if (!['Admin', 'Sales Director'].includes(req.user.role)) {
       return res.status(403).json({ 
         success: false, 
@@ -170,7 +240,6 @@ export const deleteUser = async (req, res) => {
 
     const { id } = req.params;
 
-    // Prevent admin from deleting themselves
     if (parseInt(id) === req.user.id) {
       return res.status(400).json({ 
         success: false, 
@@ -186,6 +255,7 @@ export const deleteUser = async (req, res) => {
       });
     }
 
+    // UserSapCode entries will be auto-deleted by CASCADE
     await user.destroy();
 
     res.status(200).json({

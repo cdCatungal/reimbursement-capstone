@@ -1,14 +1,15 @@
-import { Reimbursement, User, Approval } from "../models/index.js";
+import { Reimbursement, User, Approval, SapCode } from "../models/index.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import {
   getApprovalFlow,
-  findApproverBySapCode,
+  findAssignedSUL,
+  findAccountManagerForSapCode,
 } from "../utils/approvalFlow.js";
 import { bufferToBase64 } from "../middlewares/upload.js";
 import { newSubmissionToApproverTemplate } from "../utils/emailTemplates.js";
 
 /**
- * Create new reimbursement with SAP code-based approval routing
+ * ✅ UPDATED: Create new reimbursement - SUL and Invoice Specialist bypass SAP validation
  */
 export async function createReimbursement(req, res) {
   try {
@@ -19,40 +20,57 @@ export async function createReimbursement(req, res) {
     const user = req.user;
     const payload = req.body;
 
-    console.log("📝 Creating reimbursement for user:", user.name, user.role);
+    console.log("📋 Creating reimbursement for user:", user.name, user.role);
     console.log("📅 Received date_of_expense:", payload.date_of_expense);
 
-    // ✅ Check if user is Invoice Specialist
-    const isInvoiceSpecialist = user.role === "Invoice Specialist";
+    // ✅ NEW: Roles that bypass SAP code validation
+    const bypassSapValidation = ["Invoice Specialist", "SUL"].includes(
+      user.role
+    );
 
-    // ✅ Validate SAP code (skip for Invoice Specialists)
-    if (!isInvoiceSpecialist) {
+    // ✅ UPDATED: Validate SAP code (skip for Invoice Specialists AND SULs)
+    if (!bypassSapValidation) {
       if (!payload.sap_code) {
         return res.status(400).json({ error: "SAP code is required" });
       }
 
-      // ✅ Validate user has this SAP code
-      if (
-        user.sap_code_1 !== payload.sap_code &&
-        user.sap_code_2 !== payload.sap_code
-      ) {
+      // ✅ Validate user has this SAP code in junction table
+      const userWithSapCodes = await User.findByPk(user.id, {
+        include: [
+          {
+            model: SapCode,
+            as: "sapCodes",
+            where: { code: payload.sap_code },
+            required: false,
+          },
+        ],
+      });
+
+      if (!userWithSapCodes || userWithSapCodes.sapCodes.length === 0) {
         return res.status(400).json({
-          error:
-            "Invalid SAP code. You can only submit reimbursements with your assigned SAP codes.",
-          userSapCodes: [user.sap_code_1, user.sap_code_2].filter(Boolean),
+          error: `Invalid SAP code. You can only submit reimbursements with your assigned SAP codes.`,
+          providedSapCode: payload.sap_code,
+          userRole: user.role,
         });
       }
+
+      console.log(
+        `✅ ${user.role} ${user.name} validated for SAP code: ${payload.sap_code}`
+      );
     } else {
-      // For Invoice Specialists, use a special SAP code if none provided
+      // ✅ Auto-assign special SAP code for roles that bypass validation
       if (!payload.sap_code) {
-        payload.sap_code = "INVOICE_SPECIALIST";
+        payload.sap_code =
+          user.role === "Invoice Specialist"
+            ? "INVOICE_SPECIALIST"
+            : "SUL_DIRECT";
       }
       console.log(
-        "✅ Invoice Specialist submission - bypassing SAP code validation"
+        `✅ ${user.role} submission - bypassing SAP code validation (using: ${payload.sap_code})`
       );
     }
 
-    // ✅ Get the full approval flow for this user's role
+    // ✅ Get the full approval flow
     const approvalFlow = getApprovalFlow(user.role);
 
     if (!approvalFlow || approvalFlow.length === 0) {
@@ -64,40 +82,61 @@ export async function createReimbursement(req, res) {
 
     console.log("📋 Approval flow:", approvalFlow);
 
-    // ✅ Find all potential approvers
-    const allUsers = await User.findAll();
-
-    // ✅ Find the first approver (must match SAP code if SUL/Account Manager, unless submitter is Invoice Specialist)
+    // ✅ Find first approver based on role-specific logic
+    let firstApprover = null;
     const firstApproverRole = approvalFlow[0];
-    let firstApprover;
 
-    if (isInvoiceSpecialist) {
-      // For Invoice Specialists, find any approver with the required role
-      firstApprover = allUsers.find((u) => u.role === firstApproverRole);
-    } else {
-      firstApprover = findApproverBySapCode(
-        firstApproverRole,
-        payload.sap_code,
-        allUsers
-      );
-    }
-
-    if (!firstApprover) {
-      return res.status(400).json({
-        error: `No ${firstApproverRole} found${
-          isInvoiceSpecialist
-            ? ""
-            : ` with matching SAP code: ${payload.sap_code}`
-        }`,
-        sapCode: payload.sap_code,
+    if (firstApproverRole === "SUL") {
+      // ✅ For Employees → Find manually assigned SUL
+      const employeeWithSUL = await User.findByPk(user.id, {
+        include: [{ model: User, as: "assignedSUL" }],
       });
+
+      firstApprover = findAssignedSUL(employeeWithSUL);
+
+      if (!firstApprover || !firstApprover.id) {
+        return res.status(400).json({
+          error: `No SUL assigned to you. Please contact Sales Director to assign a SUL.`,
+        });
+      }
+
+      // If we only have the ID, fetch the full user object
+      if (!firstApprover.email) {
+        firstApprover = await User.findByPk(firstApprover.id);
+      }
+    } else if (firstApproverRole === "Account Manager") {
+      // ✅ For SULs & Account Managers → Find Account Manager assigned to SAP Code
+      const sapCodeWithAM = await SapCode.findOne({
+        where: { code: payload.sap_code },
+        include: [{ model: User, as: "accountManager" }],
+      });
+
+      firstApprover = sapCodeWithAM ? sapCodeWithAM.accountManager : null;
+
+      if (!firstApprover) {
+        return res.status(400).json({
+          error: `No Account Manager assigned to SAP Code: ${payload.sap_code}. Please contact Sales Director.`,
+          sapCode: payload.sap_code,
+        });
+      }
+    } else {
+      // ✅ For other roles → Find any user with that role
+      firstApprover = await User.findOne({
+        where: { role: firstApproverRole },
+      });
+
+      if (!firstApprover) {
+        return res.status(400).json({
+          error: `No ${firstApproverRole} found in the system`,
+        });
+      }
     }
 
     console.log(
       `✅ First approver: ${firstApprover.name} (${firstApproverRole})`
     );
 
-    // ✅ Process receipt image from memory buffer
+    // ✅ Process receipt image
     let receiptData = null;
     let receiptMimetype = null;
     let receiptFilename = null;
@@ -111,15 +150,13 @@ export async function createReimbursement(req, res) {
       );
     }
 
-    // ✅ Parse date_of_expense properly
+    // ✅ Parse date_of_expense
     let dateOfExpense = null;
     if (payload.date_of_expense) {
-      // Ensure date is in YYYY-MM-DD format
       const dateStr = payload.date_of_expense;
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         dateOfExpense = dateStr;
       } else {
-        // Try to parse and format
         const parsedDate = new Date(dateStr);
         if (!isNaN(parsedDate.getTime())) {
           dateOfExpense = parsedDate.toISOString().split("T")[0];
@@ -128,7 +165,7 @@ export async function createReimbursement(req, res) {
       console.log("📅 Parsed date_of_expense:", dateOfExpense);
     }
 
-    // ✅ Create the reimbursement with SAP code and date_of_expense
+    // ✅ Create the reimbursement
     const reimbursement = await Reimbursement.create({
       user_id: user.id,
       category: payload.category,
@@ -149,22 +186,20 @@ export async function createReimbursement(req, res) {
 
     console.log("✅ Created reimbursement #", reimbursement.id);
 
-    // ✅ Create approval records for all levels in the flow
+    // ✅ Create approval records for all levels
     const approvalRecords = [];
 
     for (let i = 0; i < approvalFlow.length; i++) {
       const approverRole = approvalFlow[i];
-      let potentialApprover;
+      let potentialApprover = null;
 
-      if (isInvoiceSpecialist) {
-        // For Invoice Specialists, find any approver with the required role
-        potentialApprover = allUsers.find((u) => u.role === approverRole);
+      // Find approver based on role
+      if (i === 0) {
+        // First approver already found above
+        potentialApprover = firstApprover;
       } else {
-        potentialApprover = findApproverBySapCode(
-          approverRole,
-          payload.sap_code,
-          allUsers
-        );
+        // Future approvers TBD
+        potentialApprover = null;
       }
 
       approvalRecords.push({
@@ -181,7 +216,7 @@ export async function createReimbursement(req, res) {
     await Approval.bulkCreate(approvalRecords);
     console.log(`✅ Created ${approvalRecords.length} approval records`);
 
-    // 📧 Send email to FIRST APPROVER when reimbursement is submitted
+    // 📧 Send email to FIRST APPROVER
     if (firstApprover) {
       try {
         const emailHtml = newSubmissionToApproverTemplate(
@@ -203,7 +238,7 @@ export async function createReimbursement(req, res) {
 
         await sendEmail(
           firstApprover.email,
-          `🔔 New Reimbursement Request - ${reimbursement.sap_code}`,
+          `📢 New Reimbursement Request - ${reimbursement.sap_code}`,
           emailHtml
         );
 
@@ -215,7 +250,6 @@ export async function createReimbursement(req, res) {
           "❌ Failed to send submission notification email:",
           emailError
         );
-        // Don't fail the submission if email fails
       }
     }
 
@@ -227,7 +261,7 @@ export async function createReimbursement(req, res) {
 }
 
 /**
- * Get current user's reimbursements with approval details
+ * ✅ Get current user's reimbursements with approval details
  */
 export async function getUserReimbursements(req, res) {
   try {
@@ -309,8 +343,7 @@ export async function getUserReimbursements(req, res) {
 }
 
 /**
- * Get reimbursements for the current user's approval level (with SAP code filtering)
- * Shows ONLY reimbursements that have reached the user's approval level
+ * ✅ Get reimbursements pending current user's approval
  */
 export async function getPendingApprovals(req, res) {
   try {
@@ -321,7 +354,7 @@ export async function getPendingApprovals(req, res) {
 
     console.log("🔍 Fetching approvals for role:", user.role);
 
-    // Find all reimbursements with approval data
+    // Fetch all reimbursements with approval data
     const allReimbursements = await Reimbursement.findAll({
       include: [
         {
@@ -344,9 +377,8 @@ export async function getPendingApprovals(req, res) {
       order: [["createdAt", "DESC"]],
     });
 
-    // ✅ Filter to only show reimbursements that have REACHED the user's approval level
+    // ✅ Filter to show reimbursements at user's approval level
     let filteredReimbursements = allReimbursements.filter((r) => {
-      // Find the approval record for this user's role
       const userApproval = r.approvals.find(
         (a) => a.approver_role === user.role
       );
@@ -356,33 +388,53 @@ export async function getPendingApprovals(req, res) {
         (a) => a.approval_level < userApproval.approval_level
       );
 
-      // ✅ CASE 1: User is current approver → show only if previous are approved
+      // Show if pending and previous approved, OR if already approved by user
       if (userApproval.status === "Pending") {
         return previousApprovals.every((a) => a.status === "Approved");
       }
 
-      // ✅ CASE 2: User already approved → ALWAYS allowed to see it
       if (userApproval.status === "Approved") {
         return true;
       }
 
-      // ✅ CASE 3: Rejected or other → hide
       return false;
     });
 
-    // ✅ If user is SUL or Account Manager, filter by SAP code
-    if (["SUL", "Account Manager"].includes(user.role)) {
-      const userSapCodes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
+    // ✅ Role-specific filtering
+    if (user.role === "SUL") {
+      // SUL sees only reimbursements where they are the assigned SUL
+      filteredReimbursements = await Promise.all(
+        filteredReimbursements.map(async (r) => {
+          const employee = await User.findByPk(r.user_id, {
+            include: [{ model: User, as: "assignedSUL" }],
+          });
+          return employee?.assigned_sul_id === user.id ? r : null;
+        })
+      ).then((results) => results.filter(Boolean));
 
-      if (userSapCodes.length === 0) {
-        console.log("⚠️ User has no SAP codes assigned");
+      console.log("🔍 Filtering for SUL - showing only assigned employees");
+    } else if (user.role === "Account Manager") {
+      // Account Manager sees only reimbursements for SAP codes they MANAGE
+      const managedSapCodes = await SapCode.findAll({
+        where: { account_manager_id: user.id },
+        attributes: ["code"],
+      });
+
+      const managedCodes = managedSapCodes.map((sc) => sc.code);
+
+      if (managedCodes.length === 0) {
+        console.log("⚠️ Account Manager has no managed SAP codes for approval");
         return res.json([]);
       }
 
       filteredReimbursements = filteredReimbursements.filter((r) =>
-        userSapCodes.includes(r.sap_code)
+        managedCodes.includes(r.sap_code)
       );
-      console.log("🔍 Filtering by SAP codes:", userSapCodes);
+
+      console.log(
+        "🔍 Filtering by Account Manager's managed SAP codes:",
+        managedCodes
+      );
     }
 
     console.log(
@@ -432,6 +484,9 @@ export async function getPendingApprovals(req, res) {
   }
 }
 
+/**
+ * ✅ Get all reimbursements for Sales Director view
+ */
 export async function getPendingAllApprovals(req, res) {
   try {
     const user = req.user;
@@ -442,24 +497,8 @@ export async function getPendingAllApprovals(req, res) {
     console.log("🔍 Fetching pending approvals for role:", user.role);
 
     const whereClause = {
-      // current_approver: user.role,
       status: ["Pending", "Approved", "Rejected"],
     };
-
-    // ✅ If user is SUL or Account Manager, DON'T filter by SAP code - get ALL data
-    if (["SUL", "Account Manager"].includes(user.role)) {
-      console.log(
-        "🔍 SUL/Account Manager - fetching ALL pending approvals without SAP code filter"
-      );
-      // Remove any SAP code filtering - whereClause remains as is (only role and status)
-    } else {
-      // For other roles, you can keep SAP code filtering if needed
-      const userSapCodes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
-      if (userSapCodes.length > 0) {
-        whereClause.sap_code = userSapCodes;
-        console.log("🔍 Filtering by SAP codes:", userSapCodes);
-      }
-    }
 
     const reimbursements = await Reimbursement.findAll({
       where: whereClause,
@@ -484,7 +523,7 @@ export async function getPendingAllApprovals(req, res) {
       order: [["createdAt", "DESC"]],
     });
 
-    console.log(`✅ Found ${reimbursements.length} pending approvals`);
+    console.log(`✅ Found ${reimbursements.length} reimbursements`);
 
     const formatted = reimbursements.map((r) => ({
       id: r.id,
@@ -505,7 +544,6 @@ export async function getPendingAllApprovals(req, res) {
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
-      // ✅ FIX: Format dates consistently
       date: r.date_of_expense
         ? new Date(r.date_of_expense).toISOString().split("T")[0]
         : null,
@@ -525,13 +563,13 @@ export async function getPendingAllApprovals(req, res) {
 
     res.json(formatted);
   } catch (err) {
-    console.error("❌ Error fetching pending approvals:", err);
-    res.status(500).json({ error: "Failed to fetch pending approvals" });
+    console.error("❌ Error fetching all reimbursements:", err);
+    res.status(500).json({ error: "Failed to fetch reimbursements" });
   }
 }
 
 /**
- * Update reimbursement status (approve/reject)
+ * ✅ Update reimbursement status (approve/reject)
  */
 export async function updateReimbursementStatus(req, res) {
   try {
@@ -581,14 +619,28 @@ export async function updateReimbursementStatus(req, res) {
       });
     }
 
-    if (["SUL", "Account Manager"].includes(user.role)) {
-      const userSapCodes = [user.sap_code_1, user.sap_code_2].filter(Boolean);
+    // ✅ Role-specific authorization checks
+    if (user.role === "SUL") {
+      const employee = await User.findByPk(reimbursement.user_id, {
+        include: [{ model: User, as: "assignedSUL" }],
+      });
 
-      if (!userSapCodes.includes(reimbursement.sap_code)) {
+      if (employee.assigned_sul_id !== user.id) {
         return res.status(403).json({
-          error: "This reimbursement is assigned to a different SAP code",
-          reimbursementSapCode: reimbursement.sap_code,
-          yourSapCodes: userSapCodes,
+          error: "This reimbursement is assigned to a different SUL",
+          assignedSUL: employee.assignedSUL?.name || "Unknown",
+        });
+      }
+    } else if (user.role === "Account Manager") {
+      // Verify this AM MANAGES the SAP code (not just has it assigned)
+      const sapCode = await SapCode.findOne({
+        where: { code: reimbursement.sap_code },
+      });
+
+      if (!sapCode || sapCode.account_manager_id !== user.id) {
+        return res.status(403).json({
+          error: "You are not the Account Manager managing this SAP code",
+          sapCode: reimbursement.sap_code,
         });
       }
     }
@@ -662,12 +714,22 @@ export async function updateReimbursementStatus(req, res) {
       );
 
       if (nextApproval) {
-        const allUsers = await User.findAll();
-        const nextApprover = findApproverBySapCode(
-          nextApproval.approver_role,
-          reimbursement.sap_code,
-          allUsers
-        );
+        // ✅ Find next approver based on role
+        let nextApprover = null;
+
+        if (nextApproval.approver_role === "Account Manager") {
+          // Find AM who MANAGES this SAP code
+          const sapCode = await SapCode.findOne({
+            where: { code: reimbursement.sap_code },
+            include: [{ model: User, as: "accountManager" }],
+          });
+          nextApprover = sapCode ? sapCode.accountManager : null;
+        } else {
+          // Find any user with this role
+          nextApprover = await User.findOne({
+            where: { role: nextApproval.approver_role },
+          });
+        }
 
         if (nextApprover) {
           if (!nextApproval.approver_id) {
@@ -685,7 +747,7 @@ export async function updateReimbursementStatus(req, res) {
           );
         } else {
           return res.status(500).json({
-            error: `No ${nextApproval.approver_role} found with matching SAP code: ${reimbursement.sap_code}`,
+            error: `No ${nextApproval.approver_role} found for next approval`,
           });
         }
       } else {

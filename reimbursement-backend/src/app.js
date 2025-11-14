@@ -18,6 +18,7 @@ import sapCodeRoutes from "./routes/sapCode.routes.js";
 import { verifyEmailConfig } from "./utils/sendEmail.js"; // Add this import
 import { fileURLToPath } from "url";
 import path from "path";
+import https from "https";
 
 dotenv.config();
 // Fix __dirname for ES modules
@@ -143,7 +144,6 @@ const PORT = process.env.PORT || 4000;
       );
 
       // ✅ ADD KEEP-ALIVE CODE HERE (after server starts)
-      const https = require("https");
 
       function keepAlive() {
         https

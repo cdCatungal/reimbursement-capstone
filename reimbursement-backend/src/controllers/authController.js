@@ -1,13 +1,18 @@
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import User from "../models/index.js";
+// import bcrypt from "bcryptjs";
+// import jwt from "jsonwebtoken";
+// import User from "../models/index.js";
+
+import * as bcrypt from "bcryptjs";
+import * as jwt from "jsonwebtoken";
+import { User } from "../models/index.js";
 
 export const register = async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
     const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) return res.status(400).json({ message: "User already exists" });
+    if (existingUser)
+      return res.status(400).json({ message: "User already exists" });
 
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({ email, password: hashed, role });
@@ -25,11 +30,12 @@ export const login = async (req, res) => {
 
     const user = await User.findOne({ where: { email } });
     if (!user) return res.status(404).json({ message: "User not found" });
-    
+
     // Check if account is active
     if (!user.isActive) {
-      return res.status(403).json({ 
-        message: "Your account has been deactivated. Please contact your administrator." 
+      return res.status(403).json({
+        message:
+          "Your account has been deactivated. Please contact your administrator.",
       });
     }
 
@@ -53,8 +59,8 @@ export const login = async (req, res) => {
         profilePicture: user.profilePicture,
         sap_code_1: user.sap_code_1,
         sap_code_2: user.sap_code_2,
-        isActive: user.isActive
-      }
+        isActive: user.isActive,
+      },
     });
   } catch (err) {
     console.error("Login error:", err);

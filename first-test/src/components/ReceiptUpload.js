@@ -498,6 +498,7 @@ function ReceiptUpload() {
                   >
                     <input
                       id="receipt-upload"
+                      data-testid="receipt-upload"
                       type="file"
                       accept=".jpg, .jpeg, .png, .pdf"
                       onChange={handleImageChange}

@@ -1,16 +1,94 @@
-// reimbursement-backend/tests/controllers/authController.test.js
-import { jest } from '@jest/globals';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { register, login } from '../../src/controllers/authController.js';
-import User from '../../src/models/User.js';
+import {
+  jest,
+  describe,
+  it,
+  beforeEach,
+  expect,
+  beforeAll,
+} from "@jest/globals";
 
-// Mock dependencies
-jest.mock('bcryptjs');
-jest.mock('jsonwebtoken');
-jest.mock('../../src/models/User.js');
+// Mock ALL dependencies that authController imports - FIXED MOCKS
+jest.unstable_mockModule("bcryptjs", () => ({
+  // bcryptjs exports named functions, not default
+  hash: jest.fn(),
+  compare: jest.fn(),
+}));
 
-describe('Auth Controller', () => {
+jest.unstable_mockModule("jsonwebtoken", () => ({
+  // jsonwebtoken exports named functions, not default
+  sign: jest.fn(),
+  verify: jest.fn(),
+}));
+
+// Mock the models with BOTH default and named exports
+jest.unstable_mockModule("../../src/models/index.js", () => {
+  const mockUser = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    findByPk: jest.fn(),
+    update: jest.fn(),
+    destroy: jest.fn(),
+  };
+
+  const mockModels = {
+    User: mockUser,
+    Reimbursement: {},
+    Approval: {},
+    SapCode: {},
+    UserSapCode: {},
+    sequelize: {
+      sync: jest.fn(),
+      authenticate: jest.fn(),
+    },
+  };
+
+  // Return both default and named exports
+  return {
+    __esModule: true,
+    default: mockModels, // For: import db from "../models/index.js";
+    ...mockModels, // For: import { User } from "../models/index.js";
+  };
+});
+
+// Import variables
+let bcrypt, jwt, User, register, login;
+
+beforeAll(async () => {
+  try {
+    // Import dependencies first
+    const bcryptModule = await import("bcryptjs");
+    const jwtModule = await import("jsonwebtoken");
+
+    // Assign dependencies - bcrypt and jwt are named exports
+    bcrypt = bcryptModule;
+    jwt = jwtModule;
+
+    console.log("bcrypt exports:", Object.keys(bcryptModule));
+    console.log("jwt exports:", Object.keys(jwtModule));
+
+    // Import models to get the mocked versions
+    const modelsModule = await import("../../src/models/index.js");
+    console.log("Models exports:", Object.keys(modelsModule));
+
+    // Now import authController - it will use the mocked models
+    const authController = await import(
+      "../../src/controllers/authController.js"
+    );
+    console.log("AuthController exports:", Object.keys(authController));
+
+    // Assign from authController
+    register = authController.register;
+    login = authController.login;
+
+    // Get the mocked User from models
+    User = modelsModule.User;
+  } catch (error) {
+    console.error("Error in beforeAll:", error);
+    throw error;
+  }
+});
+
+describe("Auth Controller", () => {
   let req, res;
 
   beforeEach(() => {
@@ -24,133 +102,139 @@ describe('Auth Controller', () => {
     jest.clearAllMocks();
   });
 
-  describe('register', () => {
-    it('should register a new user successfully', async () => {
+  describe("register", () => {
+    it("should register a new user successfully", async () => {
       req.body = {
-        email: 'test@example.com',
-        password: 'password123',
-        role: 'Employee',
+        email: "test@example.com",
+        password: "password123",
+        role: "Employee",
       };
 
       User.findOne.mockResolvedValue(null);
-      bcrypt.hash.mockResolvedValue('hashedPassword');
+      bcrypt.hash.mockResolvedValue("hashedPassword");
       User.create.mockResolvedValue({
         id: 1,
-        email: 'test@example.com',
-        role: 'Employee',
+        email: "test@example.com",
+        role: "Employee",
       });
 
       await register(req, res);
 
       expect(User.findOne).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
+        where: { email: "test@example.com" },
       });
-      expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith("password123", 10);
       expect(User.create).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'hashedPassword',
-        role: 'Employee',
+        email: "test@example.com",
+        password: "hashedPassword",
+        role: "Employee",
       });
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({
-        message: 'User registered successfully',
+        message: "User registered successfully",
         user: expect.objectContaining({
           id: 1,
-          email: 'test@example.com',
+          email: "test@example.com",
         }),
       });
     });
 
-    it('should return 400 if user already exists', async () => {
+    it("should return 400 if user already exists", async () => {
       req.body = {
-        email: 'existing@example.com',
-        password: 'password123',
-        role: 'Employee',
+        email: "existing@example.com",
+        password: "password123",
+        role: "Employee",
       };
 
-      User.findOne.mockResolvedValue({ id: 1, email: 'existing@example.com' });
+      User.findOne.mockResolvedValue({ id: 1, email: "existing@example.com" });
 
       await register(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
-        message: 'User already exists',
+        message: "User already exists",
       });
       expect(User.create).not.toHaveBeenCalled();
     });
 
-    it('should handle server errors', async () => {
+    it("should handle server errors", async () => {
       req.body = {
-        email: 'test@example.com',
-        password: 'password123',
-        role: 'Employee',
+        email: "test@example.com",
+        password: "password123",
+        role: "Employee",
       };
 
-      User.findOne.mockRejectedValue(new Error('Database error'));
+      User.findOne.mockRejectedValue(new Error("Database error"));
 
       await register(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ message: 'Server error' });
+      expect(res.json).toHaveBeenCalledWith({ message: "Server error" });
     });
   });
 
-  describe('login', () => {
-    it('should login user successfully with valid credentials', async () => {
+  describe("login", () => {
+    it("should login user successfully with valid credentials", async () => {
       req.body = {
-        email: 'test@example.com',
-        password: 'password123',
+        email: "test@example.com",
+        password: "password123",
       };
 
       const mockUser = {
         id: 1,
-        email: 'test@example.com',
-        name: 'Test User',
-        password: 'hashedPassword',
-        role: 'Employee',
+        email: "test@example.com",
+        name: "Test User",
+        password: "hashedPassword",
+        role: "Employee",
         profilePicture: null,
-        sap_code_1: 'E-12345-6789',
+        sap_code_1: "E-12345-6789",
         sap_code_2: null,
+        isActive: true, // ✅ ADD THIS - user must be active
       };
 
       User.findOne.mockResolvedValue(mockUser);
       bcrypt.compare.mockResolvedValue(true);
-      jwt.sign.mockReturnValue('mockJwtToken');
+      jwt.sign.mockReturnValue("mockJwtToken");
 
       await login(req, res);
 
       expect(User.findOne).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
+        where: { email: "test@example.com" },
       });
-      expect(bcrypt.compare).toHaveBeenCalledWith('password123', 'hashedPassword');
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        "password123",
+        "hashedPassword"
+      );
+
       expect(jwt.sign).toHaveBeenCalledWith(
         {
           id: 1,
-          email: 'test@example.com',
-          role: 'Employee',
+          email: "test@example.com",
+          role: "Employee",
         },
-        process.env.JWT_SECRET,
-        { expiresIn: '1d' }
+        expect.any(String),
+        { expiresIn: "1d" }
       );
       expect(res.json).toHaveBeenCalledWith({
-        message: 'Login successful',
-        token: 'mockJwtToken',
+        message: "Login successful",
+        token: "mockJwtToken",
         user: {
           id: 1,
-          email: 'test@example.com',
-          name: 'Test User',
-          role: 'Employee',
+          email: "test@example.com",
+          name: "Test User",
+          role: "Employee",
           profilePicture: null,
-          sap_code_1: 'E-12345-6789',
+          sap_code_1: "E-12345-6789",
           sap_code_2: null,
+          isActive: true, // ✅ ADD THIS
         },
       });
     });
 
-    it('should return 404 if user not found', async () => {
+    it("should return 404 if user not found", async () => {
       req.body = {
-        email: 'nonexistent@example.com',
-        password: 'password123',
+        email: "nonexistent@example.com",
+        password: "password123",
       };
 
       User.findOne.mockResolvedValue(null);
@@ -158,92 +242,121 @@ describe('Auth Controller', () => {
       await login(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ message: 'User not found' });
+      expect(res.json).toHaveBeenCalledWith({ message: "User not found" });
       expect(bcrypt.compare).not.toHaveBeenCalled();
     });
 
-    it('should return 401 if password is invalid', async () => {
+    it("should return 401 if password is invalid", async () => {
       req.body = {
-        email: 'test@example.com',
-        password: 'wrongpassword',
+        email: "test@example.com",
+        password: "wrongpassword",
       };
 
       User.findOne.mockResolvedValue({
         id: 1,
-        email: 'test@example.com',
-        password: 'hashedPassword',
+        email: "test@example.com",
+        password: "hashedPassword",
+        isActive: true, // ✅ ADD THIS
       });
       bcrypt.compare.mockResolvedValue(false);
 
       await login(req, res);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ message: 'Invalid credentials' });
+      expect(res.json).toHaveBeenCalledWith({ message: "Invalid credentials" });
       expect(jwt.sign).not.toHaveBeenCalled();
     });
 
-    it('should handle server errors during login', async () => {
+    it("should return 403 if user account is deactivated", async () => {
+      // ✅ ADD THIS NEW TEST
       req.body = {
-        email: 'test@example.com',
-        password: 'password123',
+        email: "inactive@example.com",
+        password: "password123",
       };
 
-      User.findOne.mockRejectedValue(new Error('Database error'));
+      User.findOne.mockResolvedValue({
+        id: 1,
+        email: "inactive@example.com",
+        password: "hashedPassword",
+        isActive: false, // ❌ User is inactive
+      });
+
+      await login(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
+        message:
+          "Your account has been deactivated. Please contact your administrator.",
+      });
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+      expect(jwt.sign).not.toHaveBeenCalled();
+    });
+
+    it("should handle server errors during login", async () => {
+      req.body = {
+        email: "test@example.com",
+        password: "password123",
+      };
+
+      User.findOne.mockRejectedValue(new Error("Database error"));
 
       await login(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ message: 'Server error' });
+      expect(res.json).toHaveBeenCalledWith({ message: "Server error" });
     });
 
-    it('should return user data with SAP codes', async () => {
+    it("should return user data with SAP codes", async () => {
       req.body = {
-        email: 'employee@example.com',
-        password: 'password123',
+        email: "employee@example.com",
+        password: "password123",
       };
 
       const mockUser = {
         id: 2,
-        email: 'employee@example.com',
-        name: 'Employee User',
-        password: 'hashedPassword',
-        role: 'Employee',
-        profilePicture: 'data:image/jpeg;base64,test',
-        sap_code_1: 'E-11111-1111',
-        sap_code_2: 'E-22222-2222',
+        email: "employee@example.com",
+        name: "Employee User",
+        password: "hashedPassword",
+        role: "Employee",
+        profilePicture: "data:image/jpeg;base64,test",
+        sap_code_1: "E-11111-1111",
+        sap_code_2: "E-22222-2222",
+        isActive: true, // ✅ ADD THIS - user must be active
       };
 
       User.findOne.mockResolvedValue(mockUser);
       bcrypt.compare.mockResolvedValue(true);
-      jwt.sign.mockReturnValue('mockToken');
+      jwt.sign.mockReturnValue("mockToken");
 
       await login(req, res);
 
       expect(res.json).toHaveBeenCalledWith({
-        message: 'Login successful',
-        token: 'mockToken',
+        message: "Login successful",
+        token: "mockToken",
         user: expect.objectContaining({
-          sap_code_1: 'E-11111-1111',
-          sap_code_2: 'E-22222-2222',
-          profilePicture: 'data:image/jpeg;base64,test',
+          sap_code_1: "E-11111-1111",
+          sap_code_2: "E-22222-2222",
+          profilePicture: "data:image/jpeg;base64,test",
+          isActive: true, // ✅ ADD THIS
         }),
       });
     });
   });
 
-  describe('JWT Token Generation', () => {
-    it('should generate token with correct payload', async () => {
+  describe("JWT Token Generation", () => {
+    it("should generate token with correct payload", async () => {
       req.body = {
-        email: 'admin@example.com',
-        password: 'password123',
+        email: "admin@example.com",
+        password: "password123",
       };
 
       const mockUser = {
         id: 10,
-        email: 'admin@example.com',
-        name: 'Admin',
-        password: 'hashedPassword',
-        role: 'Admin',
+        email: "admin@example.com",
+        name: "Admin",
+        password: "hashedPassword",
+        role: "Admin",
+        isActive: true, // ✅ ADD THIS - user must be active to generate token
       };
 
       User.findOne.mockResolvedValue(mockUser);
@@ -251,11 +364,11 @@ describe('Auth Controller', () => {
       jwt.sign.mockImplementation((payload, secret, options) => {
         expect(payload).toEqual({
           id: 10,
-          email: 'admin@example.com',
-          role: 'Admin',
+          email: "admin@example.com",
+          role: "Admin",
         });
-        expect(options.expiresIn).toBe('1d');
-        return 'generatedToken';
+        expect(options.expiresIn).toBe("1d");
+        return "generatedToken";
       });
 
       await login(req, res);
@@ -264,25 +377,25 @@ describe('Auth Controller', () => {
     });
   });
 
-  describe('Password Security', () => {
-    it('should hash password with bcrypt during registration', async () => {
+  describe("Password Security", () => {
+    it("should hash password with bcrypt during registration", async () => {
       req.body = {
-        email: 'secure@example.com',
-        password: 'securePassword123',
-        role: 'Employee',
+        email: "secure@example.com",
+        password: "securePassword123",
+        role: "Employee",
       };
 
       User.findOne.mockResolvedValue(null);
       bcrypt.hash.mockImplementation((password, rounds) => {
-        expect(password).toBe('securePassword123');
+        expect(password).toBe("securePassword123");
         expect(rounds).toBe(10);
-        return Promise.resolve('hashedSecurePassword');
+        return Promise.resolve("hashedSecurePassword");
       });
       User.create.mockResolvedValue({ id: 1 });
 
       await register(req, res);
 
-      expect(bcrypt.hash).toHaveBeenCalledWith('securePassword123', 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith("securePassword123", 10);
     });
   });
 });

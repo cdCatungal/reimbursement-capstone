@@ -14,33 +14,36 @@ User.hasMany(Approval, { foreignKey: "approver_id", as: "approvals" });
 Approval.belongsTo(User, { foreignKey: "approver_id", as: "approver" });
 
 // ✅ Reimbursement ↔ Approval
-Reimbursement.hasMany(Approval, { foreignKey: "reimbursement_id", as: "approvals" });
+Reimbursement.hasMany(Approval, {
+  foreignKey: "reimbursement_id",
+  as: "approvals",
+});
 Approval.belongsTo(Reimbursement, { foreignKey: "reimbursement_id" });
 
 // ✅ NEW: Many-to-Many User ↔ SapCode (for Employees with multiple SAP codes)
 User.belongsToMany(SapCode, {
   through: UserSapCode,
-  foreignKey: 'user_id',
-  otherKey: 'sap_code_id',
-  as: 'sapCodes'
+  foreignKey: "user_id",
+  otherKey: "sap_code_id",
+  as: "sapCodes",
 });
 
 SapCode.belongsToMany(User, {
   through: UserSapCode,
-  foreignKey: 'sap_code_id',
-  otherKey: 'user_id',
-  as: 'employees'
+  foreignKey: "sap_code_id",
+  otherKey: "user_id",
+  as: "employees",
 });
 
 // ✅ NEW: SapCode ↔ Account Manager (One-to-Many)
 SapCode.belongsTo(User, {
-  foreignKey: 'account_manager_id',
-  as: 'accountManager'
+  foreignKey: "account_manager_id",
+  as: "accountManager",
 });
 
 User.hasMany(SapCode, {
-  foreignKey: 'account_manager_id',
-  as: 'managedSapCodes'
+  foreignKey: "account_manager_id",
+  as: "managedSapCodes",
 });
 
 // ✅ User self-referencing for SUL assignment (already defined in User.js)

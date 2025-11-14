@@ -93,6 +93,16 @@ const Reimbursement = sequelize.define('Reimbursement', {
   comment: 'Number of people for Meal with Client category'
 },
 
+  number_of_days: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1
+  },
+
+  reimbursable_amount: {
+    type: DataTypes.DECIMAL(10,2),
+    allowNull: true
+  },
+
   submitted_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

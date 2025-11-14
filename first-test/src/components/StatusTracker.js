@@ -79,7 +79,6 @@ function StatusTracker() {
     getUser();
   }, []);
 
-  console.log("Data Data: ", UserData);
   useEffect(() => {
     fetchUserReimbursements();
   }, [user]);
@@ -113,7 +112,6 @@ function StatusTracker() {
       }
 
       const data = await response.json();
-      console.log("📋 Fetched reimbursements:", data);
       setReimbursements(data);
     } catch (err) {
       setError(err.message);
@@ -416,7 +414,7 @@ function StatusTracker() {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: "bold" }}>REQUEST</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>AMOUNT</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>REIMBURSABLE</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>DATES</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
@@ -439,7 +437,7 @@ function StatusTracker() {
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: "medium" }}>
                         ₱
-                        {parseFloat(item.total).toLocaleString("en-PH", {
+                        {parseFloat(item.reimbursable_amount || item.total).toLocaleString("en-PH", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -603,11 +601,11 @@ function StatusTracker() {
                         color="text.secondary"
                         sx={{ fontWeight: 600 }}
                       >
-                        Amount:
+                        Total Amount:
                       </Typography>
                       <Typography
                         variant="h6"
-                        sx={{ fontWeight: 700, color: "primary.main" }}
+                        sx={{ fontWeight: 700, color: "text.primary" }}
                       >
                         ₱
                         {parseFloat(selectedTicket.total).toLocaleString(
@@ -615,6 +613,31 @@ function StatusTracker() {
                           { minimumFractionDigits: 2, maximumFractionDigits: 2 }
                         )}
                       </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        Reimbursable Amount:
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: 700, color: "primary.main" }}
+                      >
+                        ₱
+                        {parseFloat(selectedTicket.reimbursable_amount).toLocaleString(
+                          "en-PH",
+                          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                        )}
+                      </Typography>
+                      {selectedTicket.reimbursable_amount && selectedTicket.reimbursable_amount < selectedTicket.total && (
+                        <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
+                          (Limited by category maximum)
+                        </Typography>
+                      )}
                     </Box>
 
                     {selectedTicket.category === 'Meal with Client' && selectedTicket.number_of_people && (
@@ -643,27 +666,6 @@ function StatusTracker() {
                         </Typography>
                         <Typography variant="body2">
                           {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {selectedTicket.reimbursable_amount && selectedTicket.reimbursable_amount < selectedTicket.total && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Reimbursable Amount:
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>
-                          ₱{parseFloat(selectedTicket.reimbursable_amount).toLocaleString('en-PH', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })}
-                        </Typography>
-                        <Typography variant="caption" color="warning.main">
-                          (Limited by category maximum)
                         </Typography>
                       </Box>
                     )}
@@ -783,7 +785,7 @@ function StatusTracker() {
                       </Box>
                     )}
 
-                    {/* Updated Receipt Display with PDF Support */}
+                    {/* Receipt Display with PDF Support */}
                     {selectedTicket.receipt && (
                       <Box sx={{ mt: 3 }}>
                         <Box

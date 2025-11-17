@@ -31,7 +31,6 @@ import {
   Divider,
 } from "@mui/material";
 import {
-  Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   People as PeopleIcon,
@@ -75,17 +74,19 @@ function ManageUsers() {
   }, [fetchUsers, fetchActiveSapCodes]);
 
   // Filter users
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === "All" || user.role === roleFilter;
-    const matchesStatus = 
-      statusFilter === "All" || 
-      (statusFilter === "Active" && user.isActive) ||
-      (statusFilter === "Inactive" && !user.isActive);
-    return matchesSearch && matchesRole && matchesStatus;
-  }).sort((a, b) => a.name.localeCompare(b.name));
+  const filteredUsers = users
+    .filter((user) => {
+      const matchesSearch =
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesRole = roleFilter === "All" || user.role === roleFilter;
+      const matchesStatus =
+        statusFilter === "All" ||
+        (statusFilter === "Active" && user.isActive) ||
+        (statusFilter === "Inactive" && !user.isActive);
+      return matchesSearch && matchesRole && matchesStatus;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // Reset page when filters change
   useEffect(() => {
@@ -136,19 +137,19 @@ function ManageUsers() {
   };
 
   // Get SUL users for the dropdown
-  const sulUsers = users.filter(u => u.role === 'SUL');
+  const sulUsers = users.filter((u) => u.role === "SUL");
 
   // ✅ Get SAP codes MANAGED by this Account Manager (for approval)
   const getManagedSapCodes = (userId) => {
-    return sapCodes.filter(sc => sc.account_manager_id === userId);
+    return sapCodes.filter((sc) => sc.account_manager_id === userId);
   };
 
   const handleEditClick = (user) => {
     setSelectedUser(user);
-    
+
     // Extract SAP code IDs from the user's sapCodes array
-    const sapCodeIds = user.sapCodes ? user.sapCodes.map(sc => sc.id) : [];
-    
+    const sapCodeIds = user.sapCodes ? user.sapCodes.map((sc) => sc.id) : [];
+
     setFormData({
       role: user.role,
       sap_code_ids: sapCodeIds,
@@ -162,11 +163,11 @@ function ManageUsers() {
   const handleCloseEditDialog = () => {
     setEditDialogOpen(false);
     setSelectedUser(null);
-    setFormData({ 
-      role: "", 
-      sap_code_ids: [], 
-      assigned_sul_id: null, 
-      isActive: true 
+    setFormData({
+      role: "",
+      sap_code_ids: [],
+      assigned_sul_id: null,
+      isActive: true,
     });
     setFormErrors({});
   };
@@ -175,7 +176,7 @@ function ManageUsers() {
     const errors = {};
 
     // ✅ Both Employee and Account Manager require SAP codes
-    if (formData.role === 'Employee' || formData.role === 'Account Manager') {
+    if (formData.role === "Employee" || formData.role === "Account Manager") {
       if (!formData.sap_code_ids || formData.sap_code_ids.length === 0) {
         errors.sap_code_ids = `At least one SAP code is required for ${formData.role}s`;
       }
@@ -215,11 +216,7 @@ function ManageUsers() {
             <Typography variant="h6" sx={{ fontWeight: "bold" }}>
               Manage Users
             </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mt: 0.5 }}
-            >
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               View and manage user accounts and permissions
             </Typography>
           </Box>
@@ -287,8 +284,12 @@ function ManageUsers() {
                     <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>Role</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>SAP Code(s)</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Assigned SUL</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      SAP Code(s)
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Assigned SUL
+                    </TableCell>
                     <TableCell sx={{ fontWeight: "bold" }} align="right">
                       Actions
                     </TableCell>
@@ -296,22 +297,30 @@ function ManageUsers() {
                 </TableHead>
                 <TableBody>
                   {paginatedUsers.map((user) => {
-                    const isActive = user.isActive !== undefined ? user.isActive : true;
-                    const managedSapCodes = user.role === 'Account Manager' ? getManagedSapCodes(user.id) : [];
+                    const isActive =
+                      user.isActive !== undefined ? user.isActive : true;
+                    const managedSapCodes =
+                      user.role === "Account Manager"
+                        ? getManagedSapCodes(user.id)
+                        : [];
                     const assignedSapCodes = user.sapCodes || [];
 
                     return (
-                      <TableRow 
-                        key={user.id} 
+                      <TableRow
+                        key={user.id}
                         hover
-                        sx={{ 
+                        sx={{
                           opacity: isActive ? 1 : 0.6,
-                          bgcolor: isActive ? 'inherit' : 'action.hover'
+                          bgcolor: isActive ? "inherit" : "action.hover",
                         }}
                       >
                         <TableCell>
                           <Box
-                            sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 2,
+                            }}
                           >
                             <Avatar
                               src={user.profilePicture}
@@ -342,7 +351,9 @@ function ManageUsers() {
                         </TableCell>
                         <TableCell>
                           <Chip
-                            icon={isActive ? <CheckCircleIcon /> : <BlockIcon />}
+                            icon={
+                              isActive ? <CheckCircleIcon /> : <BlockIcon />
+                            }
                             label={isActive ? "Active" : "Inactive"}
                             size="small"
                             color={isActive ? "success" : "default"}
@@ -351,16 +362,38 @@ function ManageUsers() {
                         </TableCell>
                         <TableCell>
                           {/* ✅ Show BOTH managed and assigned SAP codes for Account Managers */}
-                          {user.role === 'Account Manager' ? (
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {user.role === "Account Manager" ? (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                              }}
+                            >
                               {/* Managed SAP Codes (for approval) */}
                               {managedSapCodes.length > 0 && (
                                 <Box>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                                    <AccountBalanceIcon sx={{ fontSize: 12, mr: 0.5, verticalAlign: 'middle' }} />
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: "block", mb: 0.5 }}
+                                  >
+                                    <AccountBalanceIcon
+                                      sx={{
+                                        fontSize: 12,
+                                        mr: 0.5,
+                                        verticalAlign: "middle",
+                                      }}
+                                    />
                                     Manages (Approval):
                                   </Typography>
-                                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      gap: 0.5,
+                                      flexWrap: "wrap",
+                                    }}
+                                  >
                                     {managedSapCodes.map((sapCode) => (
                                       <Chip
                                         key={`managed-${sapCode.id}`}
@@ -373,15 +406,31 @@ function ManageUsers() {
                                   </Box>
                                 </Box>
                               )}
-                              
+
                               {/* Assigned SAP Codes (for submission) */}
                               {assignedSapCodes.length > 0 && (
                                 <Box>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                                    <AssignmentIcon sx={{ fontSize: 12, mr: 0.5, verticalAlign: 'middle' }} />
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: "block", mb: 0.5 }}
+                                  >
+                                    <AssignmentIcon
+                                      sx={{
+                                        fontSize: 12,
+                                        mr: 0.5,
+                                        verticalAlign: "middle",
+                                      }}
+                                    />
                                     Assigned (Submission):
                                   </Typography>
-                                  <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      gap: 0.5,
+                                      flexWrap: "wrap",
+                                    }}
+                                  >
                                     {assignedSapCodes.map((sapCode) => (
                                       <Chip
                                         key={`assigned-${sapCode.id}`}
@@ -394,12 +443,16 @@ function ManageUsers() {
                                   </Box>
                                 </Box>
                               )}
-                              
-                              {managedSapCodes.length === 0 && assignedSapCodes.length === 0 && (
-                                <Typography variant="body2" color="text.secondary">
-                                  No SAP codes
-                                </Typography>
-                              )}
+
+                              {managedSapCodes.length === 0 &&
+                                assignedSapCodes.length === 0 && (
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    No SAP codes
+                                  </Typography>
+                                )}
                             </Box>
                           ) : assignedSapCodes.length > 0 ? (
                             <Box
@@ -419,10 +472,7 @@ function ManageUsers() {
                               ))}
                             </Box>
                           ) : (
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                            >
+                            <Typography variant="body2" color="text.secondary">
                               {rolesWithoutSapCodes.includes(user.role)
                                 ? "N/A"
                                 : "Not assigned"}
@@ -439,7 +489,9 @@ function ManageUsers() {
                             />
                           ) : (
                             <Typography variant="body2" color="text.secondary">
-                              {user.role === 'Employee' ? 'Not assigned' : 'N/A'}
+                              {user.role === "Employee"
+                                ? "Not assigned"
+                                : "N/A"}
                             </Typography>
                           )}
                         </TableCell>
@@ -523,10 +575,16 @@ function ManageUsers() {
               Total Users: <strong>{users.length}</strong>
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Active: <strong>{users.filter(u => u.isActive !== false).length}</strong>
+              Active:{" "}
+              <strong>
+                {users.filter((u) => u.isActive !== false).length}
+              </strong>
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Inactive: <strong>{users.filter(u => u.isActive === false).length}</strong>
+              Inactive:{" "}
+              <strong>
+                {users.filter((u) => u.isActive === false).length}
+              </strong>
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Showing: <strong>{filteredUsers.length}</strong> users
@@ -535,8 +593,15 @@ function ManageUsers() {
         )}
 
         {/* Edit Dialog */}
-        <Dialog open={editDialogOpen} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{display:"flex", justifyContent:"space-between"}}>
+        <Dialog
+          open={editDialogOpen}
+          onClose={handleCloseEditDialog}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{ display: "flex", justifyContent: "space-between" }}
+          >
             <Typography variant="h6">Edit User</Typography>
             <IconButton onClick={handleCloseEditDialog} size="small">
               <CloseIcon />
@@ -545,39 +610,57 @@ function ManageUsers() {
 
           <DialogContent dividers>
             {selectedUser && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 2 }}>
+              <Box
+                sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 2 }}
+              >
                 <Box>
-                  <Typography variant="body2" color="text.secondary">User Details</Typography>
-                  <Typography variant="body1" fontWeight="bold">{selectedUser.name}</Typography>
-                  <Typography variant="body2" color="text.secondary">{selectedUser.email}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    User Details
+                  </Typography>
+                  <Typography variant="body1" fontWeight="bold">
+                    {selectedUser.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedUser.email}
+                  </Typography>
                 </Box>
 
                 {/* Account Status Toggle */}
-                <Box 
-                  sx={{ 
-                    p: 2, 
-                    bgcolor: formData.isActive ? "success.lighter" : "error.lighter", 
+                <Box
+                  sx={{
+                    p: 2,
+                    bgcolor: formData.isActive
+                      ? "success.lighter"
+                      : "error.lighter",
                     borderRadius: 1,
                     border: 1,
-                    borderColor: formData.isActive ? "success.main" : "error.main"
+                    borderColor: formData.isActive
+                      ? "success.main"
+                      : "error.main",
                   }}
                 >
                   <FormControlLabel
                     control={
                       <Switch
                         checked={formData.isActive}
-                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            isActive: e.target.checked,
+                          })
+                        }
                         color={formData.isActive ? "success" : "default"}
                       />
                     }
                     label={
                       <Box>
                         <Typography variant="body2" fontWeight="bold">
-                          Account Status: {formData.isActive ? "Active" : "Inactive"}
+                          Account Status:{" "}
+                          {formData.isActive ? "Active" : "Inactive"}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {formData.isActive 
-                            ? "User can log in and access the system" 
+                          {formData.isActive
+                            ? "User can log in and access the system"
                             : "User cannot log in (for resigned employees)"}
                         </Typography>
                       </Box>
@@ -596,8 +679,14 @@ function ManageUsers() {
                       ...formData,
                       role: newRole,
                       // Keep SAP codes for Employee and Account Manager
-                      sap_code_ids: (newRole === 'Employee' || newRole === 'Account Manager') ? formData.sap_code_ids : [],
-                      assigned_sul_id: newRole === 'Employee' ? formData.assigned_sul_id : null,
+                      sap_code_ids:
+                        newRole === "Employee" || newRole === "Account Manager"
+                          ? formData.sap_code_ids
+                          : [],
+                      assigned_sul_id:
+                        newRole === "Employee"
+                          ? formData.assigned_sul_id
+                          : null,
                     });
                     setFormErrors({});
                   }}
@@ -612,30 +701,39 @@ function ManageUsers() {
                 </TextField>
 
                 {/* ✅ Employee and Account Manager: SAP Code Assignment */}
-                {(formData.role === 'Employee' || formData.role === 'Account Manager') && (
+                {(formData.role === "Employee" ||
+                  formData.role === "Account Manager") && (
                   <>
                     <Autocomplete
                       multiple
                       options={sapCodes}
-                      getOptionLabel={(option) => `${option.code} - ${option.name}`}
-                      value={sapCodes.filter(sc => formData.sap_code_ids?.includes(sc.id))}
+                      getOptionLabel={(option) =>
+                        `${option.code} - ${option.name}`
+                      }
+                      value={sapCodes.filter((sc) =>
+                        formData.sap_code_ids?.includes(sc.id)
+                      )}
                       onChange={(event, newValue) => {
-                        setFormData({ 
-                          ...formData, 
-                          sap_code_ids: newValue.map(v => v.id) 
+                        setFormData({
+                          ...formData,
+                          sap_code_ids: newValue.map((v) => v.id),
                         });
                         setFormErrors({});
                       }}
                       renderInput={(params) => (
                         <TextField
                           {...params}
-                          label={formData.role === 'Account Manager' ? "Assigned SAP Codes (for Submission)" : "SAP Codes"}
+                          label={
+                            formData.role === "Account Manager"
+                              ? "Assigned SAP Codes (for Submission)"
+                              : "SAP Codes"
+                          }
                           placeholder="Select SAP codes"
                           error={!!formErrors.sap_code_ids}
                           helperText={
-                            formErrors.sap_code_ids || 
-                            (formData.role === 'Account Manager' 
-                              ? "SAP codes this Account Manager can use for their own reimbursement submissions" 
+                            formErrors.sap_code_ids ||
+                            (formData.role === "Account Manager"
+                              ? "SAP codes this Account Manager can use for their own reimbursement submissions"
                               : "Select one or more SAP codes for this employee")
                           }
                           required
@@ -648,31 +746,71 @@ function ManageUsers() {
                             label={option.code}
                             {...getTagProps({ index })}
                             size="small"
-                            color={formData.role === 'Account Manager' ? 'success' : 'default'}
+                            color={
+                              formData.role === "Account Manager"
+                                ? "success"
+                                : "default"
+                            }
                           />
                         ))
                       }
                     />
 
                     {/* ✅ Account Manager: Show managed SAP codes info */}
-                    {formData.role === 'Account Manager' && (
-                      <Box sx={{ p: 2, bgcolor: "info.lighter", borderRadius: 1, border: 1, borderColor: "info.main" }}>
-                        <Typography variant="body2" fontWeight="bold" color="info.dark" sx={{ mb: 1 }}>
-                          <AccountBalanceIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+                    {formData.role === "Account Manager" && (
+                      <Box
+                        sx={{
+                          p: 2,
+                          bgcolor: "info.lighter",
+                          borderRadius: 1,
+                          border: 1,
+                          borderColor: "info.main",
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          fontWeight="bold"
+                          color="info.dark"
+                          sx={{ mb: 1 }}
+                        >
+                          <AccountBalanceIcon
+                            sx={{
+                              fontSize: 16,
+                              mr: 0.5,
+                              verticalAlign: "middle",
+                            }}
+                          />
                           Account Manager Approval Responsibilities
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          To assign SAP codes that this Account Manager will <strong>approve</strong>, 
-                          go to <strong>"Manage SAP Codes"</strong> and set them as the Account Manager for specific codes.
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ mb: 2 }}
+                        >
+                          To assign SAP codes that this Account Manager will{" "}
+                          <strong>approve</strong>, go to{" "}
+                          <strong>"Manage SAP Codes"</strong> and set them as
+                          the Account Manager for specific codes.
                         </Typography>
-                        
+
                         {getManagedSapCodes(selectedUser.id).length > 0 ? (
                           <>
                             <Divider sx={{ my: 1.5 }} />
-                            <Typography variant="body2" fontWeight="bold" color="text.secondary" sx={{ mb: 1 }}>
+                            <Typography
+                              variant="body2"
+                              fontWeight="bold"
+                              color="text.secondary"
+                              sx={{ mb: 1 }}
+                            >
                               Currently Managing (for Approval):
                             </Typography>
-                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                gap: 0.5,
+                                flexWrap: "wrap",
+                              }}
+                            >
                               {getManagedSapCodes(selectedUser.id).map((sc) => (
                                 <Chip
                                   key={sc.id}
@@ -688,8 +826,9 @@ function ManageUsers() {
                           <>
                             <Divider sx={{ my: 1.5 }} />
                             <Alert severity="warning" sx={{ mt: 1 }}>
-                              This Account Manager is not managing any SAP codes yet. 
-                              Assign them in "Manage SAP Codes" to enable approval routing.
+                              This Account Manager is not managing any SAP codes
+                              yet. Assign them in "Manage SAP Codes" to enable
+                              approval routing.
                             </Alert>
                           </>
                         )}
@@ -699,15 +838,17 @@ function ManageUsers() {
                 )}
 
                 {/* ✅ Employee: SUL Assignment */}
-                {formData.role === 'Employee' && (
+                {formData.role === "Employee" && (
                   <TextField
                     select
                     label="Assigned SUL"
-                    value={formData.assigned_sul_id || ''}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      assigned_sul_id: e.target.value || null 
-                    })}
+                    value={formData.assigned_sul_id || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        assigned_sul_id: e.target.value || null,
+                      })
+                    }
                     fullWidth
                     helperText="Assign a SUL to manage this employee (optional)"
                   >
@@ -723,10 +864,12 @@ function ManageUsers() {
                 )}
 
                 {/* SUL Role Info */}
-                {formData.role === 'SUL' && (
+                {formData.role === "SUL" && (
                   <Box sx={{ p: 2, bgcolor: "info.lighter", borderRadius: 1 }}>
                     <Typography variant="body2" color="info.main">
-                      SULs manage employees but do not have SAP codes themselves. They are assigned to employees by Sales Directors.
+                      SULs manage employees but do not have SAP codes
+                      themselves. They are assigned to employees by Sales
+                      Directors.
                     </Typography>
                   </Box>
                 )}
@@ -747,20 +890,30 @@ function ManageUsers() {
             <Button onClick={handleCloseEditDialog} color="inherit">
               Cancel
             </Button>
-            <Button onClick={handleSubmitEdit} variant="contained" disabled={loading}>
+            <Button
+              onClick={handleSubmitEdit}
+              variant="contained"
+              disabled={loading}
+            >
               {loading ? <CircularProgress size={24} /> : "Save Changes"}
             </Button>
           </DialogActions>
         </Dialog>
 
         {/* Delete Dialog */}
-        <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog} maxWidth="xs" fullWidth>
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={handleCloseDeleteDialog}
+          maxWidth="xs"
+          fullWidth
+        >
           <DialogTitle>Confirm Delete</DialogTitle>
           <DialogContent>
             {selectedUser && (
               <Typography>
-                Are you sure you want to delete <strong>{selectedUser.name}</strong>? This action
-                cannot be undone.
+                Are you sure you want to delete{" "}
+                <strong>{selectedUser.name}</strong>? This action cannot be
+                undone.
               </Typography>
             )}
           </DialogContent>
@@ -768,7 +921,12 @@ function ManageUsers() {
             <Button onClick={handleCloseDeleteDialog} color="inherit">
               Cancel
             </Button>
-            <Button onClick={handleConfirmDelete} variant="contained" color="error" disabled={loading}>
+            <Button
+              onClick={handleConfirmDelete}
+              variant="contained"
+              color="error"
+              disabled={loading}
+            >
               {loading ? <CircularProgress size={24} /> : "Delete"}
             </Button>
           </DialogActions>

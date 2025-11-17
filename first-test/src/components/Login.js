@@ -14,7 +14,7 @@ import {
   CheckCircleOutline,
 } from "@mui/icons-material";
 import { useAppContext } from "../App";
-import { axiosInstance, axiosInstanceWithAuth } from "../lib/axios.js";
+import { axiosInstanceWithAuth } from "../lib/axios.js";
 import { baseURL } from "../lib/baseUrl.js";
 
 function Login() {

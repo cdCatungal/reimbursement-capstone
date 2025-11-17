@@ -113,7 +113,7 @@ app.get("/", (req, res) => {
 app.use((req, res) => res.status(404).json({ error: "Route not found" }));
 
 // ✅ Error handler
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   console.error("🚨 Server Error:", err.stack);
   res.status(500).json({ error: err.message || "Internal Server Error" });
 });

@@ -7,7 +7,7 @@ export const getReport = async (req, res) => {
     console.log("Request dates: ", req.body);
     const { start: startDate, end: endDate } = req.body;
 
-    let whereClause = {};
+    const whereClause = {};
 
     // Handle date filtering
     if (startDate && endDate) {

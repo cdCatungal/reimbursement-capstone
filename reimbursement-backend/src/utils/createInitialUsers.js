@@ -12,13 +12,28 @@ import User from "../models/User.js";
     const hashedPassword = await bcrypt.hash("Password123!", 10);
 
     const users = [
-      { name: "Line Manager", email: "manager@yourcompany.com", role: "Manager", password: hashedPassword },
-      { name: "Ms. Michelle", email: "michelle@yourcompany.com", role: "Michelle", password: hashedPassword },
-      { name: "Ms. Grace", email: "grace@yourcompany.com", role: "Grace", password: hashedPassword },
+      {
+        name: "Line Manager",
+        email: "manager@yourcompany.com",
+        role: "Manager",
+        password: hashedPassword,
+      },
+      {
+        name: "Ms. Michelle",
+        email: "michelle@yourcompany.com",
+        role: "Michelle",
+        password: hashedPassword,
+      },
+      {
+        name: "Ms. Grace",
+        email: "grace@yourcompany.com",
+        role: "Grace",
+        password: hashedPassword,
+      },
     ];
 
     for (const u of users) {
-      const [user, created] = await User.findOrCreate({
+      const [user] = await User.findOrCreate({
         where: { email: u.email },
         defaults: u,
       });

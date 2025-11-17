@@ -14,6 +14,7 @@ export const verifyToken = (req, res, next) => {
       req.user = decoded;
       return next();
     } catch (err) {
+      console.error("JWT verification failed:", err);
       return res.status(403).json({ message: "Invalid token" });
     }
   }

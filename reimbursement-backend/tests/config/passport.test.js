@@ -52,8 +52,6 @@ describe("Passport Configuration", () => {
             responseType: "arraybuffer",
           }
         );
-
-        // eslint-disable-next-line no-undef
         const base64 = Buffer.from(response.data).toString("base64");
         const contentType = response.headers["content-type"];
         return `data:${contentType};base64,${base64}`;

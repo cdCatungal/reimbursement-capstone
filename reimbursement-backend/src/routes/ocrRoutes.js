@@ -2,15 +2,15 @@ import express from "express";
 import Tesseract from "tesseract.js";
 import multer from "multer";
 import { cleanExtractedText } from "../controllers/ocrController.js";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// import { GoogleGenerativeAI } from "@google/generative-ai";
 import genAI from "../config/gemini.js";
 
 const router = express.Router();
 
 // ✅ CHANGED: Use memory storage instead of disk storage
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
 // ----------------- Helpers -----------------
@@ -36,7 +36,8 @@ function toNumber(numStr) {
 }
 
 function findAmounts(text) {
-  const regex = /(?:₱|\bPHP\b|PHP|\bP\b)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{1,2})?|[0-9]+\.\d{1,2})/gi;
+  const regex =
+    /(?:₱|\bPHP\b|PHP|\bP\b)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{1,2})?|[0-9]+\.\d{1,2})/gi;
   const matches = [];
   let m;
   while ((m = regex.exec(text)) !== null) {
@@ -74,15 +75,19 @@ function parseDateToDDMMYYYY(text) {
     if (!m) continue;
 
     if (p === datePatterns[0]) {
-      const [_, y, mo, d] = m;
+      // const [_, y, mo, d] = m;
+      const [y, mo, d] = m;
       const dd = String(d).padStart(2, "0");
       const mm = String(mo).padStart(2, "0");
       return `${dd}/${mm}/${y}`;
     }
 
     if (p === datePatterns[1]) {
-      let [_, part1, part2, year] = m;
-      let day = part1, month = part2;
+      // let [_, part1, part2, year] = m;
+      // let [part1, part2, year] = m;
+      const [part1, part2, year] = m;
+      let day = part1,
+        month = part2;
       if (Number(month) > 12 && Number(day) <= 12) {
         month = part1;
         day = part2;
@@ -95,14 +100,21 @@ function parseDateToDDMMYYYY(text) {
           month = part2;
         }
       }
-      return `${String(day).padStart(2,"0")}/${String(month).padStart(2,"0")}/${year}`;
+      return `${String(day).padStart(2, "0")}/${String(month).padStart(
+        2,
+        "0"
+      )}/${year}`;
     }
 
     if (p === datePatterns[2]) {
-      const [_, monthName, d, y] = m;
+      // const [_, monthName, d, y] = m;
+      const [monthName, d, y] = m;
       const monthIndex = new Date(`${monthName} 1, ${y}`).getMonth() + 1;
       if (!isNaN(monthIndex)) {
-        return `${String(d).padStart(2,"0")}/${String(monthIndex).padStart(2,"0")}/${y}`;
+        return `${String(d).padStart(2, "0")}/${String(monthIndex).padStart(
+          2,
+          "0"
+        )}/${y}`;
       }
     }
   }
@@ -118,7 +130,11 @@ function extractReference(text) {
     const m = text.match(p);
     if (m && m[1]) return m[1].trim();
   }
-  const bottomMatches = text.split("\n").slice(-6).join("\n").match(/([0-9]{6,})/);
+  const bottomMatches = text
+    .split("\n")
+    .slice(-6)
+    .join("\n")
+    .match(/([0-9]{6,})/);
   return bottomMatches ? bottomMatches[1] : "";
 }
 
@@ -127,7 +143,7 @@ function titleCase(str) {
   return str
     .toLowerCase()
     .split(" ")
-    .map(w => {
+    .map((w) => {
       if (w.length <= 2) return w.toUpperCase();
       return w.charAt(0).toUpperCase() + w.slice(1);
     })
@@ -135,7 +151,14 @@ function titleCase(str) {
 }
 
 const merchantDictionary = [
-  "S&R", "S&R MEMBERSHIP SHOPPING", "JOLLIBEE", "MCDONALD'S", "PUREGOLD", "7-ELEVEN", "SM", "LANDERS"
+  "S&R",
+  "S&R MEMBERSHIP SHOPPING",
+  "JOLLIBEE",
+  "MCDONALD'S",
+  "PUREGOLD",
+  "7-ELEVEN",
+  "SM",
+  "LANDERS",
 ];
 
 function detectMerchant(lines) {
@@ -146,26 +169,32 @@ function detectMerchant(lines) {
     }
   }
   for (const candidate of lines.slice(0, 6)) {
-    if (candidate && candidate.length > 2 && /[A-Za-z]/.test(candidate)) return candidate;
+    if (candidate && candidate.length > 2 && /[A-Za-z]/.test(candidate))
+      return candidate;
   }
   return "";
 }
 
 function parseReceipt(text) {
   const cleaned = cleanOCR(text);
-  const lines = cleaned.split("\n").map(l => l.trim()).filter(l => l);
+  const lines = cleaned
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l);
 
   const merchant = detectMerchant(lines) || (lines.length ? lines[0] : "");
   const date = parseDateToDDMMYYYY(cleaned);
   const reference = extractReference(cleaned);
   const total = findTotal(cleaned);
-  
+
   let subtotal = null;
   const subtotalMatch = cleaned.match(/subtotal[:\s]*₱?\s*([0-9,]+\.\d{1,2})/i);
   if (subtotalMatch && subtotalMatch[1]) subtotal = toNumber(subtotalMatch[1]);
 
   let payment_method = "";
-  const pm = cleaned.match(/\b(Metrobank|CASH|CREDIT|GCASH|PAYMAYA|VISA|MASTERCARD)\b/i);
+  const pm = cleaned.match(
+    /\b(Metrobank|CASH|CREDIT|GCASH|PAYMAYA|VISA|MASTERCARD)\b/i
+  );
   if (pm) payment_method = pm[1].toUpperCase();
 
   const cashierMatch = cleaned.match(/Cashier[:\s]*([A-Za-z\s]+)/i);
@@ -181,7 +210,11 @@ function parseReceipt(text) {
 
   let startIndex = 1;
   for (let i = 1; i < Math.min(6, lines.length); i++) {
-    if (/tin|tel|telephone|address|member|membership|owned|operated|birtacc|bir/i.test(lines[i])) {
+    if (
+      /tin|tel|telephone|address|member|membership|owned|operated|birtacc|bir/i.test(
+        lines[i]
+      )
+    ) {
       startIndex = i + 1;
       continue;
     } else {
@@ -189,12 +222,19 @@ function parseReceipt(text) {
     }
   }
 
-  const rawItemLines = lines.slice(startIndex, stopIndex)
-    .filter(l => !/subtotal|total|amount due|grand total|member|tin|tel|telephone|address|b\.?i\.?r/i.test(l))
-    .filter(l => l.length > 3);
+  const rawItemLines = lines
+    .slice(startIndex, stopIndex)
+    .filter(
+      (l) =>
+        !/subtotal|total|amount due|grand total|member|tin|tel|telephone|address|b\.?i\.?r/i.test(
+          l
+        )
+    )
+    .filter((l) => l.length > 3);
 
   const items = [];
-  const priceRegex = /([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{1,2})|[0-9]+\.\d{1,2})\s*$/;
+  const priceRegex =
+    /([0-9]{1,3}(?:,[0-9]{3})*(?:\.\d{1,2})|[0-9]+\.\d{1,2})\s*$/;
   for (const line of rawItemLines) {
     let price = null;
     let name = line;
@@ -214,7 +254,12 @@ function parseReceipt(text) {
       }
     }
 
-    const niceName = titleCase(name.replace(/\s{2,}/g, " ").replace(/[^\w\s'&-]/g, "").trim());
+    const niceName = titleCase(
+      name
+        .replace(/\s{2,}/g, " ")
+        .replace(/[^\w\s'&-]/g, "")
+        .trim()
+    );
 
     items.push({
       name: niceName || titleCase(line),
@@ -260,11 +305,14 @@ function parseReceipt(text) {
 // ✅ UPDATED: Tesseract OCR route - now uses memory buffer
 router.post("/", upload.single("receipt"), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded (field: receipt)" });
+    if (!req.file)
+      return res
+        .status(400)
+        .json({ error: "No file uploaded (field: receipt)" });
 
     // ✅ Process image buffer directly, no file system needed
-    const result = await Tesseract.recognize(req.file.buffer, "eng", { 
-      logger: (m) => console.log(m) 
+    const result = await Tesseract.recognize(req.file.buffer, "eng", {
+      logger: (m) => console.log(m),
     });
     const raw = result?.data?.text || "";
 
@@ -287,24 +335,27 @@ router.post("/", upload.single("receipt"), async (req, res) => {
     });
   } catch (err) {
     console.error("OCR/parse error:", err);
-    return res.status(500).json({ error: "OCR processing or parsing failed", detail: err.message });
+    return res
+      .status(500)
+      .json({ error: "OCR processing or parsing failed", detail: err.message });
   }
 });
 
 // ✅ UPDATED: Gemini AI Vision OCR route - now uses memory buffer
 router.post("/structured", upload.single("image"), async (req, res) => {
   try {
-    if (!req.file)
-      return res.status(400).json({ error: "No file uploaded" });
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     // ✅ Get image buffer directly from memory
     const imageBuffer = req.file.buffer;
-    const base64Image = imageBuffer.toString('base64');
+    const base64Image = imageBuffer.toString("base64");
     const mimeType = req.file.mimetype;
 
     // 1) Extract raw text using Gemini Vision
-    const visionModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-    
+    const visionModel = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-exp",
+    });
+
     const textExtractionPrompt = `Extract ALL text from this receipt image EXACTLY as it appears.
 
 RULES:
@@ -321,16 +372,18 @@ Return ONLY the extracted text, nothing else.`;
       {
         inlineData: {
           data: base64Image,
-          mimeType: mimeType
-        }
-      }
+          mimeType: mimeType,
+        },
+      },
     ]);
 
     const rawText = textResult.response.text();
     const cleanedText = cleanOCR(rawText);
 
     // 2) Extract structured data using Gemini Vision
-    const structuredModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const structuredModel = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-exp",
+    });
 
     const prompt = `You are an expert receipt parser. Analyze this receipt image with EXTREME PRECISION.
 
@@ -369,49 +422,52 @@ NO markdown formatting, NO explanations, ONLY the JSON object.`;
       {
         inlineData: {
           data: base64Image,
-          mimeType: mimeType
-        }
-      }
+          mimeType: mimeType,
+        },
+      },
     ]);
 
     const aiText = aiResult.response.text();
-    
+
     const cleanedAIText = aiText
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
       .trim();
 
     let structured;
     try {
       structured = JSON.parse(cleanedAIText);
-      
+
       // Validation: Ensure total is a number with 2 decimal places
       if (structured.total) {
-        const totalNum = typeof structured.total === 'string' 
-          ? parseFloat(structured.total.replace(/[^0-9.]/g, ''))
-          : structured.total;
+        const totalNum =
+          typeof structured.total === "string"
+            ? parseFloat(structured.total.replace(/[^0-9.]/g, ""))
+            : structured.total;
         structured.total = parseFloat(totalNum.toFixed(2));
       }
-      
+
       // Validation: Ensure items prices are numbers
       if (Array.isArray(structured.items)) {
-        structured.items = structured.items.map(item => ({
+        structured.items = structured.items.map((item) => ({
           ...item,
-          price: item.price ? parseFloat(
-            typeof item.price === 'string' 
-              ? item.price.replace(/[^0-9.]/g, '')
-              : item.price
-          ).toFixed(2) : null
+          price: item.price
+            ? parseFloat(
+                typeof item.price === "string"
+                  ? item.price.replace(/[^0-9.]/g, "")
+                  : item.price
+              ).toFixed(2)
+            : null,
         }));
       }
-      
     } catch (err) {
+      console.error(err);
       console.error("JSON parse error:", cleanedAIText);
-      return res.status(500).json({ 
-        error: "AI JSON parsing failed", 
+      return res.status(500).json({
+        error: "AI JSON parsing failed",
         detail: cleanedAIText,
         rawText,
-        cleanedText
+        cleanedText,
       });
     }
 
@@ -421,12 +477,11 @@ NO markdown formatting, NO explanations, ONLY the JSON object.`;
       cleanedText,
       structured,
     });
-
   } catch (error) {
     console.error("Structured OCR error:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Structured OCR failed",
-      detail: error.message 
+      detail: error.message,
     });
   }
 });

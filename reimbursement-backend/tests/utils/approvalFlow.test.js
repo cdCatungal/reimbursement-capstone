@@ -431,21 +431,18 @@ describe("Send Email Utils", () => {
     });
 
     it("should validate required environment variables", async () => {
-      const mockEnv = {
-        EMAIL_USER: "test@example.com",
-        EMAIL_PASSWORD: "test-password",
-      };
-      // Temporarily remove environment variables
-      delete mockEnv.EMAIL_USER;
-      delete mockEnv.EMAIL_PASSWORD;
+      // Store the original value
+      const originalApiKey = process.env.SENDGRID_API_KEY;
+
+      // Properly delete the environment variable
+      process.env.SENDGRID_API_KEY = "";
 
       await expect(
         sendEmail("test@example.com", "Subject", "<html></html>")
-      ).rejects.toThrow("Email configuration missing");
+      ).rejects.toThrow("SendGrid API key missing");
 
-      // Restore for other tests
-      mockEnv.EMAIL_USER = "test@example.com";
-      mockEnv.EMAIL_PASSWORD = "test-password";
+      // Restore the original value
+      process.env.SENDGRID_API_KEY = originalApiKey;
     });
 
     it("should handle CC recipients as array", () => {

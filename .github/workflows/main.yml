@@ -103,13 +103,13 @@ jobs:
       SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
       # Azure - use test values or secrets
-      AZURE_CLIENT_ID: "test-client-id"
-      AZURE_CLIENT_SECRET: "test-client-secret"
-      AZURE_TENANT_ID: "test-tenant"
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_REDIRECT_URL: "http://localhost:5000/auth/microsoft/callback"
 
       # Gemini - use test key
-      GEMINI_API_KEY: "test-api-key"
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
     steps:
       - name: Checkout code

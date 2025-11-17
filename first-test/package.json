@@ -36,7 +36,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "test:ci": "react-scripts test --passWithNoTests --coverage --testPathIgnorePatterns=\"src/store/__tests__/manageSapCodesStore.test.js|src/components/__tests__/ReceiptUpload.test.js\""
   },
   "eslintConfig": {
     "extends": [

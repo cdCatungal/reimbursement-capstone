@@ -1,15 +1,11 @@
-// first-test/src/components/__tests__/ReceiptUpload.test.js
-
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ReceiptUpload from "../ReceiptUpload";
 import { useAppContext } from "../../App";
 
-// ✅ Mock global fetch
 global.fetch = jest.fn();
 
-// ✅ Mock context hook
 jest.mock("../../App", () => ({
   useAppContext: jest.fn(),
 }));
@@ -23,93 +19,17 @@ describe("ReceiptUpload Component", () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-
-    // ✅ Default AppContext Mock
     useAppContext.mockReturnValue({
       showNotification: mockShowNotification,
       user: mockUser,
     });
 
-    // ✅ Default Fetch Mock (handles all API endpoints)
-    fetch.mockImplementation((url, options) => {
-      console.log("➡️ Fetch called:", url);
-
-      // SAP Codes
-      if (url.includes("/api/users/settings")) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
-            data: {
-              sapCodes: [
-                { id: 1, code: "E-12345-6789", name: "Primary SAP Code" },
-                { id: 2, code: "E-98765-4321", name: "Secondary SAP Code" },
-              ],
-            },
-          }),
-        });
-      }
-
-      // OCR
-      if (url.includes("/api/ocr")) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
-            cleanedText: "Receipt text",
-            structured: {
-              date: "15/01/2024",
-              merchant: "Test Store",
-              total: "100.50",
-            },
-          }),
-        });
-      }
-
-      // Reimbursement Submission
-      if (url.includes("/api/reimbursements")) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ id: 1, status: "Pending" }),
-        });
-      }
-
-      return Promise.resolve({ ok: true, json: async () => ({}) });
-    });
+    fetch.mockClear();
+    mockShowNotification.mockClear();
   });
 
-  // ✅ Utility function: Wait until SAP codes are loaded
-  const waitForSapCodesToLoad = async () => {
-    await waitFor(
-      () => {
-        const warning = screen.queryByText(/No SAP codes assigned/i);
-        expect(warning).not.toBeInTheDocument();
-      },
-      { timeout: 3000 }
-    );
-  };
-
-  it("should render form with SAP warning when no codes available", async () => {
+  it("should render upload form with all required fields", () => {
     render(<ReceiptUpload />);
-
-    // Wait for the component to load and show the warning
-    await waitFor(() => {
-      expect(
-        screen.getByText(/No SAP codes assigned to your account/i)
-      ).toBeInTheDocument();
-    });
-
-    // The form should still render
-    expect(
-      screen.getByText(/^Upload Receipt for Reimbursement$/)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/^Click to Upload Receipt$/)).toBeInTheDocument();
-  });
-
-  // ✅ Test: Component Renders Properly
-  it("renders upload form with all fields", async () => {
-    render(<ReceiptUpload />);
-
-    await waitForSapCodesToLoad();
 
     expect(
       screen.getByText("Upload Receipt for Reimbursement")
@@ -120,17 +40,14 @@ describe("ReceiptUpload Component", () => {
     expect(screen.getByLabelText(/Total Amount/i)).toBeInTheDocument();
   });
 
-  // // ✅ Test: Auto-select SAP Code
-  it("auto-selects SAP code when only one is available", async () => {
+  it("should auto-select SAP code when user has only one", () => {
     render(<ReceiptUpload />);
-    await waitForSapCodesToLoad();
 
     const sapCodeSelect = screen.getByLabelText(/SAP Code/i);
-    expect(sapCodeSelect).toBeInTheDocument();
+    expect(sapCodeSelect).toHaveValue("E-12345-6789");
   });
 
-  // // ✅ Test: Warning when no SAP Codes exist
-  it("shows warning when user has no SAP codes", async () => {
+  it("should show warning when user has no SAP codes", () => {
     useAppContext.mockReturnValue({
       showNotification: mockShowNotification,
       user: { ...mockUser, sap_code_1: null, sap_code_2: null },
@@ -138,21 +55,19 @@ describe("ReceiptUpload Component", () => {
 
     render(<ReceiptUpload />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/No SAP codes assigned/i)).toBeInTheDocument();
-    });
+    expect(screen.getByText(/No SAP codes assigned/i)).toBeInTheDocument();
   });
 
-  // // ✅ Test: Reject file > 5MB
-  it("rejects files larger than 5MB", async () => {
+  it("should reject files larger than 5MB", () => {
     render(<ReceiptUpload />);
-    await waitForSapCodesToLoad();
 
     const file = new File(["x".repeat(6 * 1024 * 1024)], "large.jpg", {
       type: "image/jpeg",
     });
-    const input = screen.getByTestId("receipt-upload");
 
+    const input = screen.getByLabelText(/receipt-upload/i, {
+      selector: "input",
+    });
     fireEvent.change(input, { target: { files: [file] } });
 
     expect(mockShowNotification).toHaveBeenCalledWith(
@@ -161,29 +76,26 @@ describe("ReceiptUpload Component", () => {
     );
   });
 
-  // // ✅ Test: Reject non-image files
-  it("rejects non-image files", async () => {
+  it("should reject non-image files", () => {
     render(<ReceiptUpload />);
-    await waitForSapCodesToLoad();
 
     const file = new File(["test"], "document.pdf", {
       type: "application/pdf",
     });
-    // const input = document.getElementById("receipt-upload");
-    const input = screen.getByTestId("receipt-upload");
 
+    const input = screen.getByLabelText(/receipt-upload/i, {
+      selector: "input",
+    });
     fireEvent.change(input, { target: { files: [file] } });
 
     expect(mockShowNotification).toHaveBeenCalledWith(
-      "Only JPG, JPEG, or PNG files are allowed",
+      "Please upload an image file",
       "error"
     );
   });
 
-  // // ✅ Test: Validate future dates
-  it("validates that future dates are not allowed", async () => {
+  it("should validate future dates", async () => {
     render(<ReceiptUpload />);
-    await waitForSapCodesToLoad();
 
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + 1);
@@ -197,41 +109,54 @@ describe("ReceiptUpload Component", () => {
 
     await waitFor(() => {
       expect(mockShowNotification).toHaveBeenCalledWith(
-        expect.stringMatching(
-          /Date cannot be in the future|Please fill in all required fields/i
-        ),
+        "Please fill in all required fields",
         "error"
       );
     });
   });
 
-  // // ✅ Test: Handle OCR Extraction
-  it("handles successful OCR extraction", async () => {
+  it("should handle successful OCR extraction", async () => {
+    const mockOCRResponse = {
+      cleanedText: "Receipt text",
+      structured: {
+        date: "15/01/2024",
+        merchant: "Test Store",
+        total: "100.50",
+        items: [
+          { description: "Item 1", price: 50.25 },
+          { description: "Item 2", price: 50.25 },
+        ],
+      },
+    };
+
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockOCRResponse,
+    });
+
     render(<ReceiptUpload />);
-    await waitForSapCodesToLoad();
 
     const file = new File(["test"], "receipt.jpg", { type: "image/jpeg" });
-    const input = screen.getByTestId("receipt-upload");
+    const input = screen.getByLabelText(/receipt-upload/i, {
+      selector: "input",
+    });
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => {
-      expect(screen.getByText(/Extract Text \(OCR\)/i)).toBeInTheDocument();
+      const ocrButton = screen.getByText(/Extract Text \(OCR\)/i);
+      fireEvent.click(ocrButton);
     });
-
-    fireEvent.click(screen.getByText(/Extract Text \(OCR\)/i));
 
     await waitFor(() => {
       expect(mockShowNotification).toHaveBeenCalledWith(
-        expect.stringMatching(/Receipt extracted|OCR completed/i),
+        expect.stringContaining("Receipt extracted"),
         "success"
       );
     });
   });
 
-  // // ✅ Test: Required fields validation
-  it("validates required fields before submission", async () => {
+  it("should validate required fields before submission", async () => {
     render(<ReceiptUpload />);
-    await waitForSapCodesToLoad();
 
     const submitButton = screen.getByText(/Submit for Approval/i);
     fireEvent.click(submitButton);
@@ -244,46 +169,35 @@ describe("ReceiptUpload Component", () => {
     });
   });
 
-  // // ✅ Test: Successful reimbursement submission
-  it("submits reimbursement successfully", async () => {
+  it("should successfully submit reimbursement with all data", async () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 1, status: "Pending" }),
+    });
+
     render(<ReceiptUpload />);
-    await waitForSapCodesToLoad();
 
+    // Fill in form
     const file = new File(["test"], "receipt.jpg", { type: "image/jpeg" });
-    fireEvent.change(screen.getByTestId("receipt-upload"), {
-      target: { files: [file] },
+    const input = screen.getByLabelText(/receipt-upload/i, {
+      selector: "input",
     });
+    fireEvent.change(input, { target: { files: [file] } });
 
-    //   // ✅ Select SAP Code (might not be auto-selected)
-    fireEvent.mouseDown(screen.getByLabelText(/SAP Code/i));
-    const sapCodeOption = await screen.findByRole("option", {
-      name: /E-12345-6789/i,
-    });
-    fireEvent.click(sapCodeOption);
+    const categorySelect = screen.getByLabelText(/Category/i);
+    fireEvent.change(categorySelect, { target: { value: "Meal with Client" } });
 
-    //   // ✅ Select Category
-    fireEvent.mouseDown(screen.getByLabelText(/Category/i));
-    const mealOption = await screen.findByRole("option", {
-      name: "Meal with Client",
-    });
-    fireEvent.click(mealOption);
+    const totalInput = screen.getByLabelText(/Total Amount/i);
+    fireEvent.change(totalInput, { target: { value: "100.50" } });
 
-    fireEvent.change(screen.getByLabelText(/Total Amount/i), {
-      target: { value: "100.50" },
-    });
-    fireEvent.change(screen.getByLabelText(/Purpose/i), {
-      target: { value: "Client meeting" },
-    });
-    fireEvent.change(screen.getByLabelText(/Description/i), {
-      target: { value: "Business lunch" },
-    });
+    const purposeInput = screen.getByLabelText(/Purpose/i);
+    fireEvent.change(purposeInput, { target: { value: "Client meeting" } });
 
-    // ✅ Add Date if required
-    fireEvent.change(screen.getByLabelText(/Date/i), {
-      target: { value: "2024-01-15" },
-    });
+    const descriptionInput = screen.getByLabelText(/Description/i);
+    fireEvent.change(descriptionInput, { target: { value: "Business lunch" } });
 
-    fireEvent.click(screen.getByText(/Submit for Approval/i));
+    const submitButton = screen.getByText(/Submit for Approval/i);
+    fireEvent.click(submitButton);
 
     await waitFor(() => {
       expect(mockShowNotification).toHaveBeenCalledWith(
@@ -293,104 +207,65 @@ describe("ReceiptUpload Component", () => {
     });
   });
 
-  // // ✅ Test: Submission error handling
-  it("handles submission error correctly", async () => {
-    // fetch.mockImplementationOnce((url) => {
-    //   if (url.includes("/api/users/settings")) {
-    //     return Promise.resolve({
-    //       ok: true,
-    //       json: async () => ({
-    //         data: {
-    //           sapCodes: [
-    //             { id: 1, code: "E-12345-6789", name: "Test SAP Code" },
-    //           ],
-    //         },
-    //       }),
-    //     });
-    //   }
-    //   // For other URLs, use the default mock behavior
-    //   return (
-    //     fetch.defaultMockImplementation?.(url) ||
-    //     Promise.resolve({
-    //       ok: true,
-    //       json: async () => ({}),
-    //     })
-    //   );
-    // });
-
-    // fetch.mockImplementationOnce((url) => {
-    //   if (url.includes("/api/reimbursements")) {
-    //     console.log("🎯 Mock: Rejecting reimbursement API");
-    //     return Promise.reject(new Error("Network error"));
-    //   }
-    //   // For other URLs, use the default mock behavior
-    //   return (
-    //     fetch.defaultMockImplementation?.(url) ||
-    //     Promise.resolve({
-    //       ok: true,
-    //       json: async () => ({}),
-    //     })
-    //   );
-    // });
-
-    global.fetch = jest
-      .fn()
-      // First call: SAP codes (success)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          data: {
-            sapCodes: [{ id: 1, code: "E-12345-6789", name: "Test SAP Code" }],
-          },
-        }),
-      })
-      // Second call: Reimbursement (failure)
-      .mockRejectedValueOnce(new Error("Network error"));
+  it("should clear form after successful submission", async () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 1 }),
+    });
 
     render(<ReceiptUpload />);
-    await waitForSapCodesToLoad();
+
+    // Submit form
+    const file = new File(["test"], "receipt.jpg", { type: "image/jpeg" });
+    const input = screen.getByLabelText(/receipt-upload/i, {
+      selector: "input",
+    });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    const totalInput = screen.getByLabelText(/Total Amount/i);
+    fireEvent.change(totalInput, { target: { value: "100.50" } });
+
+    const purposeInput = screen.getByLabelText(/Purpose/i);
+    fireEvent.change(purposeInput, { target: { value: "Test" } });
+
+    const descriptionInput = screen.getByLabelText(/Description/i);
+    fireEvent.change(descriptionInput, { target: { value: "Test desc" } });
+
+    const submitButton = screen.getByText(/Submit for Approval/i);
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(totalInput.value).toBe("");
+      expect(purposeInput.value).toBe("");
+    });
+  });
+
+  it("should handle submission error", async () => {
+    fetch.mockRejectedValueOnce(new Error("Network error"));
+
+    render(<ReceiptUpload />);
 
     const file = new File(["test"], "receipt.jpg", { type: "image/jpeg" });
-    fireEvent.change(screen.getByTestId("receipt-upload"), {
-      target: { files: [file] },
+    const input = screen.getByLabelText(/receipt-upload/i, {
+      selector: "input",
     });
+    fireEvent.change(input, { target: { files: [file] } });
 
-    // ✅ ADD MISSING REQUIRED FIELDS:
+    const totalInput = screen.getByLabelText(/Total Amount/i);
+    fireEvent.change(totalInput, { target: { value: "100" } });
 
-    // Select SAP Code
-    fireEvent.mouseDown(screen.getByLabelText(/SAP Code/i));
-    const sapCodeOption = await screen.findByRole("option", {
-      name: /E-12345-6789/i,
-    });
-    fireEvent.click(sapCodeOption);
+    const purposeInput = screen.getByLabelText(/Purpose/i);
+    fireEvent.change(purposeInput, { target: { value: "Test" } });
 
-    // Select Category
-    fireEvent.mouseDown(screen.getByLabelText(/Category/i));
-    const categoryOption = await screen.findByRole("option", {
-      name: /Meal with Client/i,
-    });
-    fireEvent.click(categoryOption);
+    const descriptionInput = screen.getByLabelText(/Description/i);
+    fireEvent.change(descriptionInput, { target: { value: "Test" } });
 
-    // Add Date if required
-    fireEvent.change(screen.getByLabelText(/Date/i), {
-      target: { value: "2024-01-15" },
-    });
-
-    fireEvent.change(screen.getByLabelText(/Total Amount/i), {
-      target: { value: "100" },
-    });
-    fireEvent.change(screen.getByLabelText(/Purpose/i), {
-      target: { value: "Test" },
-    });
-    fireEvent.change(screen.getByLabelText(/Description/i), {
-      target: { value: "Test" },
-    });
-
-    fireEvent.click(screen.getByText(/Submit for Approval/i));
+    const submitButton = screen.getByText(/Submit for Approval/i);
+    fireEvent.click(submitButton);
 
     await waitFor(() => {
       expect(mockShowNotification).toHaveBeenCalledWith(
-        expect.stringMatching(/Failed to submit reimbursement|Network error/i),
+        expect.stringContaining("Failed to submit"),
         "error"
       );
     });

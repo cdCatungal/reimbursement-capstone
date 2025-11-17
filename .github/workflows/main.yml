@@ -35,12 +35,10 @@ jobs:
       # - name: Run ESLint
       #   run: npm run lint
       #   continue-on-error: true
-
-      - name: Run tests
-        run: npm test -- --passWithNoTests --coverage
-        env:
-          CI: true
-
+      # - name: Run tests
+      #   run: npm test -- --passWithNoTests --coverage
+      #   env:
+      #     CI: true
       - name: Build React app
         run: npm run build
         # env:

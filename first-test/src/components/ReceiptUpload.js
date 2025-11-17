@@ -32,7 +32,6 @@ function ReceiptUpload() {
   const [imagePreview, setImagePreview] = useState(null);
   const [extractedText, setExtractedText] = useState("");
   const [formData, setFormData] = useState({
-<<<<<<< HEAD
     date: new Date().toISOString().split("T")[0],
     items: "",
     total: "",
@@ -40,17 +39,8 @@ function ReceiptUpload() {
     category: "Meal with Client",
     merchant: "",
     sap_code: "",
-=======
-    date: new Date().toISOString().split('T')[0],
-    items: '',
-    total: '',
-    description: '',
-    category: 'Meal with Client',
-    merchant: '',
-    sap_code: '',
     number_of_people: 1,
     number_of_days: 1,
->>>>>>> origin
   });
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -67,65 +57,76 @@ function ReceiptUpload() {
     "Other",
   ];
 
-<<<<<<< HEAD
-  const isInvoiceSpecialist = user?.role === "Invoice Specialist";
-=======
   // Category reimbursement limits
-const CATEGORY_LIMITS = {
-  'Overtime Meal': { maxPerUnit: 300, unit: 'fixed' },
-  'Meal with Client': { maxPerUnit: 800, unit: 'person' },
-  'Accomodation': { maxPerUnit: 2500, unit: 'day' }
-};
+  const CATEGORY_LIMITS = {
+    "Overtime Meal": { maxPerUnit: 300, unit: "fixed" },
+    "Meal with Client": { maxPerUnit: 800, unit: "person" },
+    Accomodation: { maxPerUnit: 2500, unit: "day" },
+  };
 
-// Calculate reimbursable amount based on category
-const calculateReimbursableAmount = (category, total, numPeople = 1, numDays = 1) => {
-  const totalAmount = parseFloat(total) || 0;
-  
-  if (!CATEGORY_LIMITS[category]) {
-    return totalAmount; // No limit for other categories
-  }
+  // Calculate reimbursable amount based on category
+  const calculateReimbursableAmount = (
+    category,
+    total,
+    numPeople = 1,
+    numDays = 1
+  ) => {
+    const totalAmount = parseFloat(total) || 0;
 
-  const limit = CATEGORY_LIMITS[category];
-  let maxReimbursable = 0;
+    if (!CATEGORY_LIMITS[category]) {
+      return totalAmount; // No limit for other categories
+    }
 
-  switch (category) {
-    case 'Overtime Meal':
-      maxReimbursable = Math.min(totalAmount, limit.maxPerUnit);
-      break;
-    case 'Meal with Client':
-      maxReimbursable = Math.min(totalAmount, limit.maxPerUnit * numPeople);
-      break;
-    case 'Accomodation':
-      maxReimbursable = Math.min(totalAmount, limit.maxPerUnit * numDays);
-      break;
-    default:
-      maxReimbursable = totalAmount;
-  }
+    const limit = CATEGORY_LIMITS[category];
+    let maxReimbursable = 0;
 
-  return maxReimbursable;
-};
+    switch (category) {
+      case "Overtime Meal":
+        maxReimbursable = Math.min(totalAmount, limit.maxPerUnit);
+        break;
+      case "Meal with Client":
+        maxReimbursable = Math.min(totalAmount, limit.maxPerUnit * numPeople);
+        break;
+      case "Accomodation":
+        maxReimbursable = Math.min(totalAmount, limit.maxPerUnit * numDays);
+        break;
+      default:
+        maxReimbursable = totalAmount;
+    }
 
-// Get helper text for reimbursable amount
-const getReimbursableAmountHelper = (category, numPeople, numDays) => {
-  if (!CATEGORY_LIMITS[category]) return '';
-  
-  const limit = CATEGORY_LIMITS[category];
-  
-  switch (category) {
-    case 'Overtime Meal':
-      return `Maximum reimbursable: ₱${limit.maxPerUnit.toFixed(2)}`;
-    case 'Meal with Client':
-      return `Maximum reimbursable: ₱${(limit.maxPerUnit * numPeople).toFixed(2)} (₱${limit.maxPerUnit}/person × ${numPeople} ${numPeople === 1 ? 'person' : 'people'})`;
-    case 'Accomodation':
-      return `Maximum reimbursable: ₱${(limit.maxPerUnit * numDays).toFixed(2)} (₱${limit.maxPerUnit}/day × ${numDays} ${numDays === 1 ? 'day' : 'days'})`;
-    default:
-      return '';
-  }
-};
+    return maxReimbursable;
+  };
+
+  // Get helper text for reimbursable amount
+  const getReimbursableAmountHelper = (category, numPeople, numDays) => {
+    if (!CATEGORY_LIMITS[category]) return "";
+
+    const limit = CATEGORY_LIMITS[category];
+
+    switch (category) {
+      case "Overtime Meal":
+        return `Maximum reimbursable: ₱${limit.maxPerUnit.toFixed(2)}`;
+      case "Meal with Client":
+        return `Maximum reimbursable: ₱${(limit.maxPerUnit * numPeople).toFixed(
+          2
+        )} (₱${limit.maxPerUnit}/person × ${numPeople} ${
+          numPeople === 1 ? "person" : "people"
+        })`;
+      case "Accomodation":
+        return `Maximum reimbursable: ₱${(limit.maxPerUnit * numDays).toFixed(
+          2
+        )} (₱${limit.maxPerUnit}/day × ${numDays} ${
+          numDays === 1 ? "day" : "days"
+        })`;
+      default:
+        return "";
+    }
+  };
 
   // ✅ Check if user bypasses SAP validation
-  const bypassesSapValidation = ['Invoice Specialist', 'SUL'].includes(user?.role);
->>>>>>> origin
+  const bypassesSapValidation = ["Invoice Specialist", "SUL"].includes(
+    user?.role
+  );
 
   useEffect(() => {
     if (user) {
@@ -323,17 +324,6 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
     }
   };
 
-<<<<<<< HEAD
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  };
-=======
->>>>>>> origin
-
   const validateDate = (dateString) => {
     const selectedDate = new Date(dateString);
     const today = new Date();
@@ -346,26 +336,29 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
   };
 
   const handleChange = (e) => {
-  const { name, value } = e.target;
-  
-  setFormData((prev) => {
-    const updated = { ...prev, [name]: value };
-    
-    // Recalculate reimbursable amount when relevant fields change
-    if (['category', 'total', 'number_of_people', 'number_of_days'].includes(name)) {
-      // No automatic recalculation here - we'll show it separately
+    const { name, value } = e.target;
+
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: value };
+
+      // Recalculate reimbursable amount when relevant fields change
+      if (
+        ["category", "total", "number_of_people", "number_of_days"].includes(
+          name
+        )
+      ) {
+        // No automatic recalculation here - we'll show it separately
+      }
+
+      return updated;
+    });
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
-    
-    return updated;
-  });
-  
-  if (errors[name]) {
-    setErrors((prev) => ({ ...prev, [name]: '' }));
-  }
-};
+  };
 
   const validateForm = () => {
-<<<<<<< HEAD
     const newErrors = {};
 
     const dateError = validateDate(formData.date);
@@ -380,12 +373,28 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
     if (!formData.description.trim())
       newErrors.description = "Description is required";
 
-    // Only validate SAP code if user is NOT an Invoice Specialist
-    if (!isInvoiceSpecialist && !formData.sap_code) {
+    // Validate number of people for Meal with Client
+    if (formData.category === "Meal with Client") {
+      const numPeople = parseInt(formData.number_of_people);
+      if (!numPeople || numPeople < 1) {
+        newErrors.number_of_people = "Number of people must be at least 1";
+      }
+    }
+
+    // Validate number of days for Accommodation
+    if (formData.category === "Accomodation") {
+      const numDays = parseInt(formData.number_of_days);
+      if (!numDays || numDays < 1) {
+        newErrors.number_of_days = "Number of days must be at least 1";
+      }
+    }
+
+    // Only validate SAP code if user doesn't bypass validation
+    if (!bypassesSapValidation && !formData.sap_code) {
       newErrors.sap_code = "SAP code is required";
     }
 
-    if (!image) newErrors.image = "Receipt image is required";
+    if (!image) newErrors.image = "Receipt file is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -400,116 +409,19 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
     if (!user) {
       showNotification("Please log in first", "error");
       return;
-=======
-  const newErrors = {};
- 
-  const dateError = validateDate(formData.date);
-  if (dateError) newErrors.date = dateError;
- 
-  if (!formData.date) newErrors.date = 'Date is required';
-  if (!formData.total || parseFloat(formData.total) <= 0) {
-    newErrors.total = 'Valid total amount is required';
-  }
-  if (!formData.category) newErrors.category = 'Category is required';
-  if (!formData.items.trim()) newErrors.items = 'Purpose is required';
-  if (!formData.description.trim()) newErrors.description = 'Description is required';
-  
-  // Validate number of people for Meal with Client
-  if (formData.category === 'Meal with Client') {
-    const numPeople = parseInt(formData.number_of_people);
-    if (!numPeople || numPeople < 1) {
-      newErrors.number_of_people = 'Number of people must be at least 1';
-    }
-  }
-  
-  // Validate number of days for Accommodation
-  if (formData.category === 'Accomodation') {
-    const numDays = parseInt(formData.number_of_days);
-    if (!numDays || numDays < 1) {
-      newErrors.number_of_days = 'Number of days must be at least 1';
-    }
-  }
-  
-  // Only validate SAP code if user doesn't bypass validation
-  if (!bypassesSapValidation && !formData.sap_code) {
-    newErrors.sap_code = 'SAP code is required';
-  }
-  
-  if (!image) newErrors.image = 'Receipt file is required';
- 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
-
-  const handleSubmit = async () => {
-  if (!validateForm()) {
-    showNotification('Please fill in all required fields', 'error');
-    return;
-  }
-
-  if (!user) {
-    showNotification('Please log in first', 'error');
-    return;
-  }
-
-  setSubmitting(true);
-
-  try {
-    // Calculate reimbursable amount
-    const reimbursableAmount = calculateReimbursableAmount(
-      formData.category,
-      formData.total,
-      parseInt(formData.number_of_people) || 1,
-      parseInt(formData.number_of_days) || 1
-    );
-
-    // Create FormData for multipart upload
-    const formDataToSend = new FormData();
-    formDataToSend.append('category', formData.category);
-    formDataToSend.append('type', formData.category);
-    formDataToSend.append('description', formData.description);
-    formDataToSend.append('items', formData.items);
-    formDataToSend.append('total', parseFloat(formData.total));
-    formDataToSend.append('reimbursable_amount', reimbursableAmount);
-    formDataToSend.append('merchant', formData.merchant);
-    formDataToSend.append('date_of_expense', formData.date);
-    formDataToSend.append('sap_code', formData.sap_code);
-    
-    // Add category-specific fields
-    if (formData.category === 'Meal with Client') {
-      formDataToSend.append('number_of_people', parseInt(formData.number_of_people));
-    }
-    if (formData.category === 'Accomodation') {
-      formDataToSend.append('number_of_days', parseInt(formData.number_of_days));
-    }
-    
-    // Append the actual file (image or PDF)
-    if (image) {
-      formDataToSend.append('receipt', image);
     }
 
-    const res = await fetch(`${process.env.REACT_APP_API_URL}/api/reimbursements`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${user.token}`,
-      },
-      body: formDataToSend,
-      credentials: 'include',
-    });
+    setSubmitting(true);
 
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.error || `Server responded with ${res.status}`);
->>>>>>> origin
-    }
-    
-    const data = await res.json();
-
-    showNotification('Reimbursement submitted successfully!', 'success');
-    console.log('Created reimbursement:', data);
-
-<<<<<<< HEAD
     try {
+      // Calculate reimbursable amount
+      const reimbursableAmount = calculateReimbursableAmount(
+        formData.category,
+        formData.total,
+        parseInt(formData.number_of_people) || 1,
+        parseInt(formData.number_of_days) || 1
+      );
+
       // Create FormData for multipart upload
       const formDataToSend = new FormData();
       formDataToSend.append("category", formData.category);
@@ -517,11 +429,26 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
       formDataToSend.append("description", formData.description);
       formDataToSend.append("items", formData.items);
       formDataToSend.append("total", parseFloat(formData.total));
+      formDataToSend.append("reimbursable_amount", reimbursableAmount);
       formDataToSend.append("merchant", formData.merchant);
       formDataToSend.append("date_of_expense", formData.date);
       formDataToSend.append("sap_code", formData.sap_code);
 
-      // Append the actual image file
+      // Add category-specific fields
+      if (formData.category === "Meal with Client") {
+        formDataToSend.append(
+          "number_of_people",
+          parseInt(formData.number_of_people)
+        );
+      }
+      if (formData.category === "Accomodation") {
+        formDataToSend.append(
+          "number_of_days",
+          parseInt(formData.number_of_days)
+        );
+      }
+
+      // Append the actual file (image or PDF)
       if (image) {
         formDataToSend.append("receipt", image);
       }
@@ -566,11 +493,9 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
         description: "",
         category: "Meal with Client",
         merchant: "",
-        sap_code: isInvoiceSpecialist
-          ? "INVOICE_SPECIALIST"
-          : availableSapCodes.length === 1
-          ? availableSapCodes[0]
-          : "",
+        sap_code: defaultSapCode,
+        number_of_people: 1,
+        number_of_days: 1,
       });
       setImage(null);
       setImagePreview(null);
@@ -586,35 +511,6 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
       setSubmitting(false);
     }
   };
-=======
-    // Reset form
-    const defaultSapCode = bypassesSapValidation 
-      ? (user.role === 'Invoice Specialist' ? 'INVOICE_SPECIALIST' : 'SUL_DIRECT')
-      : (availableSapCodes.length === 1 ? availableSapCodes[0] : '');
-
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      items: '',
-      total: '',
-      description: '',
-      category: 'Meal with Client',
-      merchant: '',
-      sap_code: defaultSapCode,
-      number_of_people: 1,
-      number_of_days: 1,
-    });
-    setImage(null);
-    setImagePreview(null);
-    setExtractedText('');
-    setErrors({});
-  } catch (err) {
-    console.error('Error submitting reimbursement:', err);
-    showNotification(err.message || 'Failed to submit reimbursement', 'error');
-  } finally {
-    setSubmitting(false);
-  }
-};
->>>>>>> origin
 
   const handleClearImage = () => {
     setImage(null);
@@ -862,7 +758,6 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
                 />
 
                 <TextField
-<<<<<<< HEAD
                   label="Total Amount (₱) *"
                   name="total"
                   type="number"
@@ -873,95 +768,109 @@ const getReimbursableAmountHelper = (category, numPeople, numDays) => {
                   error={!!errors.total}
                   helperText={errors.total}
                 />
-=======
-  label="Total Amount (₱) *"
-  name="total"
-  type="number"
-  value={formData.total}
-  onChange={handleChange}
-  fullWidth
-  inputProps={{ step: '0.01', min: '0' }}
-  error={!!errors.total}
-  helperText={errors.total}
-/>
 
-{/* Show Number of People field for Meal with Client */}
-{formData.category === 'Meal with Client' && (
-  <TextField
-    label="Number of People *"
-    name="number_of_people"
-    type="number"
-    value={formData.number_of_people}
-    onChange={handleChange}
-    fullWidth
-    inputProps={{ step: '1', min: '1' }}
-    error={!!errors.number_of_people}
-    helperText={errors.number_of_people || 'How many people attended the client meal?'}
-  />
-)}
+                {/* Show Number of People field for Meal with Client */}
+                {formData.category === "Meal with Client" && (
+                  <TextField
+                    label="Number of People *"
+                    name="number_of_people"
+                    type="number"
+                    value={formData.number_of_people}
+                    onChange={handleChange}
+                    fullWidth
+                    inputProps={{ step: "1", min: "1" }}
+                    error={!!errors.number_of_people}
+                    helperText={
+                      errors.number_of_people ||
+                      "How many people attended the client meal?"
+                    }
+                  />
+                )}
 
-{/* Show Number of Days field for Accommodation */}
-{formData.category === 'Accomodation' && (
-  <TextField
-    label="Number of Days *"
-    name="number_of_days"
-    type="number"
-    value={formData.number_of_days}
-    onChange={handleChange}
-    fullWidth
-    inputProps={{ step: '1', min: '1' }}
-    error={!!errors.number_of_days}
-    helperText={errors.number_of_days || 'How many days of accommodation?'}
-  />
-)}
+                {/* Show Number of Days field for Accommodation */}
+                {formData.category === "Accomodation" && (
+                  <TextField
+                    label="Number of Days *"
+                    name="number_of_days"
+                    type="number"
+                    value={formData.number_of_days}
+                    onChange={handleChange}
+                    fullWidth
+                    inputProps={{ step: "1", min: "1" }}
+                    error={!!errors.number_of_days}
+                    helperText={
+                      errors.number_of_days || "How many days of accommodation?"
+                    }
+                  />
+                )}
 
-{/* Reimbursable Amount Display - Show for categories with limits */}
-{['Overtime Meal', 'Meal with Client', 'Accomodation'].includes(formData.category) && formData.total && (
-  <Box
-    sx={{
-      p: 2,
-      bgcolor: 'info.light',
-      borderRadius: 1,
-      border: 1,
-      borderColor: 'info.main',
-    }}
-  >
-    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-      Reimbursable Amount:
-    </Typography>
-    <Typography variant="h6" sx={{ fontWeight: 700, color: 'info.dark' }}>
-      ₱{calculateReimbursableAmount(
-        formData.category,
-        formData.total,
-        parseInt(formData.number_of_people) || 1,
-        parseInt(formData.number_of_days) || 1
-      ).toFixed(2)}
-    </Typography>
-    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-      {getReimbursableAmountHelper(
-        formData.category,
-        parseInt(formData.number_of_people) || 1,
-        parseInt(formData.number_of_days) || 1
-      )}
-    </Typography>
-    {calculateReimbursableAmount(
-      formData.category,
-      formData.total,
-      parseInt(formData.number_of_people) || 1,
-      parseInt(formData.number_of_days) || 1
-    ) < parseFloat(formData.total) && (
-      <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 1, fontWeight: 600 }}>
-        ⚠️ Amount exceeds category limit. Only ₱{calculateReimbursableAmount(
-          formData.category,
-          formData.total,
-          parseInt(formData.number_of_people) || 1,
-          parseInt(formData.number_of_days) || 1
-        ).toFixed(2)} will be reimbursed.
-      </Typography>
-    )}
-  </Box>
-)}
->>>>>>> origin
+                {/* Reimbursable Amount Display - Show for categories with limits */}
+                {["Overtime Meal", "Meal with Client", "Accomodation"].includes(
+                  formData.category
+                ) &&
+                  formData.total && (
+                    <Box
+                      sx={{
+                        p: 2,
+                        bgcolor: "info.light",
+                        borderRadius: 1,
+                        border: 1,
+                        borderColor: "info.main",
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 0.5 }}
+                      >
+                        Reimbursable Amount:
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: 700, color: "info.dark" }}
+                      >
+                        ₱
+                        {calculateReimbursableAmount(
+                          formData.category,
+                          formData.total,
+                          parseInt(formData.number_of_people) || 1,
+                          parseInt(formData.number_of_days) || 1
+                        ).toFixed(2)}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", mt: 0.5 }}
+                      >
+                        {getReimbursableAmountHelper(
+                          formData.category,
+                          parseInt(formData.number_of_people) || 1,
+                          parseInt(formData.number_of_days) || 1
+                        )}
+                      </Typography>
+                      {calculateReimbursableAmount(
+                        formData.category,
+                        formData.total,
+                        parseInt(formData.number_of_people) || 1,
+                        parseInt(formData.number_of_days) || 1
+                      ) < parseFloat(formData.total) && (
+                        <Typography
+                          variant="caption"
+                          color="warning.main"
+                          sx={{ display: "block", mt: 1, fontWeight: 600 }}
+                        >
+                          ⚠️ Amount exceeds category limit. Only ₱
+                          {calculateReimbursableAmount(
+                            formData.category,
+                            formData.total,
+                            parseInt(formData.number_of_people) || 1,
+                            parseInt(formData.number_of_days) || 1
+                          ).toFixed(2)}{" "}
+                          will be reimbursed.
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
 
                 <TextField
                   label="Purpose *"

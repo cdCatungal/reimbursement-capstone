@@ -111,6 +111,24 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
     steps:
+      - name: Debug environment variables
+        run: |
+          echo "Testing database connection..."
+          echo "DATABASE_URL prefix: ${DATABASE_URL:0:20}..."  # Show first 20 chars only
+          node -e "
+          const sequelize = require('./src/config/db.js').default;
+          console.log('Database config loaded');
+          sequelize.authenticate()
+            .then(() => { 
+              console.log('✅ Database connection OK'); 
+              process.exit(0); 
+            })
+            .catch(err => { 
+              console.error('❌ Database connection failed:', err.message); 
+              console.log('Error details:', err.original?.message || 'No additional details');
+              process.exit(1); 
+            })"
+
       - name: Checkout code
         uses: actions/checkout@v4
 

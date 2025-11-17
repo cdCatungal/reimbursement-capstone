@@ -1,8 +1,7 @@
-// Key changes made to integrate PDF viewer:
-// 1. Added isPDF helper function at the top
-// 2. Modified receipt viewer section to conditionally render iframe for PDFs or img for images
-// 3. Hide zoom controls for PDF files (only show download button)
-// 4. Updated filename display to show "(PDF)" suffix for PDF files
+// Updated to match ReimbursementList.js display format:
+// - Changed "Amount" to "Total Amount" 
+// - Display number of people/days BEFORE reimbursable amount
+// - Keep consistent ordering and formatting
 
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -625,7 +624,7 @@ function SalesDirectorReimbursementList() {
                 <TableRow>
                   <TableCell sx={{ fontWeight: "bold" }}>EMPLOYEE</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>REQUEST</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>AMOUNT</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>REIMBURSABLE</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>DATES</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
@@ -664,7 +663,7 @@ function SalesDirectorReimbursementList() {
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: "medium" }}>
                         ₱
-                        {parseFloat(item.total).toLocaleString("en-PH", {
+                        {parseFloat(item.reimbursable_amount || item.total).toLocaleString("en-PH", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -724,7 +723,7 @@ function SalesDirectorReimbursementList() {
         </>
       )}
 
-      {/* Details Dialog - WITH PDF SUPPORT */}
+      {/* Details Dialog - WITH PDF SUPPORT AND UPDATED DISPLAY */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -851,7 +850,7 @@ function SalesDirectorReimbursementList() {
                         color="text.secondary"
                         sx={{ fontWeight: 600 }}
                       >
-                        Amount:
+                        Total Amount:
                       </Typography>
                       <Typography
                         variant="h6"

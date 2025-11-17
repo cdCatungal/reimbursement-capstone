@@ -492,7 +492,9 @@ function ReimbursementList() {
                 <TableRow>
                   <TableCell sx={{ fontWeight: "bold" }}>EMPLOYEE</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>REQUEST</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>AMOUNT</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    REIMBURSABLE
+                  </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>DATES</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
@@ -531,7 +533,9 @@ function ReimbursementList() {
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: "medium" }}>
                         ₱
-                        {parseFloat(item.total).toLocaleString("en-PH", {
+                        {parseFloat(
+                          item.reimbursable_amount || item.total
+                        ).toLocaleString("en-PH", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -719,7 +723,7 @@ function ReimbursementList() {
                         color="text.secondary"
                         sx={{ fontWeight: 600 }}
                       >
-                        Amount:
+                        Total Amount:
                       </Typography>
                       <Typography
                         variant="h6"
@@ -732,6 +736,35 @@ function ReimbursementList() {
                         )}
                       </Typography>
                     </Box>
+
+                    {selectedTicket.reimbursable_amount &&
+                      selectedTicket.reimbursable_amount <
+                        selectedTicket.total && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Reimbursable Amount:
+                          </Typography>
+                          <Typography
+                            variant="h6"
+                            sx={{ fontWeight: 700, color: "success.main" }}
+                          >
+                            ₱
+                            {parseFloat(
+                              selectedTicket.reimbursable_amount
+                            ).toLocaleString("en-PH", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </Typography>
+                          <Typography variant="caption" color="warning.main">
+                            (Limited by category maximum)
+                          </Typography>
+                        </Box>
+                      )}
 
                     {selectedTicket.category === "Meal with Client" &&
                       selectedTicket.number_of_people && (
@@ -767,35 +800,6 @@ function ReimbursementList() {
                             {selectedTicket.number_of_days === 1
                               ? "day"
                               : "days"}
-                          </Typography>
-                        </Box>
-                      )}
-
-                    {selectedTicket.reimbursable_amount &&
-                      selectedTicket.reimbursable_amount <
-                        selectedTicket.total && (
-                        <Box sx={{ mb: 2 }}>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ fontWeight: 600 }}
-                          >
-                            Reimbursable Amount:
-                          </Typography>
-                          <Typography
-                            variant="h6"
-                            sx={{ fontWeight: 700, color: "success.main" }}
-                          >
-                            ₱
-                            {parseFloat(
-                              selectedTicket.reimbursable_amount
-                            ).toLocaleString("en-PH", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </Typography>
-                          <Typography variant="caption" color="warning.main">
-                            (Limited by category maximum)
                           </Typography>
                         </Box>
                       )}

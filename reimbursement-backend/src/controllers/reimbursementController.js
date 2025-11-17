@@ -1,3 +1,4 @@
+// reimbursement-capstone/reimbursement-backend/src/controllers/reimbursementController.js
 import { Reimbursement, User, Approval, SapCode } from "../models/index.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import {
@@ -359,6 +360,7 @@ export async function getUserReimbursements(req, res) {
       type: r.type,
       description: r.description,
       total: r.total,
+      reimbursable_amount: r.reimbursable_amount,
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
@@ -502,6 +504,7 @@ export async function getPendingApprovals(req, res) {
       type: r.type,
       description: r.description,
       total: r.total,
+      reimbursable_amount: r.reimbursable_amount,
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
@@ -586,6 +589,7 @@ export async function getPendingAllApprovals(req, res) {
       type: r.type,
       description: r.description,
       total: r.total,
+      reimbursable_amount: r.reimbursable_amount,
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,

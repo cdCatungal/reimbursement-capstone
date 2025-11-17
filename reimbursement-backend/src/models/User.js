@@ -66,16 +66,6 @@ const User = sequelize.define('User', {
     },
     comment: 'SUL manually assigned to this Employee by Sales Director'
   },
-  
-  // ❌ DEPRECATED: Remove old SAP code fields (keep for migration, will drop later)
-  sap_code_1: {
-    type: DataTypes.STRING(20),
-    allowNull: true,
-  },
-  sap_code_2: {
-    type: DataTypes.STRING(20),
-    allowNull: true,
-  },
 });
 
 // ✅ NEW: Self-referencing relationship for SUL assignment

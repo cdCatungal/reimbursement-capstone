@@ -16,6 +16,12 @@ import {
   Alert,
   Backdrop,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Divider,
+  Stack,
 } from "@mui/material";
 import {
   CloudUpload,
@@ -23,6 +29,10 @@ import {
   Delete,
   CheckCircle,
   Refresh,
+  PictureAsPdf,
+  Edit,
+  Send,
+  Close,
 } from "@mui/icons-material";
 
 function ReceiptUpload() {
@@ -47,13 +57,14 @@ function ReceiptUpload() {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [errors, setErrors] = useState({});
   const [availableSapCodes, setAvailableSapCodes] = useState([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false); // NEW
 
   const categories = [
     "Transportation (Commute)",
     "Transportation (Drive)",
     "Meal with Client",
     "Overtime Meal",
-    "Accomodation",
+    "Accommodation",
     "Other",
   ];
 
@@ -61,7 +72,7 @@ function ReceiptUpload() {
   const CATEGORY_LIMITS = {
     "Overtime Meal": { maxPerUnit: 300, unit: "fixed" },
     "Meal with Client": { maxPerUnit: 800, unit: "person" },
-    Accomodation: { maxPerUnit: 2500, unit: "day" },
+    Accommodation: { maxPerUnit: 2500, unit: "person-day" },
   };
 
   // Calculate reimbursable amount based on category
@@ -87,8 +98,11 @@ function ReceiptUpload() {
       case "Meal with Client":
         maxReimbursable = Math.min(totalAmount, limit.maxPerUnit * numPeople);
         break;
-      case "Accomodation":
-        maxReimbursable = Math.min(totalAmount, limit.maxPerUnit * numDays);
+      case "Accommodation":
+        maxReimbursable = Math.min(
+          totalAmount,
+          limit.maxPerUnit * numPeople * numDays
+        );
         break;
       default:
         maxReimbursable = totalAmount;
@@ -112,12 +126,14 @@ function ReceiptUpload() {
         )} (₱${limit.maxPerUnit}/person × ${numPeople} ${
           numPeople === 1 ? "person" : "people"
         })`;
-      case "Accomodation":
-        return `Maximum reimbursable: ₱${(limit.maxPerUnit * numDays).toFixed(
-          2
-        )} (₱${limit.maxPerUnit}/day × ${numDays} ${
-          numDays === 1 ? "day" : "days"
-        })`;
+      case "Accommodation":
+        return `Maximum reimbursable: ₱${(
+          limit.maxPerUnit *
+          numPeople *
+          numDays
+        ).toFixed(2)} (₱${limit.maxPerUnit}/person/day × ${numPeople} ${
+          numPeople === 1 ? "person" : "people"
+        } × ${numDays} ${numDays === 1 ? "day" : "days"})`;
       default:
         return "";
     }
@@ -133,12 +149,14 @@ function ReceiptUpload() {
       // Fetch user's SAP codes from settings endpoint
       fetchUserSapCodes();
 
-      // Set default for Invoice Specialist
-      if (isInvoiceSpecialist) {
+      // ✅ Set default for roles that bypass SAP validation
+      if (user.role === "Invoice Specialist") {
         setFormData((prev) => ({ ...prev, sap_code: "INVOICE_SPECIALIST" }));
+      } else if (user.role === "SUL") {
+        setFormData((prev) => ({ ...prev, sap_code: "SUL_DIRECT" }));
       }
     }
-  }, [user, isInvoiceSpecialist]);
+  }, [user]);
 
   const fetchUserSapCodes = async () => {
     try {
@@ -155,7 +173,7 @@ function ReceiptUpload() {
         setAvailableSapCodes(codes);
 
         // Auto-select if only one SAP code
-        if (codes.length === 1) {
+        if (codes.length === 1 && !bypassesSapValidation) {
           setFormData((prev) => ({ ...prev, sap_code: codes[0] }));
         }
 
@@ -166,15 +184,19 @@ function ReceiptUpload() {
       }
     } catch (error) {
       console.error("Failed to fetch SAP codes:", error);
-      showNotification("Failed to load SAP codes", "error");
+      // ✅ Only show error if user doesn't bypass SAP validation
+      if (!bypassesSapValidation) {
+        showNotification("Failed to load SAP codes", "error");
+      }
     }
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const allowedTypes = ["image/jpeg", "image/png"];
-      const allowedExtensions = ["jpg", "jpeg", "png"];
+      // ✅ UPDATED: Added PDF support
+      const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+      const allowedExtensions = ["jpg", "jpeg", "png", "pdf"];
 
       const fileExtension = file.name.split(".").pop().toLowerCase();
 
@@ -183,7 +205,10 @@ function ReceiptUpload() {
         !allowedTypes.includes(file.type) ||
         !allowedExtensions.includes(fileExtension)
       ) {
-        showNotification("Only JPG, JPEG, or PNG files are allowed", "error");
+        showNotification(
+          "Only JPG, JPEG, PNG, or PDF files are allowed",
+          "error"
+        );
         return;
       }
 
@@ -196,15 +221,20 @@ function ReceiptUpload() {
       setExtractedText("");
       setErrors((prev) => ({ ...prev, image: "" }));
 
-      const reader = new FileReader();
-      reader.onload = (event) => setImagePreview(event.target.result);
-      reader.readAsDataURL(file);
+      // ✅ UPDATED: Only create preview for image files, not PDFs
+      if (file.type !== "application/pdf") {
+        const reader = new FileReader();
+        reader.onload = (event) => setImagePreview(event.target.result);
+        reader.readAsDataURL(file);
+      } else {
+        setImagePreview("pdf");
+      }
     }
   };
 
   const handleOCR = async () => {
     if (!image) {
-      showNotification("Please select an image first", "warning");
+      showNotification("Please select a file first", "warning");
       return;
     }
 
@@ -340,16 +370,6 @@ function ReceiptUpload() {
 
     setFormData((prev) => {
       const updated = { ...prev, [name]: value };
-
-      // Recalculate reimbursable amount when relevant fields change
-      if (
-        ["category", "total", "number_of_people", "number_of_days"].includes(
-          name
-        )
-      ) {
-        // No automatic recalculation here - we'll show it separately
-      }
-
       return updated;
     });
 
@@ -382,10 +402,14 @@ function ReceiptUpload() {
     }
 
     // Validate number of days for Accommodation
-    if (formData.category === "Accomodation") {
+    if (formData.category === "Accommodation") {
       const numDays = parseInt(formData.number_of_days);
       if (!numDays || numDays < 1) {
         newErrors.number_of_days = "Number of days must be at least 1";
+      }
+      const numPeople = parseInt(formData.number_of_people);
+      if (!numPeople || numPeople < 1) {
+        newErrors.number_of_people = "Number of people must be at least 1";
       }
     }
 
@@ -400,7 +424,8 @@ function ReceiptUpload() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
+  // NEW: Handle opening confirmation modal
+  const handleSubmitClick = () => {
     if (!validateForm()) {
       showNotification("Please fill in all required fields", "error");
       return;
@@ -411,6 +436,13 @@ function ReceiptUpload() {
       return;
     }
 
+    // Open confirmation modal
+    setShowConfirmModal(true);
+  };
+
+  // NEW: Handle actual submission
+  const handleConfirmSubmit = async () => {
+    setShowConfirmModal(false);
     setSubmitting(true);
 
     try {
@@ -441,10 +473,14 @@ function ReceiptUpload() {
           parseInt(formData.number_of_people)
         );
       }
-      if (formData.category === "Accomodation") {
+      if (formData.category === "Accommodation") {
         formDataToSend.append(
           "number_of_days",
           parseInt(formData.number_of_days)
+        );
+        formDataToSend.append(
+          "number_of_people",
+          parseInt(formData.number_of_people)
         );
       }
 
@@ -519,6 +555,324 @@ function ReceiptUpload() {
     setErrors((prev) => ({ ...prev, image: "" }));
   };
 
+  // NEW: Confirmation Modal Component
+  const ConfirmationModal = () => {
+    const reimbursableAmount = calculateReimbursableAmount(
+      formData.category,
+      formData.total,
+      parseInt(formData.number_of_people) || 1,
+      parseInt(formData.number_of_days) || 1
+    );
+
+    const totalAmount = parseFloat(formData.total) || 0;
+    const hasLimit = CATEGORY_LIMITS[formData.category];
+    const isOverLimit = hasLimit && reimbursableAmount < totalAmount;
+
+    return (
+      <Dialog
+        open={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: "primary.main",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Review Your Reimbursement Request
+          </Typography>
+          <IconButton
+            onClick={() => setShowConfirmModal(false)}
+            sx={{ color: "white" }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ mt: 2 }}>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            Please review all details carefully before submitting. Once
+            submitted, your request will be sent to the approval workflow.
+          </Alert>
+
+          <Stack spacing={2}>
+            {/* Receipt Preview */}
+            <Box>
+              <Typography
+                variant="subtitle2"
+                color="text.secondary"
+                sx={{ mb: 1 }}
+              >
+                Receipt Attachment:
+              </Typography>
+              <Paper
+                sx={{
+                  p: 2,
+                  bgcolor: "action.hover",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                {image?.type === "application/pdf" ? (
+                  <>
+                    <PictureAsPdf color="primary" sx={{ fontSize: 40 }} />
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {image.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        PDF • {(image.size / 1024 / 1024).toFixed(2)} MB
+                      </Typography>
+                    </Box>
+                  </>
+                ) : imagePreview ? (
+                  <>
+                    <img
+                      src={imagePreview}
+                      alt="Receipt"
+                      style={{
+                        width: 60,
+                        height: 60,
+                        objectFit: "cover",
+                        borderRadius: 4,
+                      }}
+                    />
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {image?.name || "Receipt Image"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Image •{" "}
+                        {image ? (image.size / 1024 / 1024).toFixed(2) : "0"} MB
+                      </Typography>
+                    </Box>
+                  </>
+                ) : null}
+              </Paper>
+            </Box>
+
+            <Divider />
+
+            {/* Form Data Review */}
+            <Grid container spacing={2}>
+              {!bypassesSapValidation && (
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    SAP Code
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    {formData.sap_code}
+                  </Typography>
+                </Grid>
+              )}
+
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Category
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                  {formData.category}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Date of Expense
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                  {new Date(formData.date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </Typography>
+              </Grid>
+
+              {formData.merchant && (
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Merchant/Vendor
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    {formData.merchant}
+                  </Typography>
+                </Grid>
+              )}
+
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Total Amount
+                </Typography>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    color: "#1565c0", // Darker blue for better contrast
+                    mt: 0.5,
+                  }}
+                >
+                  ₱{parseFloat(formData.total).toFixed(2)}
+                </Typography>
+              </Grid>
+
+              {formData.category === "Meal with Client" && (
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Number of People
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    {formData.number_of_people}{" "}
+                    {parseInt(formData.number_of_people) === 1
+                      ? "person"
+                      : "people"}
+                  </Typography>
+                </Grid>
+              )}
+
+              {formData.category === "Accommodation" && (
+                <>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Number of Days
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                      {formData.number_of_days}{" "}
+                      {parseInt(formData.number_of_days) === 1 ? "day" : "days"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">
+                      Number of People
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                      {formData.number_of_people}{" "}
+                      {parseInt(formData.number_of_people) === 1
+                        ? "person"
+                        : "people"}
+                    </Typography>
+                  </Grid>
+                </>
+              )}
+
+              {/* Reimbursable Amount */}
+              <Grid item xs={12}>
+                <Paper
+                  sx={{
+                    p: 2,
+                    bgcolor: isOverLimit ? "#fff3e0" : "#e8f5e9",
+                    border: 1,
+                    borderColor: isOverLimit ? "#f57c00" : "#2e7d32",
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    Reimbursable Amount
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 700,
+                      color: isOverLimit ? "#d84315" : "#1b5e20",
+                      mt: 0.5,
+                    }}
+                  >
+                    ₱{reimbursableAmount.toFixed(2)}
+                  </Typography>
+                  {hasLimit && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: 1 }}
+                    >
+                      {getReimbursableAmountHelper(
+                        formData.category,
+                        parseInt(formData.number_of_people) || 1,
+                        parseInt(formData.number_of_days) || 1
+                      )}
+                    </Typography>
+                  )}
+                  {isOverLimit && (
+                    <Alert severity="warning" sx={{ mt: 1 }}>
+                      Your total amount exceeds the category limit. Only ₱
+                      {reimbursableAmount.toFixed(2)} will be reimbursed.
+                    </Alert>
+                  )}
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Typography variant="caption" color="text.secondary">
+                  Purpose
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    mt: 0.5,
+                    whiteSpace: "pre-wrap",
+                    bgcolor: "action.hover",
+                    p: 1.5,
+                    borderRadius: 1,
+                  }}
+                >
+                  {formData.items}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Typography variant="caption" color="text.secondary">
+                  Description
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    mt: 0.5,
+                    whiteSpace: "pre-wrap",
+                    bgcolor: "action.hover",
+                    p: 1.5,
+                    borderRadius: 1,
+                  }}
+                >
+                  {formData.description}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Stack>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button
+            onClick={() => setShowConfirmModal(false)}
+            startIcon={<Edit />}
+            variant="outlined"
+            size="large"
+          >
+            Continue Editing
+          </Button>
+          <Button
+            onClick={handleConfirmSubmit}
+            startIcon={<Send />}
+            variant="contained"
+            size="large"
+            sx={{
+              bgcolor: "#2e7d32",
+              "&:hover": {
+                bgcolor: "#1b5e20",
+              },
+            }}
+          >
+            Submit Request
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
   return (
     <>
       <Card>
@@ -527,7 +881,8 @@ function ReceiptUpload() {
             Upload Receipt for Reimbursement
           </Typography>
 
-          {availableSapCodes.length === 0 && !isInvoiceSpecialist && (
+          {/* ✅ Show warning only if SAP codes required but none available */}
+          {!bypassesSapValidation && availableSapCodes.length === 0 && (
             <Alert severity="warning" sx={{ mb: 3 }}>
               No SAP codes assigned to your account. Please contact your Sales
               Director.
@@ -556,22 +911,61 @@ function ReceiptUpload() {
                 {imagePreview ? (
                   <Box>
                     <Box sx={{ position: "relative", mb: 2 }}>
-                      <img
-                        src={imagePreview}
-                        alt="Receipt preview"
-                        style={{
-                          maxWidth: "100%",
-                          maxHeight: "400px",
-                          borderRadius: "8px",
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                        }}
-                        onError={() =>
-                          showNotification(
-                            "Failed to load image preview",
-                            "error"
-                          )
-                        }
-                      />
+                      {/* ✅ UPDATED: Handle PDF preview differently */}
+                      {image && image.type === "application/pdf" ? (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minHeight: "200px",
+                            bgcolor: "background.paper",
+                            borderRadius: "8px",
+                            border: "2px solid",
+                            borderColor: "primary.main",
+                            p: 3,
+                          }}
+                        >
+                          <PictureAsPdf
+                            sx={{ fontSize: 64, color: "primary.main", mb: 2 }}
+                          />
+                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            PDF Receipt Uploaded
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ mt: 1 }}
+                          >
+                            {image.name}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ mt: 0.5 }}
+                          >
+                            {(image.size / 1024 / 1024).toFixed(2)} MB
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <img
+                          src={imagePreview}
+                          alt="Receipt preview"
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "400px",
+                            borderRadius: "8px",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          }}
+                          onError={() =>
+                            showNotification(
+                              "Failed to load image preview",
+                              "error"
+                            )
+                          }
+                        />
+                      )}
                       <IconButton
                         onClick={handleClearImage}
                         sx={{
@@ -619,9 +1013,9 @@ function ReceiptUpload() {
                     htmlFor="receipt-upload"
                     style={{ cursor: "pointer", display: "block" }}
                   >
+                    {/* ✅ UPDATED: Added .pdf to accept attribute */}
                     <input
                       id="receipt-upload"
-                      data-testid="receipt-upload"
                       type="file"
                       accept=".jpg, .jpeg, .png, .pdf"
                       onChange={handleImageChange}
@@ -683,7 +1077,8 @@ function ReceiptUpload() {
 
             <Grid item xs={12} md={6}>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-                {!isInvoiceSpecialist && (
+                {/* ✅ Only show SAP code selector for roles that need it */}
+                {!bypassesSapValidation && (
                   <TextField
                     select
                     label="SAP Code *"
@@ -788,34 +1183,53 @@ function ReceiptUpload() {
                 )}
 
                 {/* Show Number of Days field for Accommodation */}
-                {formData.category === "Accomodation" && (
-                  <TextField
-                    label="Number of Days *"
-                    name="number_of_days"
-                    type="number"
-                    value={formData.number_of_days}
-                    onChange={handleChange}
-                    fullWidth
-                    inputProps={{ step: "1", min: "1" }}
-                    error={!!errors.number_of_days}
-                    helperText={
-                      errors.number_of_days || "How many days of accommodation?"
-                    }
-                  />
+                {formData.category === "Accommodation" && (
+                  <>
+                    <TextField
+                      label="Number of Days *"
+                      name="number_of_days"
+                      type="number"
+                      value={formData.number_of_days}
+                      onChange={handleChange}
+                      fullWidth
+                      inputProps={{ step: "1", min: "1" }}
+                      error={!!errors.number_of_days}
+                      helperText={
+                        errors.number_of_days ||
+                        "How many days of accommodation?"
+                      }
+                    />
+                    <TextField
+                      label="Number of People *"
+                      name="number_of_people"
+                      type="number"
+                      value={formData.number_of_people}
+                      onChange={handleChange}
+                      fullWidth
+                      inputProps={{ step: "1", min: "1" }}
+                      error={!!errors.number_of_people}
+                      helperText={
+                        errors.number_of_people ||
+                        "How many people will use the accommodation?"
+                      }
+                    />
+                  </>
                 )}
 
                 {/* Reimbursable Amount Display - Show for categories with limits */}
-                {["Overtime Meal", "Meal with Client", "Accomodation"].includes(
-                  formData.category
-                ) &&
+                {[
+                  "Overtime Meal",
+                  "Meal with Client",
+                  "Accommodation",
+                ].includes(formData.category) &&
                   formData.total && (
                     <Box
                       sx={{
                         p: 2,
-                        bgcolor: "info.light",
+                        bgcolor: "grey.100",
                         borderRadius: 1,
                         border: 1,
-                        borderColor: "info.main",
+                        borderColor: "success.main",
                       }}
                     >
                       <Typography
@@ -827,7 +1241,7 @@ function ReceiptUpload() {
                       </Typography>
                       <Typography
                         variant="h6"
-                        sx={{ fontWeight: 700, color: "info.dark" }}
+                        sx={{ fontWeight: 700, color: "#1b5e20" }}
                       >
                         ₱
                         {calculateReimbursableAmount(
@@ -903,7 +1317,7 @@ function ReceiptUpload() {
 
                 <Button
                   variant="contained"
-                  onClick={handleSubmit}
+                  onClick={handleSubmitClick}
                   size="large"
                   startIcon={<CheckCircle />}
                   sx={{
@@ -921,7 +1335,8 @@ function ReceiptUpload() {
                   }}
                   disabled={
                     loading ||
-                    (!isInvoiceSpecialist && availableSapCodes.length === 0) ||
+                    (!bypassesSapValidation &&
+                      availableSapCodes.length === 0) ||
                     submitting
                   }
                 >
@@ -932,6 +1347,9 @@ function ReceiptUpload() {
           </Grid>
         </CardContent>
       </Card>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal />
 
       {/* Backdrop Loader for Submission */}
       <Backdrop

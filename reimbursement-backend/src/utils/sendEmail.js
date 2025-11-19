@@ -143,19 +143,22 @@ export async function sendEmail(to, subject, html, cc = null) {
  * Generate plain text version from HTML (essential for deliverability)
  */
 function generatePlainText(html) {
-  // Simple HTML to text conversion
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<p\s*\/?>/gi, "\n\n")
-    .replace(/<h[1-6]\s*\/?>/gi, "\n\n")
-    .replace(/<[^>]*>/g, "") // Remove all HTML tags
-    .replace(/\n{3,}/g, "\n\n") // Limit consecutive newlines
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .trim();
+  return html.replace(/<[^>]*>/g, "").trim();
 }
+// function generatePlainText(html) {
+//   // Simple HTML to text conversion
+//   return html
+//     .replace(/<br\s*\/?>/gi, "\n")
+//     .replace(/<p\s*\/?>/gi, "\n\n")
+//     .replace(/<h[1-6]\s*\/?>/gi, "\n\n")
+//     .replace(/<[^>]*>/g, "") // Remove all HTML tags
+//     .replace(/\n{3,}/g, "\n\n") // Limit consecutive newlines
+//     .replace(/&nbsp;/g, " ")
+//     .replace(/&amp;/g, "&")
+//     .replace(/&lt;/g, "<")
+//     .replace(/&gt;/g, ">")
+//     .trim();
+// }
 
 /**
  * Verify SendGrid configuration

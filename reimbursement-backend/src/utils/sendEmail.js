@@ -85,7 +85,7 @@ export async function sendEmail(to, subject, html, cc = null) {
       Messages: [
         {
           From: {
-            Email: "ermtback@gmail.com", // Your verified sender
+            Email: "ernitback@gmail.com", // Your verified sender
             Name: "ERNIt Reimbursement System",
           },
           To: [

@@ -29,6 +29,11 @@ import {
   Autocomplete,
   Alert,
   Divider,
+  Collapse,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -41,6 +46,9 @@ import {
   CheckCircle as CheckCircleIcon,
   AccountBalance as AccountBalanceIcon,
   Assignment as AssignmentIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  PersonOutline as PersonOutlineIcon,
 } from "@mui/icons-material";
 import { useManageUsersStore } from "../store/manageUsersStore.js";
 import { useManageSapCodesStore } from "../store/manageSapCodesStore.js";
@@ -64,6 +72,9 @@ function ManageUsers() {
     isActive: true,
   });
   const [formErrors, setFormErrors] = useState({});
+  
+  // ✅ NEW: State for showing subordinates
+  const [showSubordinates, setShowSubordinates] = useState(false);
 
   // Pagination state - 10 items per page for users
   const [page, setPage] = useState(1);
@@ -113,7 +124,6 @@ function ManageUsers() {
     "Admin",
   ];
 
-  // ✅ Account Manager removed - they now need SAP codes too (for submissions)
   const rolesWithoutSapCodes = [
     "Admin",
     "Invoice Specialist",
@@ -143,6 +153,11 @@ function ManageUsers() {
     return sapCodes.filter(sc => sc.account_manager_id === userId);
   };
 
+  // ✅ NEW: Get subordinates (employees assigned to this SUL)
+  const getSubordinates = (sulId) => {
+    return users.filter(user => user.assigned_sul_id === sulId && user.role === 'Employee');
+  };
+
   const handleEditClick = (user) => {
     setSelectedUser(user);
     
@@ -156,6 +171,7 @@ function ManageUsers() {
       isActive: user.isActive !== undefined ? user.isActive : true,
     });
     setFormErrors({});
+    setShowSubordinates(false); // Reset subordinates view when opening modal
     setEditDialogOpen(true);
   };
 
@@ -169,12 +185,13 @@ function ManageUsers() {
       isActive: true 
     });
     setFormErrors({});
+    setShowSubordinates(false);
   };
 
   const handleSubmitEdit = async () => {
     const errors = {};
 
-    // ✅ Both Employee and Account Manager require SAP codes
+    // Both Employee and Account Manager require SAP codes
     if (formData.role === 'Employee' || formData.role === 'Account Manager') {
       if (!formData.sap_code_ids || formData.sap_code_ids.length === 0) {
         errors.sap_code_ids = `At least one SAP code is required for ${formData.role}s`;
@@ -284,7 +301,6 @@ function ManageUsers() {
                 <TableHead>
                   <TableRow sx={{ bgcolor: "action.hover" }}>
                     <TableCell sx={{ fontWeight: "bold" }}>User</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Email</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>Role</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>SAP Code(s)</TableCell>
@@ -329,11 +345,6 @@ function ManageUsers() {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" color="text.secondary">
-                            {user.email}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
                           <Chip
                             label={user.role}
                             size="small"
@@ -350,10 +361,8 @@ function ManageUsers() {
                           />
                         </TableCell>
                         <TableCell>
-                          {/* ✅ Show BOTH managed and assigned SAP codes for Account Managers */}
                           {user.role === 'Account Manager' ? (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                              {/* Managed SAP Codes (for approval) */}
                               {managedSapCodes.length > 0 && (
                                 <Box>
                                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
@@ -374,7 +383,6 @@ function ManageUsers() {
                                 </Box>
                               )}
                               
-                              {/* Assigned SAP Codes (for submission) */}
                               {assignedSapCodes.length > 0 && (
                                 <Box>
                                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
@@ -552,6 +560,8 @@ function ManageUsers() {
                   <Typography variant="body2" color="text.secondary">{selectedUser.email}</Typography>
                 </Box>
 
+                
+
                 {/* Account Status Toggle */}
                 <Box 
                   sx={{ 
@@ -595,11 +605,11 @@ function ManageUsers() {
                     setFormData({
                       ...formData,
                       role: newRole,
-                      // Keep SAP codes for Employee and Account Manager
                       sap_code_ids: (newRole === 'Employee' || newRole === 'Account Manager') ? formData.sap_code_ids : [],
                       assigned_sul_id: newRole === 'Employee' ? formData.assigned_sul_id : null,
                     });
                     setFormErrors({});
+                    setShowSubordinates(false); // Reset subordinates view when role changes
                   }}
                   fullWidth
                   required
@@ -611,7 +621,7 @@ function ManageUsers() {
                   ))}
                 </TextField>
 
-                {/* ✅ Employee and Account Manager: SAP Code Assignment */}
+                {/* Employee and Account Manager: SAP Code Assignment */}
                 {(formData.role === 'Employee' || formData.role === 'Account Manager') && (
                   <>
                     <Autocomplete
@@ -654,7 +664,7 @@ function ManageUsers() {
                       }
                     />
 
-                    {/* ✅ Account Manager: Show managed SAP codes info */}
+                    {/* Account Manager: Show managed SAP codes info */}
                     {formData.role === 'Account Manager' && (
                       <Box sx={{ p: 2, bgcolor: "info.lighter", borderRadius: 1, border: 1, borderColor: "info.main" }}>
                         <Typography variant="body2" fontWeight="bold" color="info.dark" sx={{ mb: 1 }}>
@@ -698,7 +708,7 @@ function ManageUsers() {
                   </>
                 )}
 
-                {/* ✅ Employee: SUL Assignment */}
+                {/* Employee: SUL Assignment */}
                 {formData.role === 'Employee' && (
                   <TextField
                     select
@@ -722,17 +732,110 @@ function ManageUsers() {
                   </TextField>
                 )}
 
-                {/* SUL Role Info */}
+                {/* ✅ NEW: Show Subordinates Toggle for SUL users */}
                 {formData.role === 'SUL' && (
-                  <Box sx={{ p: 2, bgcolor: "info.lighter", borderRadius: 1 }}>
-                    <Typography variant="body2" color="info.main">
-                      SULs manage employees but do not have SAP codes themselves. They are assigned to employees by Sales Directors.
-                    </Typography>
+                  <Box 
+                    sx={{ 
+                      p: 2, 
+                      bgcolor: "primary.lighter", 
+                      borderRadius: 1,
+                      border: 1,
+                      borderColor: "primary.main"
+                    }}
+                  >
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      color="primary"
+                      startIcon={showSubordinates ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                      onClick={() => setShowSubordinates(!showSubordinates)}
+                      sx={{ mb: showSubordinates ? 2 : 0 }}
+                    >
+                      {showSubordinates ? 'Hide Subordinates' : 'Show Subordinates'}
+                    </Button>
+
+                    <Collapse in={showSubordinates}>
+                      {(() => {
+                        const subordinates = getSubordinates(selectedUser.id);
+                        
+                        if (subordinates.length === 0) {
+                          return (
+                            <Alert severity="info">
+                              This SUL has no employees assigned yet.
+                            </Alert>
+                          );
+                        }
+
+                        return (
+                          <>
+                            <Typography variant="body2" fontWeight="bold" color="primary.dark" sx={{ mb: 1 }}>
+                              <PeopleIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+                              Assigned Employees ({subordinates.length})
+                            </Typography>
+                            <Divider sx={{ mb: 2 }} />
+                            <List sx={{ bgcolor: 'background.paper', borderRadius: 1, maxHeight: 300, overflow: 'auto' }}>
+                              {subordinates.map((employee, index) => (
+                                <React.Fragment key={employee.id}>
+                                  {index > 0 && <Divider variant="inset" component="li" />}
+                                  <ListItem>
+                                    <ListItemAvatar>
+                                      <Avatar 
+                                        src={employee.profilePicture}
+                                        sx={{ bgcolor: 'primary.main' }}
+                                      >
+                                        {employee.name.charAt(0)}
+                                      </Avatar>
+                                    </ListItemAvatar>
+                                    <ListItemText
+                                      primary={
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                          <Typography variant="body2" fontWeight="medium">
+                                            {employee.name}
+                                          </Typography>
+                                          {!employee.isActive && (
+                                            <Chip 
+                                              label="Inactive" 
+                                              size="small" 
+                                              color="default" 
+                                              variant="outlined"
+                                            />
+                                          )}
+                                        </Box>
+                                      }
+                                      secondary={
+                                        <Box sx={{ mt: 0.5 }}>
+                                          <Typography variant="caption" color="text.secondary" display="block">
+                                            {employee.email}
+                                          </Typography>
+                                          {employee.sapCodes && employee.sapCodes.length > 0 && (
+                                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                                              {employee.sapCodes.map((sc) => (
+                                                <Chip
+                                                  key={sc.id}
+                                                  label={sc.code}
+                                                  size="small"
+                                                  variant="outlined"
+                                                  sx={{ height: 20, fontSize: '0.7rem' }}
+                                                />
+                                              ))}
+                                            </Box>
+                                          )}
+                                        </Box>
+                                      }
+                                    />
+                                  </ListItem>
+                                </React.Fragment>
+                              ))}
+                            </List>
+                          </>
+                        );
+                      })()}
+                    </Collapse>
                   </Box>
                 )}
 
                 {/* Other Roles Info */}
-                {rolesWithoutSapCodes.includes(formData.role) && (
+                {rolesWithoutSapCodes.includes(formData.role) && formData.role !== 'SUL' && (
                   <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
                     <Typography variant="body2" color="text.secondary">
                       This role does not require SAP code assignments.

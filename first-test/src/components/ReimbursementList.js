@@ -288,45 +288,22 @@ function ReimbursementList() {
     setReceiptZoom((prev) => Math.max(prev - 0.25, 0.5));
 
   const handleDownloadReceipt = () => {
-    if (!selectedTicket?.receipt) return;
+  if (!selectedTicket?.receipt) return;
 
-    try {
-      let url, filename;
-      if (typeof selectedTicket.receipt === "string") {
-        url = `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`;
-        filename = `receipt-${selectedTicket.id}.jpg`;
-      } else {
-        const {
-          data,
-          mimetype,
-          filename: receiptFilename,
-        } = selectedTicket.receipt;
-        const byteCharacters = atob(data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: mimetype });
-        url = URL.createObjectURL(blob);
-        filename = receiptFilename || `receipt-${selectedTicket.id}.jpg`;
-      }
-
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      if (url.startsWith("blob:")) {
-        URL.revokeObjectURL(url);
-      }
-      showNotification("Receipt downloaded successfully", "success");
-    } catch (error) {
-      console.error("Download failed:", error);
-      showNotification("Failed to download receipt", "error");
-    }
-  };
+  try {
+    const link = document.createElement("a");
+    link.href = selectedTicket.receipt.url;
+    link.download = selectedTicket.receipt.filename || `receipt-${selectedTicket.id}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification("Receipt downloaded successfully", "success");
+  } catch (error) {
+    console.error("Download failed:", error);
+    showNotification("Failed to download receipt", "error");
+  }
+};
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -968,85 +945,63 @@ function ReimbursementList() {
                           )}
 
                           {isPDF(selectedTicket.receipt) ? (
-                            // PDF Viewer
-                            <Box
-                              component="iframe"
-                              src={
-                                typeof selectedTicket.receipt === "string"
-                                  ? `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`
-                                  : `data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`
-                              }
-                              sx={{
-                                width: "100%",
-                                height: "480px",
-                                border: "none",
-                                borderRadius: 1,
-                                display: receiptLoading ? "none" : "block",
-                              }}
-                              onLoad={() => setReceiptLoading(false)}
-                              onLoadStart={() => setReceiptLoading(true)}
-                              onError={(e) => {
-                                console.error(
-                                  "Failed to load receipt PDF:",
-                                  selectedTicket.receipt
-                                );
-                                setReceiptLoading(false);
-                                showNotification(
-                                  "Failed to load receipt PDF",
-                                  "error"
-                                );
-                              }}
-                              title="Receipt PDF"
-                            />
-                          ) : (
-                            // Image Viewer
-                            <Box
-                              component="img"
-                              src={
-                                typeof selectedTicket.receipt === "string"
-                                  ? `${process.env.REACT_APP_API_URL}${selectedTicket.receipt}`
-                                  : `data:${selectedTicket.receipt.mimetype};base64,${selectedTicket.receipt.data}`
-                              }
-                              alt="Receipt"
-                              sx={{
-                                maxWidth: "100%",
-                                maxHeight: "480px",
-                                objectFit: "contain",
-                                transform: `scale(${receiptZoom})`,
-                                transition: "transform 0.2s ease-in-out",
-                                display: receiptLoading ? "none" : "block",
-                              }}
-                              onLoad={() => setReceiptLoading(false)}
-                              onLoadStart={() => setReceiptLoading(true)}
-                              onError={(e) => {
-                                console.error(
-                                  "Failed to load receipt:",
-                                  selectedTicket.receipt
-                                );
-                                setReceiptLoading(false);
-                                showNotification(
-                                  "Failed to load receipt image",
-                                  "error"
-                                );
-                              }}
-                            />
-                          )}
+  <Box
+    component="iframe"
+    src={selectedTicket.receipt.url}
+    sx={{
+      width: "100%",
+      height: "480px",
+      border: "none",
+      borderRadius: 1,
+      display: receiptLoading ? "none" : "block",
+    }}
+    onLoad={() => setReceiptLoading(false)}
+    onLoadStart={() => setReceiptLoading(true)}
+    onError={(e) => {
+      console.error("Failed to load receipt PDF:", selectedTicket.receipt);
+      setReceiptLoading(false);
+      showNotification("Failed to load receipt PDF", "error");
+    }}
+    title="Receipt PDF"
+  />
+) : (
+  <Box
+    component="img"
+    src={selectedTicket.receipt.url}
+    alt="Receipt"
+    sx={{
+      maxWidth: "100%",
+      maxHeight: "480px",
+      objectFit: "contain",
+      transform: `scale(${receiptZoom})`,
+      transition: "transform 0.2s ease-in-out",
+      display: receiptLoading ? "none" : "block",
+    }}
+    onLoad={() => setReceiptLoading(false)}
+    onLoadStart={() => setReceiptLoading(true)}
+    onError={(e) => {
+      console.error("Failed to load receipt:", selectedTicket.receipt);
+      setReceiptLoading(false);
+      showNotification("Failed to load receipt image", "error");
+    }}
+  />
+)}
                         </Box>
 
                         {selectedTicket.receipt.filename && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{
-                              display: "block",
-                              mt: 1,
-                              textAlign: "center",
-                            }}
-                          >
-                            {selectedTicket.receipt.filename}
-                            {isPDF(selectedTicket.receipt) && " (PDF)"}
-                          </Typography>
-                        )}
+  <Typography
+    variant="caption"
+    color="text.secondary"
+    sx={{
+      display: "block",
+      mt: 1,
+      textAlign: "center",
+    }}
+  >
+    {selectedTicket.receipt.filename}
+    {isPDF(selectedTicket.receipt) && " (PDF)"}
+  </Typography>
+)}
                       </Box>
                     )}
                   </Box>

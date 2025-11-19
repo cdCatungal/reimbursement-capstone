@@ -193,6 +193,7 @@ function ManageSAPCodes() {
     setFormErrors({});
   };
 
+  // ✅ UPDATED: Handle edit submission with reassignment feedback
   const handleSubmitEdit = async () => {
     // Validate
     const errors = {};
@@ -207,6 +208,7 @@ function ManageSAPCodes() {
 
     const result = await updateSapCode(selectedSapCode.id, formData);
     if (result.success) {
+      // ✅ Show reassignment info if any (already handled in the store)
       handleCloseEditDialog();
     }
   };

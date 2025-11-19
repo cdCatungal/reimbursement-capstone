@@ -22,22 +22,19 @@ export const useManageSapCodesStore = create((set, get) => ({
   },
 
   // Fetch only active SAP codes
-fetchActiveSapCodes: async () => {
-  set({ loading: true, error: null });
-  try {
-    const response = await axiosInstance.get("/sap-codes/active");
-
-    set({ sapCodes: response.data.data, loading: false });
-  } catch (error) {
-    const errorMessage =
-      error.response?.data?.message || "Failed to fetch active SAP codes";
-
-    set({ error: errorMessage, loading: false });
-    toast.error(errorMessage);
-    console.error("Failed to fetch active SAP codes:", error);
-  }
-},
-
+  fetchActiveSapCodes: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await axiosInstance.get("/sap-codes/active");
+      set({ sapCodes: response.data.data, loading: false });
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message || "Failed to fetch active SAP codes";
+      set({ error: errorMessage, loading: false });
+      toast.error(errorMessage);
+      console.error("Failed to fetch active SAP codes:", error);
+    }
+  },
 
   // Create SAP code
   createSapCode: async (sapCodeData) => {
@@ -62,7 +59,7 @@ fetchActiveSapCodes: async () => {
     }
   },
 
-  // Update SAP code
+  // ✅ UPDATED: Update SAP code with reassignment notification
   updateSapCode: async (sapCodeId, sapCodeData) => {
     set({ loading: true, error: null });
     try {
@@ -76,8 +73,25 @@ fetchActiveSapCodes: async () => {
         loading: false,
       }));
       
-      toast.success("SAP code updated successfully");
-      return { success: true, data: response.data.data };
+      // Show appropriate success message
+      const { message, reassignments } = response.data;
+      
+      if (reassignments && reassignments.length > 0) {
+        toast.success(
+          `${message}\n${reassignments.length} pending approval(s) reassigned to new Account Manager.`,
+          { duration: 5000 }
+        );
+      } else {
+        toast.success("SAP code updated successfully");
+      }
+      
+      return { 
+        success: true, 
+        data: {
+          ...response.data.data,
+          reassignments: reassignments || []
+        }
+      };
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to update SAP code";
       set({ error: errorMessage, loading: false });

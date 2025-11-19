@@ -21,7 +21,7 @@ export const useManageUsersStore = create((set, get) => ({
     }
   },
 
-  // Update user
+  // ✅ UPDATED: Update user with reassignment notification
   updateUser: async (userId, userData) => {
     set({ loading: true, error: null });
     try {
@@ -35,8 +35,25 @@ export const useManageUsersStore = create((set, get) => ({
         loading: false,
       }));
       
-      toast.success("User updated successfully");
-      return { success: true, data: response.data.data };
+      // Show appropriate success message
+      const { message, reassignments } = response.data;
+      
+      if (reassignments && reassignments.length > 0) {
+        toast.success(
+          `${message}\n${reassignments.length} pending approval(s) reassigned.`,
+          { duration: 5000 }
+        );
+      } else {
+        toast.success("User updated successfully");
+      }
+      
+      return { 
+        success: true, 
+        data: {
+          ...response.data.data,
+          reassignments: reassignments || []
+        }
+      };
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to update user";
       set({ error: errorMessage, loading: false });

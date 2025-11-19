@@ -85,8 +85,8 @@ export async function sendEmail(to, subject, html, cc = null) {
       Messages: [
         {
           From: {
-            Email: "ernitback@gmail.com", // Your verified sender
-            Name: "ERNIt Reimbursement System",
+            Email: process.env.EMAIL_FROM || "ernitback@gmail.com",
+            Name: process.env.EMAIL_FROM_NAME || "ERNIt Reimbursement System",
           },
           To: [
             {
@@ -94,13 +94,15 @@ export async function sendEmail(to, subject, html, cc = null) {
             },
           ],
           Subject: subject,
+          // ✅ PLAIN TEXT MUST BE FIRST (like your SendGrid version)
+          TextPart: generatePlainText(html),
+          // ✅ HTML COMES SECOND (like your SendGrid version)
           HTMLPart: html,
-          TextPart: html.replace(/<[^>]*>/g, "").trim(),
         },
       ],
     };
 
-    // Add CC if provided
+    // Add CC if provided (same logic as your SendGrid version)
     if (cc) {
       emailData.Messages[0].Cc = Array.isArray(cc)
         ? cc.map((email) => ({ Email: email }))
@@ -120,14 +122,16 @@ export async function sendEmail(to, subject, html, cc = null) {
 
     if (response.ok) {
       console.log(`✅ Email sent successfully to ${to}`);
-      // return { success: true, messageId: result.headers.get("x-message-id") };
       return {
         success: true,
-        messageId: response.headers.get("x-message-id"), // ✅ Use response.headers
+        messageId: response.headers.get("x-message-id"),
       };
     } else {
+      // ✅ Better error handling like your SendGrid version
       console.error("❌ Mailjet API error:", result);
-      throw new Error(result.ErrorMessage || "Email sending failed");
+      throw new Error(
+        `Mailjet API error: ${response.status} - ${JSON.stringify(result)}`
+      );
     }
   } catch (error) {
     console.error("❌ Email error:", error.message);

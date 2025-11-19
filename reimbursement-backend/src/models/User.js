@@ -49,6 +49,11 @@ const User = sequelize.define('User', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+profilePictureHash: {
+  type: DataTypes.STRING(32), // MD5 hash is 32 characters
+  allowNull: true,
+  comment: 'MD5 hash of the profile picture for change detection'
+},
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

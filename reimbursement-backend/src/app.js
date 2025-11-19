@@ -15,17 +15,17 @@ import userRoutes from "./routes/user.routes.js";
 import ocrRoutes from "./routes/ocrRoutes.js";
 import adminRoutes from "./routes/admin.route.js";
 import sapCodeRoutes from './routes/sapCode.routes.js';
-import { verifyEmailConfig } from "./utils/sendEmail.js"; // Add this import
+import { verifyEmailConfig } from "./utils/sendEmail.js";
 
 dotenv.config();
 
 const app = express();
 app.set("trust proxy", 1);
 
-// ✅ Cookie parser first
+// ✅ Middleware order is critical for security and functionality
 app.use(cookieParser());
 
-// ✅ Session middleware (must come before passport)
+// ✅ Session middleware with store (if using production, use RedisStore)
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "fallback_secret",
@@ -33,17 +33,16 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false, // set true when using HTTPS
+      secure: process.env.NODE_ENV === "production", // ✅ Use HTTPS in production
       sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     },
   })
 );
 
-// ✅ Enable flash messages for passport errors
 app.use(flash());
 
-// ✅ CORS (allow cookies)
+// ✅ CORS configuration
 const corsOptions = {
   origin: process.env.CLIENT_URL || "http://localhost:3000",
   credentials: true,
@@ -52,15 +51,15 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// ✅ Body parsers
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// ✅ Body parsers with size limits to prevent memory issues
+app.use(bodyParser.json({ limit: "10mb" }));
+app.use(bodyParser.urlencoded({ limit: "10mb", extended: true }));
 
-// ✅ Initialize Passport (now uses session)
+// ✅ Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ✅ Debug log for /auth routes
+// ✅ Request logging middleware
 app.use((req, res, next) => {
   if (req.path.startsWith("/auth/")) {
     console.log("📍 Request:", req.method, req.path);
@@ -78,43 +77,87 @@ app.use("/api/ocr", ocrRoutes);
 app.use("/api/admin", adminRoutes);
 app.use('/api/sap-codes', sapCodeRoutes);
 
-// ✅ Health check
+// ✅ Health check endpoint
 app.get("/", (req, res) => {
   res.json({
     status: "running",
-    message: "✅ Backend is running and connected to Azure Auth + MySQL",
+    message: "✅ Backend is running and connected to Azure Auth + PostgreSQL",
+    environment: process.env.NODE_ENV || "development",
   });
 });
 
-// ✅ 404 handler
-app.use((req, res) => res.status(404).json({ error: "Route not found" }));
-
-// ✅ Error handler
-app.use((err, req, res, next) => {
-  console.error("🚨 Server Error:", err.stack);
-  res.status(500).json({ error: err.message || "Internal Server Error" });
+// ✅ Health check for database connection
+app.get("/health/db", async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.json({ status: "ok", database: "connected" });
+  } catch (err) {
+    res.status(503).json({ status: "error", database: "disconnected", error: err.message });
+  }
 });
 
-// ✅ Enhanced server startup with email verification
+// ✅ 404 handler (before error handler)
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
+// ✅ Global error handler (must be last)
+app.use((err, req, res, next) => {
+  console.error("🚨 Server Error:", err);
+  
+  // ✅ Don't leak sensitive info in production
+  const isDevelopment = process.env.NODE_ENV !== "production";
+  const errorMessage = isDevelopment ? err.message : "Internal Server Error";
+  const errorStack = isDevelopment ? err.stack : undefined;
+  
+  res.status(err.status || 500).json({
+    error: errorMessage,
+    ...(errorStack && { stack: errorStack }),
+  });
+});
+
+// ✅ Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('📛 SIGTERM signal received: closing HTTP server');
+  try {
+    await sequelize.close();
+    console.log('✅ Database connection closed');
+    process.exit(0);
+  } catch (err) {
+    console.error('❌ Error during shutdown:', err);
+    process.exit(1);
+  }
+});
+
+// ✅ Enhanced server startup
 const PORT = process.env.PORT || 5000;
 (async () => {
   try {
-    // Check email configuration
-    console.log('\n📧 Checking email configuration...');
-    await verifyEmailConfig();
+    // ✅ Step 1: Verify database connection
+    console.log('\n📡 Verifying database connection...');
+    await sequelize.authenticate();
+    console.log("✅ Database authenticated");
     
-    // Sync database
+    // ✅ Step 2: Sync database models
+    console.log('🔄 Syncing database models...');
     await sequelize.sync({ alter: false });
     console.log("✅ Database synced successfully");
     
-    // Start server
+    // ✅ Step 3: Verify email configuration
+    console.log('📧 Checking email configuration...');
+    await verifyEmailConfig();
+    
+    // ✅ Step 4: Start server
     app.listen(PORT, () => {
       console.log(`\n🚀 Server running: http://localhost:${PORT}`);
       console.log(`🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`);
-      console.log(`📧 Email notifications: ${process.env.EMAIL_USER ? '✅ Configured' : '❌ Not configured'}\n`);
+      console.log(`💾 Database: ${process.env.DB_HOST}`);
+      console.log(`📧 Email: ${process.env.EMAIL_USER ? '✅ Configured' : '❌ Not configured'}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
     });
   } catch (err) {
-    console.error("❌ Server startup error:", err);
+    console.error("❌ Server startup error:", err.message);
+    console.error(err);
     process.exit(1);
   }
 })();

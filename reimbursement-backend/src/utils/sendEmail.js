@@ -23,19 +23,19 @@ export async function sendEmail(to, subject, html, cc = null) {
         name: process.env.EMAIL_FROM_NAME || "ERNIt Reimbursement System",
       },
       reply_to: {
-        // ✅ ADD THIS - Reduces spam flags
         email: process.env.EMAIL_FROM || "ernitback@gmail.com",
         name: process.env.EMAIL_FROM_NAME || "ERNIt Reimbursement System",
       },
       content: [
         {
-          type: "text/html",
-          value: html,
-        },
-        {
-          // ✅ ADD THIS - Plain text version for deliverability
+          // ✅ PLAIN TEXT MUST BE FIRST
           type: "text/plain",
           value: generatePlainText(html),
+        },
+        {
+          // ✅ HTML COMES SECOND
+          type: "text/html",
+          value: html,
         },
       ],
     };

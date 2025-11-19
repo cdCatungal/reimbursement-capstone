@@ -27,12 +27,12 @@ const sequelize = new Sequelize(
     dialect: "postgres",
     logging: false,
 
-    // Connection pooling - fixes "connection terminated unexpectedly"
+    // ✅ FIXED: Reduced pool size for Render PostgreSQL
     pool: {
-      max: 10,
-      min: 2,
-      acquire: 60000,
-      idle: 10000,
+      max: 5, // Reduced from 10 to 5
+      min: 0, // Changed from 2 to 0 - don't keep connections open
+      acquire: 30000, // Reduced from 60000
+      idle: 10000, // Keep it short
     },
 
     define: {
@@ -52,5 +52,15 @@ const sequelize = new Sequelize(
     },
   }
 );
+
+// ✅ Add connection testing
+sequelize
+  .authenticate()
+  .then(() => {
+    console.log("✅ Database connection established successfully.");
+  })
+  .catch((err) => {
+    console.error("❌ Unable to connect to the database:", err);
+  });
 
 export default sequelize;

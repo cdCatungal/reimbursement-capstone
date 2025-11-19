@@ -16,6 +16,8 @@ import ocrRoutes from "./routes/ocrRoutes.js";
 import adminRoutes from "./routes/admin.route.js";
 import sapCodeRoutes from "./routes/sapCode.routes.js";
 import { verifyEmailConfig } from "./utils/sendEmail.js";
+import { fileURLToPath } from "url";
+import path from "path";
 
 dotenv.config();
 // Fix __dirname for ES modules

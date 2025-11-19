@@ -123,7 +123,7 @@ export async function sendEmail(to, subject, html, cc = null) {
       // return { success: true, messageId: result.headers.get("x-message-id") };
       return {
         success: true,
-        messageId: result.headers.get("x-message-id"),
+        messageId: response.headers.get("x-message-id"), // ✅ Use response.headers
       };
     } else {
       console.error("❌ Mailjet API error:", result);

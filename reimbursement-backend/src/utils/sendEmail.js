@@ -120,9 +120,10 @@ export async function sendEmail(to, subject, html, cc = null) {
 
     if (response.ok) {
       console.log(`✅ Email sent successfully to ${to}`);
+      // return { success: true, messageId: result.headers.get("x-message-id") };
       return {
         success: true,
-        messageId: result.Messages[0].To[0].MessageID,
+        messageId: result.headers.get("x-message-id"),
       };
     } else {
       console.error("❌ Mailjet API error:", result);

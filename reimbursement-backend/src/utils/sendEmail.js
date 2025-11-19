@@ -16,28 +16,61 @@ export async function sendEmail(to, subject, html, cc = null) {
         {
           to: [{ email: to }],
           subject: subject,
+          // ✅ ADD THESE HEADERS FOR DELIVERABILITY
+          headers: {
+            "X-Priority": "3",
+            "X-Mailer": "ERNIt Reimbursement System",
+            "List-Unsubscribe": `<mailto:unsubscribe@ernit.com?subject=unsubscribe>`,
+            Precedence: "bulk",
+          },
         },
       ],
       from: {
-        email: process.env.EMAIL_FROM || "ernitback@gmail.com",
+        // ✅ CRITICAL: Use a proper domain email, not Gmail
+        email: process.env.EMAIL_FROM || "reimbursements@yourdomain.com",
         name: process.env.EMAIL_FROM_NAME || "ERNIt Reimbursement System",
       },
       reply_to: {
-        email: process.env.EMAIL_FROM || "ernitback@gmail.com",
-        name: process.env.EMAIL_FROM_NAME || "ERNIt Reimbursement System",
+        // ✅ Use a different reply-to address
+        email: process.env.EMAIL_REPLY_TO || "support@yourdomain.com",
+        name: process.env.EMAIL_FROM_NAME || "ERNIt Support",
       },
       content: [
         {
-          // ✅ PLAIN TEXT MUST BE FIRST
           type: "text/plain",
           value: generatePlainText(html),
         },
         {
-          // ✅ HTML COMES SECOND
           type: "text/html",
           value: html,
         },
       ],
+      // ✅ ADD TRACKING SETTINGS (disable for better deliverability)
+      tracking_settings: {
+        click_tracking: {
+          enable: false,
+        },
+        open_tracking: {
+          enable: false,
+        },
+        subscription_tracking: {
+          enable: true,
+          text: "If you would like to unsubscribe and stop receiving these emails, click here: <% %>.",
+          html: "<p>If you would like to unsubscribe and stop receiving these emails, <a href='<% %>'>click here</a>.</p>",
+        },
+      },
+      // ✅ ADD MAIL SETTINGS
+      mail_settings: {
+        bypass_list_management: {
+          enable: false,
+        },
+        footer: {
+          enable: false,
+        },
+        sandbox_mode: {
+          enable: process.env.NODE_ENV === "development", // Test mode in dev
+        },
+      },
     };
 
     // Add CC if provided
@@ -61,6 +94,7 @@ export async function sendEmail(to, subject, html, cc = null) {
       return { success: true, messageId: response.headers.get("x-message-id") };
     } else {
       const errorText = await response.text();
+      console.error("SendGrid API Response:", errorText);
       throw new Error(`SendGrid API error: ${response.status} - ${errorText}`);
     }
   } catch (error) {

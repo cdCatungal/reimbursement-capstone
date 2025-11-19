@@ -186,7 +186,7 @@ function ReimbursementList() {
       "Transportation (Drive)",
       "Meal with Client",
       "Overtime Meal",
-      "Accomodation",
+      "Accommodation",
     ];
   };
 
@@ -704,9 +704,10 @@ function ReimbursementList() {
                       </Typography>
                       <Typography
                         variant="h6"
-                        sx={{ fontWeight: 700, color: "primary.main" }}
+                        sx={{ fontWeight: 700, color: "primary" }}
                       >
-                        ₱
+                      
+                        ₱ 
                         {parseFloat(selectedTicket.total).toLocaleString(
                           "en-PH",
                           { minimumFractionDigits: 2, maximumFractionDigits: 2 }
@@ -714,26 +715,26 @@ function ReimbursementList() {
                       </Typography>
                     </Box>
 
-                    {selectedTicket.reimbursable_amount && selectedTicket.reimbursable_amount < selectedTicket.total && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Reimbursable Amount:
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>
-                          ₱{parseFloat(selectedTicket.reimbursable_amount).toLocaleString('en-PH', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })}
-                        </Typography>
-                        <Typography variant="caption" color="warning.main">
-                          (Limited by category maximum)
-                        </Typography>
-                      </Box>
-                    )}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        Reimbursable Amount:
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: 700, color: "primary.main" }}
+                      >
+                      
+                        ₱
+                        {parseFloat(selectedTicket.reimbursable_amount).toLocaleString(
+                          "en-PH",
+                          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                        )}
+                      </Typography>
+                    </Box>
 
                     {selectedTicket.category === 'Meal with Client' && selectedTicket.number_of_people && (
                       <Box sx={{ mb: 2 }}>
@@ -750,7 +751,7 @@ function ReimbursementList() {
                       </Box>
                     )}
 
-                    {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_days && (
+                    {selectedTicket.category === 'Accommodation' && selectedTicket.number_of_days && (
                       <Box sx={{ mb: 2 }}>
                         <Typography
                           variant="body2"

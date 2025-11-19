@@ -190,7 +190,7 @@ export const testData = {
     'Transportation (Drive)',
     'Meal with Client',
     'Overtime Meal',
-    'Accomodation',
+    'Accommodation',
   ],
   
   roles: [

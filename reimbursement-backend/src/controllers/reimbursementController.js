@@ -68,7 +68,7 @@ export async function createReimbursement(req, res) {
     const CATEGORY_LIMITS = {
       'Overtime Meal': 300,
       'Meal with Client': 800,
-      'Accomodation': 2500
+      'Accommodation': 2500
     };
 
      let calculatedReimbursable = totalAmount;
@@ -77,8 +77,8 @@ export async function createReimbursement(req, res) {
       calculatedReimbursable = Math.min(totalAmount, CATEGORY_LIMITS['Overtime Meal']);
     } else if (payload.category === 'Meal with Client') {
       calculatedReimbursable = Math.min(totalAmount, CATEGORY_LIMITS['Meal with Client'] * numPeople);
-    } else if (payload.category === 'Accomodation') {
-      calculatedReimbursable = Math.min(totalAmount, CATEGORY_LIMITS['Accomodation'] * numDays);
+    } else if (payload.category === 'Accommodation') {
+      calculatedReimbursable = Math.min(totalAmount, CATEGORY_LIMITS['Accommodation'] * numDays * numPeople);
     }
 
     console.log(`💰 Total: ₱${totalAmount}, Reimbursable: ₱${calculatedReimbursable}`);
@@ -185,7 +185,7 @@ export async function createReimbursement(req, res) {
       total: payload.total,
       reimbursable_amount: calculatedReimbursable,  // NEW
       number_of_people: payload.category === 'Meal with Client' ? numPeople : null,  // NEW
-      number_of_days: payload.category === 'Accomodation' ? numDays : null,  // NEW
+      number_of_days: payload.category === 'Accommodation' ? numDays : null,  // NEW
       status: "Pending",
       current_approver: firstApproverRole,
       sap_code: payload.sap_code,

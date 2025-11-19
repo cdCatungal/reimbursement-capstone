@@ -240,7 +240,7 @@ function SalesDirectorReimbursementList() {
       "Transportation (Drive)",
       "Meal with Client",
       "Overtime Meal",
-      "Accomodation",
+      "Accommodation",
     ];
   };
 
@@ -860,7 +860,7 @@ function SalesDirectorReimbursementList() {
                       </Box>
                     )}
 
-                    {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_days && (
+                    {selectedTicket.category === 'Accommodation' && selectedTicket.number_of_days && (
                       <Box sx={{ mb: 2 }}>
                         <Typography
                           variant="body2"

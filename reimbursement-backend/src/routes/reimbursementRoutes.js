@@ -35,46 +35,73 @@ router.get("/my-reimbursements", isAuthenticated, getUserReimbursements);
 // 📊 Get monthly statistics for current user - NEW ROUTE
 router.get("/monthly-stats", isAuthenticated, async (req, res) => {
   try {
-    console.log("📊 Monthly stats endpoint hit!");
-    console.log("req.user:", req.user);
-
     const userId = req.user.id || req.user.userId || req.user.user_id;
-    console.log("Looking for reimbursements for userId:", userId);
+    if (!userId) {
+      return res.status(400).json({ message: "User ID not found" });
+    }
 
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
-    console.log("Start of month:", startOfMonth);
 
-    const reimbursements = await Reimbursement.findAll({
-      where: {
-        user_id: userId,
-        submitted_at: {
-          [Op.gte]: startOfMonth,
+    // ✅ Use connection pool with timeout
+    const stats = await sequelize.query(
+      `
+      SELECT 
+        COUNT(id) as total,
+        SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END) as approved,
+        SUM(CASE WHEN status IN ('Pending', 'Manager Approved', 'Michelle Approved') THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'Rejected' THEN 1 ELSE 0 END) as rejected
+      FROM reimbursements 
+      WHERE user_id = :userId 
+        AND submitted_at >= :startOfMonth
+    `,
+      {
+        replacements: { userId, startOfMonth },
+        type: sequelize.QueryTypes.SELECT,
+        timeout: 10000, // 10 second timeout
+        // ✅ Connection pool settings
+        pool: {
+          acquireTimeout: 10000,
+          evict: 10000, // Remove idle connections
         },
-      },
-    });
+      }
+    );
 
-    console.log("Found reimbursements:", reimbursements.length);
-
-    const stats = {
-      submitted: reimbursements.length,
-      approved: reimbursements.filter((r) => r.status === "Approved").length,
-      pending: reimbursements.filter(
-        (r) =>
-          r.status === "Pending" ||
-          r.status === "Manager Approved" ||
-          r.status === "Michelle Approved"
-      ).length,
-      rejected: reimbursements.filter((r) => r.status === "Rejected").length,
-      total: reimbursements.length,
+    const result = stats[0] || {
+      total: 0,
+      approved: 0,
+      pending: 0,
+      rejected: 0,
     };
 
-    console.log("Calculated stats:", stats);
-    res.json(stats);
+    const formattedStats = {
+      submitted: parseInt(result.total) || 0,
+      approved: parseInt(result.approved) || 0,
+      pending: parseInt(result.pending) || 0,
+      rejected: parseInt(result.rejected) || 0,
+      total: parseInt(result.total) || 0,
+    };
+
+    // ✅ Cache for frequent stats
+    res.set("Cache-Control", "private, max-age=300");
+    res.json(formattedStats);
   } catch (error) {
     console.error("Error fetching monthly stats:", error);
-    res.status(500).json({ message: "Error fetching monthly statistics" });
+
+    // ✅ Don't crash on database errors
+    if (error.name.includes("Sequelize") || error.name.includes("Database")) {
+      // Return empty stats instead of error for better UX
+      res.json({
+        submitted: 0,
+        approved: 0,
+        pending: 0,
+        rejected: 0,
+        total: 0,
+      });
+    } else {
+      res.status(500).json({ message: "Error fetching monthly statistics" });
+    }
   }
 });
 

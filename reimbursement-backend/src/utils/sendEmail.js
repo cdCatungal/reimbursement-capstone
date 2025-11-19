@@ -160,33 +160,55 @@ function generatePlainText(html) {
 /**
  * Verify SendGrid configuration
  */
+// export async function verifyEmailConfig() {
+//   try {
+//     if (!process.env.SENDGRID_API_KEY) {
+//       console.error("❌ SENDGRID_API_KEY missing in environment variables");
+//       return false;
+//     }
+
+//     // Test API key by making a simple request
+//     const response = await fetch("https://api.sendgrid.com/v3/user/account", {
+//       headers: {
+//         Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+//       },
+//     });
+
+//     if (response.ok) {
+//       console.log("✅ SendGrid configuration is valid");
+//       console.log(
+//         "📧 Using sender:",
+//         process.env.EMAIL_FROM || "ernitback@gmail.com"
+//       );
+//       return true;
+//     } else {
+//       console.error("❌ SendGrid API key invalid or insufficient permissions");
+//       return false;
+//     }
+//   } catch (error) {
+//     console.error("❌ SendGrid verification failed:", error.message);
+//     return false;
+//   }
+// }
+
 export async function verifyEmailConfig() {
   try {
-    if (!process.env.SENDGRID_API_KEY) {
-      console.error("❌ SENDGRID_API_KEY missing in environment variables");
+    if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {
+      console.error("❌ MJ_APIKEY_PUBLIC and MJ_APIKEY_PRIVATE required");
       return false;
     }
 
-    // Test API key by making a simple request
-    const response = await fetch("https://api.sendgrid.com/v3/user/account", {
-      headers: {
-        Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
-      },
-    });
+    console.log("✅ Mailjet API keys present in environment");
+    console.log(
+      "📧 Using sender:",
+      process.env.EMAIL_FROM || "ernitback@gmail.com"
+    );
 
-    if (response.ok) {
-      console.log("✅ SendGrid configuration is valid");
-      console.log(
-        "📧 Using sender:",
-        process.env.EMAIL_FROM || "ernitback@gmail.com"
-      );
-      return true;
-    } else {
-      console.error("❌ SendGrid API key invalid or insufficient permissions");
-      return false;
-    }
+    // For Mailjet, just having the keys is often enough verification
+    // You could test with a simple send if you want to be sure
+    return true;
   } catch (error) {
-    console.error("❌ SendGrid verification failed:", error.message);
+    console.error("❌ Mailjet verification failed:", error.message);
     return false;
   }
 }

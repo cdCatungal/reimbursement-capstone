@@ -1,19 +1,13 @@
 // reimbursement-backend/src/controllers/reimbursementController.js
 import { Reimbursement, User, Approval, SapCode } from "../models/index.js";
 import { sendEmail } from "../utils/sendEmail.js";
-<<<<<<< HEAD
-import {
-  getApprovalFlow,
-  findAssignedSUL,
-  findAccountManagerForSapCode,
-} from "../utils/approvalFlow.js";
-import { bufferToBase64 } from "../middlewares/upload.js";
-import { newSubmissionToApproverTemplate } from "../utils/emailTemplates.js";
-=======
 import { getApprovalFlow, findAssignedSUL } from "../utils/approvalFlow.js";
-import { uploadToCloudinary, deleteFromCloudinary, extractPublicId } from "../config/cloudinary.js";
-import { newSubmissionToApproverTemplate } from '../utils/emailTemplates.js';
->>>>>>> origin/main
+import {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+  extractPublicId,
+} from "../config/cloudinary.js";
+import { newSubmissionToApproverTemplate } from "../utils/emailTemplates.js";
 
 /**
  * ✅ UPDATED: Create new reimbursement with Cloudinary upload
@@ -29,14 +23,9 @@ export async function createReimbursement(req, res) {
 
     console.log("📋 Creating reimbursement for user:", user.name, user.role);
 
-<<<<<<< HEAD
-    // ✅ NEW: Roles that bypass SAP code validation
     const bypassSapValidation = ["Invoice Specialist", "SUL"].includes(
       user.role
     );
-=======
-    const bypassSapValidation = ['Invoice Specialist', 'SUL'].includes(user.role);
->>>>>>> origin/main
 
     // Validate SAP code
     if (!bypassSapValidation) {
@@ -56,15 +45,8 @@ export async function createReimbursement(req, res) {
       });
 
       if (!userWithSapCodes || userWithSapCodes.sapCodes.length === 0) {
-<<<<<<< HEAD
         return res.status(400).json({
           error: `Invalid SAP code. You can only submit reimbursements with your assigned SAP codes.`,
-          providedSapCode: payload.sap_code,
-          userRole: user.role,
-=======
-        return res.status(400).json({ 
-          error: `Invalid SAP code. You can only submit reimbursements with your assigned SAP codes.`
->>>>>>> origin/main
         });
       }
 
@@ -83,8 +65,7 @@ export async function createReimbursement(req, res) {
       );
     }
 
-<<<<<<< HEAD
-    // ✅ NEW: Parse category-specific fields
+    // Parse category-specific fields
     const numPeople = payload.number_of_people
       ? parseInt(payload.number_of_people)
       : 1;
@@ -92,14 +73,6 @@ export async function createReimbursement(req, res) {
       ? parseInt(payload.number_of_days)
       : 1;
     const totalAmount = parseFloat(payload.total);
-    const reimbursableAmount =
-      parseFloat(payload.reimbursable_amount) || totalAmount;
-=======
-    // Parse category-specific fields
-    const numPeople = payload.number_of_people ? parseInt(payload.number_of_people) : 1;
-    const numDays = payload.number_of_days ? parseInt(payload.number_of_days) : 1;
-    const totalAmount = parseFloat(payload.total);
->>>>>>> origin/main
 
     // Calculate reimbursable amount
     const CATEGORY_LIMITS = {
@@ -109,7 +82,6 @@ export async function createReimbursement(req, res) {
     };
 
     let calculatedReimbursable = totalAmount;
-<<<<<<< HEAD
 
     if (payload.category === "Overtime Meal") {
       calculatedReimbursable = Math.min(
@@ -126,15 +98,6 @@ export async function createReimbursement(req, res) {
         totalAmount,
         CATEGORY_LIMITS["Accomodation"] * numDays
       );
-=======
-    
-    if (payload.category === 'Overtime Meal') {
-      calculatedReimbursable = Math.min(totalAmount, CATEGORY_LIMITS['Overtime Meal']);
-    } else if (payload.category === 'Meal with Client') {
-      calculatedReimbursable = Math.min(totalAmount, CATEGORY_LIMITS['Meal with Client'] * numPeople);
-    } else if (payload.category === 'Accomodation') {
-      calculatedReimbursable = Math.min(totalAmount, CATEGORY_LIMITS['Accomodation'] * numDays);
->>>>>>> origin/main
     }
 
     console.log(
@@ -146,7 +109,7 @@ export async function createReimbursement(req, res) {
 
     if (!approvalFlow || approvalFlow.length === 0) {
       return res.status(400).json({
-        error: "No approval flow defined for your role"
+        error: "No approval flow defined for your role",
       });
     }
 
@@ -163,7 +126,7 @@ export async function createReimbursement(req, res) {
 
       if (!firstApprover || !firstApprover.id) {
         return res.status(400).json({
-          error: `No SUL assigned to you. Please contact Sales Director to assign a SUL.`
+          error: `No SUL assigned to you. Please contact Sales Director to assign a SUL.`,
         });
       }
 
@@ -180,27 +143,17 @@ export async function createReimbursement(req, res) {
 
       if (!firstApprover) {
         return res.status(400).json({
-<<<<<<< HEAD
-          error: `No Account Manager assigned to SAP Code: ${payload.sap_code}. Please contact Sales Director.`,
-          sapCode: payload.sap_code,
-=======
-          error: `No Account Manager assigned to SAP Code: ${payload.sap_code}`
->>>>>>> origin/main
+          error: `No Account Manager assigned to SAP Code: ${payload.sap_code}`,
         });
       }
     } else {
-<<<<<<< HEAD
-      // ✅ For other roles → Find any user with that role
       firstApprover = await User.findOne({
         where: { role: firstApproverRole },
       });
-=======
-      firstApprover = await User.findOne({ where: { role: firstApproverRole } });
->>>>>>> origin/main
 
       if (!firstApprover) {
         return res.status(400).json({
-          error: `No ${firstApproverRole} found in the system`
+          error: `No ${firstApproverRole} found in the system`,
         });
       }
     }
@@ -216,24 +169,19 @@ export async function createReimbursement(req, res) {
     let receiptFilename = null;
 
     if (req.file) {
-<<<<<<< HEAD
-      receiptData = bufferToBase64(req.file.buffer);
-      receiptMimetype = req.file.mimetype;
-      receiptFilename = req.file.originalname;
-      console.log(
-        `📸 Receipt uploaded: ${receiptFilename} (${receiptMimetype}), Size: ${req.file.size} bytes`
-      );
-=======
       try {
-        console.log(`📤 Uploading to Cloudinary: ${req.file.originalname} (${req.file.mimetype})`);
-        
+        console.log(
+          `📤 Uploading to Cloudinary: ${req.file.originalname} (${req.file.mimetype})`
+        );
+
         // Determine resource type (image or raw for PDFs)
-        const resourceType = req.file.mimetype === 'application/pdf' ? 'raw' : 'image';
-        
+        const resourceType =
+          req.file.mimetype === "application/pdf" ? "raw" : "image";
+
         // Upload to Cloudinary
         const uploadResult = await uploadToCloudinary(
           req.file.buffer,
-          process.env.CLOUDINARY_FOLDER || 'reimbursement-receipts',
+          process.env.CLOUDINARY_FOLDER || "reimbursement-receipts",
           resourceType
         );
 
@@ -244,13 +192,12 @@ export async function createReimbursement(req, res) {
 
         console.log(`✅ Cloudinary upload successful: ${receiptUrl}`);
       } catch (uploadError) {
-        console.error('❌ Cloudinary upload failed:', uploadError);
-        return res.status(500).json({ 
-          error: 'Failed to upload receipt to cloud storage',
-          details: uploadError.message 
+        console.error("❌ Cloudinary upload failed:", uploadError);
+        return res.status(500).json({
+          error: "Failed to upload receipt to cloud storage",
+          details: uploadError.message,
         });
       }
->>>>>>> origin/main
     }
 
     // Parse date
@@ -276,16 +223,10 @@ export async function createReimbursement(req, res) {
       items: payload.items,
       merchant: payload.merchant,
       total: payload.total,
-<<<<<<< HEAD
-      reimbursable_amount: calculatedReimbursable, // NEW
-      number_of_people:
-        payload.category === "Meal with Client" ? numPeople : null, // NEW
-      number_of_days: payload.category === "Accomodation" ? numDays : null, // NEW
-=======
       reimbursable_amount: calculatedReimbursable,
-      number_of_people: payload.category === 'Meal with Client' ? numPeople : null,
-      number_of_days: payload.category === 'Accomodation' ? numDays : null,
->>>>>>> origin/main
+      number_of_people:
+        payload.category === "Meal with Client" ? numPeople : null,
+      number_of_days: payload.category === "Accomodation" ? numDays : null,
       status: "Pending",
       current_approver: firstApproverRole,
       sap_code: payload.sap_code,
@@ -305,12 +246,7 @@ export async function createReimbursement(req, res) {
     for (let i = 0; i < approvalFlow.length; i++) {
       const approverRole = approvalFlow[i];
       let potentialApprover = null;
-<<<<<<< HEAD
 
-      // Find approver based on role
-=======
-      
->>>>>>> origin/main
       if (i === 0) {
         potentialApprover = firstApprover;
       }
@@ -354,22 +290,10 @@ export async function createReimbursement(req, res) {
           `📢 New Reimbursement Request - ${reimbursement.sap_code}`,
           emailHtml
         );
-<<<<<<< HEAD
 
-        console.log(
-          `📧 Submission notification email sent to ${firstApprover.name} (${firstApprover.email})`
-        );
-      } catch (emailError) {
-        console.error(
-          "❌ Failed to send submission notification email:",
-          emailError
-        );
-=======
-        
         console.log(`📧 Notification sent to ${firstApprover.name}`);
       } catch (emailError) {
-        console.error('❌ Failed to send email:', emailError);
->>>>>>> origin/main
+        console.error("❌ Failed to send email:", emailError);
       }
     }
 
@@ -434,16 +358,11 @@ export async function getUserReimbursements(req, res) {
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
-<<<<<<< HEAD
       date: r.date_of_expense
         ? new Date(r.date_of_expense).toISOString().split("T")[0]
         : null,
-      receipt: r.receipt_data
-=======
-      date: r.date_of_expense ? new Date(r.date_of_expense).toISOString().split('T')[0] : null,
       // ✅ UPDATED: Return Cloudinary URL
       receipt: r.receipt_url
->>>>>>> origin/main
         ? {
             url: r.receipt_url,
             mimetype: r.receipt_mimetype,
@@ -499,30 +418,18 @@ export async function getPendingApprovals(req, res) {
       order: [["createdAt", "DESC"]],
     });
 
-<<<<<<< HEAD
-    // ✅ Filter to show reimbursements at user's approval level
     let filteredReimbursements = allReimbursements.filter((r) => {
       const userApproval = r.approvals.find(
         (a) => a.approver_role === user.role
       );
-=======
-    let filteredReimbursements = allReimbursements.filter(r => {
-      const userApproval = r.approvals.find(a => a.approver_role === user.role);
->>>>>>> origin/main
       if (!userApproval) return false;
 
       const previousApprovals = r.approvals.filter(
         (a) => a.approval_level < userApproval.approval_level
       );
 
-<<<<<<< HEAD
-      // Show if pending and previous approved, OR if already approved by user
       if (userApproval.status === "Pending") {
         return previousApprovals.every((a) => a.status === "Approved");
-=======
-      if (userApproval.status === 'Pending') {
-        return previousApprovals.every(a => a.status === 'Approved');
->>>>>>> origin/main
       }
 
       if (userApproval.status === "Approved") {
@@ -540,14 +447,7 @@ export async function getPendingApprovals(req, res) {
           });
           return employee?.assigned_sul_id === user.id ? r : null;
         })
-<<<<<<< HEAD
       ).then((results) => results.filter(Boolean));
-
-      console.log("🔍 Filtering for SUL - showing only assigned employees");
-=======
-      ).then(results => results.filter(Boolean));
-      
->>>>>>> origin/main
     } else if (user.role === "Account Manager") {
       const managedSapCodes = await SapCode.findAll({
         where: { account_manager_id: user.id },
@@ -563,22 +463,8 @@ export async function getPendingApprovals(req, res) {
       filteredReimbursements = filteredReimbursements.filter((r) =>
         managedCodes.includes(r.sap_code)
       );
-<<<<<<< HEAD
-
-      console.log(
-        "🔍 Filtering by Account Manager's managed SAP codes:",
-        managedCodes
-      );
     }
 
-    console.log(
-      `✅ Found ${filteredReimbursements.length} reimbursements at this approval level`
-    );
-
-=======
-    }
-
->>>>>>> origin/main
     const formatted = filteredReimbursements.map((r) => ({
       id: r.id,
       userId: r.user_id,
@@ -599,16 +485,11 @@ export async function getPendingApprovals(req, res) {
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
-<<<<<<< HEAD
       date: r.date_of_expense
         ? new Date(r.date_of_expense).toISOString().split("T")[0]
         : null,
-      receipt: r.receipt_data
-=======
-      date: r.date_of_expense ? new Date(r.date_of_expense).toISOString().split('T')[0] : null,
       // ✅ UPDATED: Return URL instead of base64
       receipt: r.receipt_url
->>>>>>> origin/main
         ? {
             url: r.receipt_url,
             mimetype: r.receipt_mimetype,
@@ -682,7 +563,9 @@ export async function getPendingAllApprovals(req, res) {
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
-      date: r.date_of_expense ? new Date(r.date_of_expense).toISOString().split("T")[0] : null,
+      date: r.date_of_expense
+        ? new Date(r.date_of_expense).toISOString().split("T")[0]
+        : null,
       // ✅ UPDATED
       receipt: r.receipt_url
         ? {

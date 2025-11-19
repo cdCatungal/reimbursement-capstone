@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, CircularProgress } from "@mui/material";
 import { useAppContext } from "../App";
-import { axiosInstance, axiosInstanceWithAuth } from "../lib/axios.js";
+import { axiosInstance } from "../lib/axios.js";
 
 function MonthlyStats() {
   const [stats, setStats] = useState({
@@ -15,7 +15,7 @@ function MonthlyStats() {
 
   useEffect(() => {
     fetchMonthlyStats();
-  }, []);
+  });
 
   const fetchMonthlyStats = async () => {
     try {

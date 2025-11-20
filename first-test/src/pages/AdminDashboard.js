@@ -98,7 +98,6 @@ function AdminDashboard() {
 
   // Check if user is Finance Officer
   const isFinanceOfficer = user?.role === "Finance Officer";
-  const isEmployee = user?.role === "Employee";
 
   // Define all tabs with their visibility rules
   const allTabs = [
@@ -204,7 +203,9 @@ function AdminDashboard() {
         </List>
 
         {drawerOpen && !isFinanceOfficer && (
-          <Box sx={{ mt: "auto" }}>{!isEmployee && <MonthlyStats />}</Box>
+          <Box sx={{ mt: "auto" }}>
+            <MonthlyStats />
+          </Box>
         )}
       </Drawer>
 

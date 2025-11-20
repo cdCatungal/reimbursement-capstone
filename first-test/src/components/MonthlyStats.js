@@ -15,7 +15,7 @@ function MonthlyStats() {
 
   useEffect(() => {
     fetchMonthlyStats();
-  });
+  }, []);
 
   const fetchMonthlyStats = async () => {
     try {

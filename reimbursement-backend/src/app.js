@@ -16,8 +16,9 @@ import ocrRoutes from "./routes/ocrRoutes.js";
 import adminRoutes from "./routes/admin.route.js";
 import sapCodeRoutes from "./routes/sapCode.routes.js";
 import { verifyEmailConfig } from "./utils/sendEmail.js";
-import { fileURLToPath } from "url";
 import path from "path";
+import { fileURLToPath } from "url";
+import https from "https";
 
 dotenv.config();
 // Fix __dirname for ES modules
@@ -28,8 +29,8 @@ const app = express();
 
 // ✅ Middleware order is critical for security and functionality
 app.use(cookieParser());
-
-// ✅ Session middleware with store (if using production, use RedisStore)
+app.set("trust proxy", 1);
+// ✅ Session middleware (must come before passport)
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "fallback_secret",
@@ -46,7 +47,14 @@ app.use(
 
 app.use(flash());
 
-// ✅ CORS configuration
+// ✅ CORS (allow cookies)
+// const corsOptions = {
+//   origin: process.env.CLIENT_URL || "http://localhost:3000",
+//   credentials: true,
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+// };
+
 const corsOptions = {
   origin: [
     "http://localhost:3000",
@@ -147,8 +155,8 @@ process.on("SIGTERM", async () => {
   }
 });
 
-// ✅ Enhanced server startup
-const PORT = process.env.PORT || 5000;
+// ✅ Enhanced server startup with email verification
+const PORT = process.env.PORT || 4000;
 (async () => {
   try {
     // ✅ Step 1: Verify database connection
@@ -165,19 +173,32 @@ const PORT = process.env.PORT || 5000;
     console.log("📧 Checking email configuration...");
     await verifyEmailConfig();
 
-    // ✅ Step 4: Start server
+    // Start server
     app.listen(PORT, () => {
-      console.log(`\n🚀 Server running: http://localhost:${PORT}`);
+      console.log(`\n🚀 Server running on port: ${PORT}`);
       console.log(
-        `🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`
-      );
-      console.log(`💾 Database: ${process.env.DB_HOST}`);
-      console.log(
-        `📧 Email: ${
+        `📧 Email notifications: ${
           process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured"
-        }`
+        }\n`
       );
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}\n`);
+      // ✅ ADD KEEP-ALIVE CODE HERE (after server starts)
+
+      function keepAlive() {
+        https
+          .get("https://reimbursement-capstone-main.onrender.com", (res) => {
+            console.log(`✅ Keep-alive ping: ${new Date().toISOString()}`);
+          })
+          .on("error", (err) => {
+            console.log("❌ Keep-alive failed:", err.message);
+          });
+      }
+
+      // Start pinging 30 seconds after startup, then every 10 minutes
+      setTimeout(() => {
+        keepAlive(); // Initial ping
+        setInterval(keepAlive, 10 * 60 * 1000); // Subsequent pings every 10 minutes
+        console.log("🔄 Keep-alive service started");
+      }, 30000);
     });
   } catch (err) {
     console.error("❌ Server startup error:", err.message);
@@ -185,3 +206,35 @@ const PORT = process.env.PORT || 5000;
     process.exit(1);
   }
 })();
+
+// (async () => {
+//   try {
+//     // ✅ Step 1: Verify database connection
+//     console.log('\n📡 Verifying database connection...');
+//     await sequelize.authenticate();
+//     console.log("✅ Database authenticated");
+
+//     // ✅ Step 2: Sync database models
+//     console.log('🔄 Syncing database models...');
+//     await sequelize.sync({ alter: false });
+//     console.log("✅ Database synced successfully");
+
+//     // ✅ Step 3: Verify email configuration
+//     console.log('📧 Checking email configuration...');
+//     await verifyEmailConfig();
+
+//     // ✅ Step 4: Start server
+//     app.listen(PORT, () => {
+//       console.log(`\n🚀 Server running: http://localhost:${PORT}`);
+//       console.log(`🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`);
+//       console.log(`💾 Database: ${process.env.DB_HOST}`);
+//       console.log(`📧 Email: ${process.env.EMAIL_USER ? '✅ Configured' : '❌ Not configured'}`);
+//       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+// >>>>>>> origin/main
+//     });
+//   } catch (err) {
+//     console.error("❌ Server startup error:", err.message);
+//     console.error(err);
+//     process.exit(1);
+//   }
+// })();

@@ -57,7 +57,7 @@ function ReceiptUpload() {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [errors, setErrors] = useState({});
   const [availableSapCodes, setAvailableSapCodes] = useState([]);
-  const [showConfirmModal, setShowConfirmModal] = useState(false); // NEW
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const categories = [
     "Transportation (Commute)",
@@ -68,14 +68,12 @@ function ReceiptUpload() {
     "Other",
   ];
 
-  // Category reimbursement limits
   const CATEGORY_LIMITS = {
     "Overtime Meal": { maxPerUnit: 300, unit: "fixed" },
     "Meal with Client": { maxPerUnit: 800, unit: "person" },
     Accommodation: { maxPerUnit: 2500, unit: "person-day" },
   };
 
-  // Calculate reimbursable amount based on category
   const calculateReimbursableAmount = (
     category,
     total,
@@ -85,7 +83,7 @@ function ReceiptUpload() {
     const totalAmount = parseFloat(total) || 0;
 
     if (!CATEGORY_LIMITS[category]) {
-      return totalAmount; // No limit for other categories
+      return totalAmount;
     }
 
     const limit = CATEGORY_LIMITS[category];
@@ -111,7 +109,6 @@ function ReceiptUpload() {
     return maxReimbursable;
   };
 
-  // Get helper text for reimbursable amount
   const getReimbursableAmountHelper = (category, numPeople, numDays) => {
     if (!CATEGORY_LIMITS[category]) return "";
 
@@ -139,21 +136,16 @@ function ReceiptUpload() {
     }
   };
 
-  // ✅ Check if user bypasses SAP validation
-  const bypassesSapValidation = ["Invoice Specialist", "SUL"].includes(
-    user?.role
-  );
+  // ✅ UPDATED: Only Invoice Specialist bypasses SAP validation
+  const bypassesSapValidation = user?.role === "Invoice Specialist";
 
   useEffect(() => {
     if (user) {
-      // Fetch user's SAP codes from settings endpoint
       fetchUserSapCodes();
 
-      // ✅ Set default for roles that bypass SAP validation
+      // ✅ UPDATED: Only set default for Invoice Specialist
       if (user.role === "Invoice Specialist") {
         setFormData((prev) => ({ ...prev, sap_code: "INVOICE_SPECIALIST" }));
-      } else if (user.role === "SUL") {
-        setFormData((prev) => ({ ...prev, sap_code: "SUL_DIRECT" }));
       }
     }
   }, [user]);
@@ -172,7 +164,7 @@ function ReceiptUpload() {
         const codes = data.data.sapCodes.map((sc) => sc.code);
         setAvailableSapCodes(codes);
 
-        // Auto-select if only one SAP code
+        // Auto-select if only one SAP code (for all roles that need SAP codes)
         if (codes.length === 1 && !bypassesSapValidation) {
           setFormData((prev) => ({ ...prev, sap_code: codes[0] }));
         }
@@ -194,13 +186,11 @@ function ReceiptUpload() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // ✅ UPDATED: Added PDF support
       const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
       const allowedExtensions = ["jpg", "jpeg", "png", "pdf"];
 
       const fileExtension = file.name.split(".").pop().toLowerCase();
 
-      // ✅ Check MIME + extension
       if (
         !allowedTypes.includes(file.type) ||
         !allowedExtensions.includes(fileExtension)
@@ -221,7 +211,6 @@ function ReceiptUpload() {
       setExtractedText("");
       setErrors((prev) => ({ ...prev, image: "" }));
 
-      // ✅ UPDATED: Only create preview for image files, not PDFs
       if (file.type !== "application/pdf") {
         const reader = new FileReader();
         reader.onload = (event) => setImagePreview(event.target.result);
@@ -400,6 +389,7 @@ function ReceiptUpload() {
       }
 
       const updated = { ...prev, [name]: processedValue };
+      // const updated = { ...prev, [name]: value };
       return updated;
     });
 
@@ -423,7 +413,6 @@ function ReceiptUpload() {
     if (!formData.description.trim())
       newErrors.description = "Description is required";
 
-    // Validate number of people for Meal with Client
     if (formData.category === "Meal with Client") {
       const numPeople = parseInt(formData.number_of_people);
       if (!numPeople || numPeople < 1) {
@@ -431,7 +420,6 @@ function ReceiptUpload() {
       }
     }
 
-    // Validate number of days for Accommodation
     if (formData.category === "Accommodation") {
       const numDays = parseInt(formData.number_of_days);
       if (!numDays || numDays < 1) {
@@ -454,7 +442,6 @@ function ReceiptUpload() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // NEW: Handle opening confirmation modal
   const handleSubmitClick = () => {
     if (!validateForm()) {
       showNotification("Please fill in all required fields", "error");
@@ -466,17 +453,14 @@ function ReceiptUpload() {
       return;
     }
 
-    // Open confirmation modal
     setShowConfirmModal(true);
   };
 
-  // NEW: Handle actual submission
   const handleConfirmSubmit = async () => {
     setShowConfirmModal(false);
     setSubmitting(true);
 
     try {
-      // Calculate reimbursable amount
       const reimbursableAmount = calculateReimbursableAmount(
         formData.category,
         formData.total,
@@ -484,7 +468,6 @@ function ReceiptUpload() {
         parseInt(formData.number_of_days) || 1
       );
 
-      // Create FormData for multipart upload
       const formDataToSend = new FormData();
       formDataToSend.append("category", formData.category);
       formDataToSend.append("type", formData.category);
@@ -496,7 +479,6 @@ function ReceiptUpload() {
       formDataToSend.append("date_of_expense", formData.date);
       formDataToSend.append("sap_code", formData.sap_code);
 
-      // Add category-specific fields
       if (formData.category === "Meal with Client") {
         formDataToSend.append(
           "number_of_people",
@@ -514,7 +496,6 @@ function ReceiptUpload() {
         );
       }
 
-      // Append the actual file (image or PDF)
       if (image) {
         formDataToSend.append("receipt", image);
       }
@@ -543,11 +524,9 @@ function ReceiptUpload() {
       showNotification("Reimbursement submitted successfully!", "success");
       console.log("Created reimbursement:", data);
 
-      // Reset form
+      // ✅ UPDATED: Reset with proper default
       const defaultSapCode = bypassesSapValidation
-        ? user.role === "Invoice Specialist"
-          ? "INVOICE_SPECIALIST"
-          : "SUL_DIRECT"
+        ? "INVOICE_SPECIALIST"
         : availableSapCodes.length === 1
         ? availableSapCodes[0]
         : "";
@@ -585,7 +564,6 @@ function ReceiptUpload() {
     setErrors((prev) => ({ ...prev, image: "" }));
   };
 
-  // NEW: Confirmation Modal Component
   const ConfirmationModal = () => {
     const reimbursableAmount = calculateReimbursableAmount(
       formData.category,
@@ -632,7 +610,6 @@ function ReceiptUpload() {
           </Alert>
 
           <Stack spacing={2}>
-            {/* Receipt Preview */}
             <Box>
               <Typography
                 variant="subtitle2"
@@ -690,7 +667,6 @@ function ReceiptUpload() {
 
             <Divider />
 
-            {/* Form Data Review */}
             <Grid container spacing={2}>
               {!bypassesSapValidation && (
                 <Grid item xs={12} sm={6}>
@@ -744,7 +720,7 @@ function ReceiptUpload() {
                   variant="h5"
                   sx={{
                     fontWeight: 700,
-                    color: "#1565c0", // Darker blue for better contrast
+                    color: "#1565c0",
                     mt: 0.5,
                   }}
                 >
@@ -791,7 +767,6 @@ function ReceiptUpload() {
                 </>
               )}
 
-              {/* Reimbursable Amount */}
               <Grid item xs={12}>
                 <Paper
                   sx={{
@@ -941,7 +916,6 @@ function ReceiptUpload() {
                 {imagePreview ? (
                   <Box>
                     <Box sx={{ position: "relative", mb: 2 }}>
-                      {/* ✅ UPDATED: Handle PDF preview differently */}
                       {image && image.type === "application/pdf" ? (
                         <Box
                           sx={{
@@ -1043,7 +1017,6 @@ function ReceiptUpload() {
                     htmlFor="receipt-upload"
                     style={{ cursor: "pointer", display: "block" }}
                   >
-                    {/* ✅ UPDATED: Added .pdf to accept attribute */}
                     <input
                       id="receipt-upload"
                       type="file"
@@ -1064,7 +1037,6 @@ function ReceiptUpload() {
                     <Typography variant="h6" sx={{ mb: 1 }}>
                       Click to Upload Receipt
                     </Typography>
-                    {/* ✅ UPDATED: Added PDF to supported formats */}
                     <Typography variant="body2" color="text.secondary">
                       Supported formats: JPG, PNG, JPEG, PDF (Max 5MB)
                     </Typography>
@@ -1120,6 +1092,8 @@ function ReceiptUpload() {
                     helperText={
                       errors.sap_code ||
                       (user?.role === "Account Manager"
+                        ? "Select SAP code for your reimbursement submission"
+                        : user?.role === "SUL"
                         ? "Select SAP code for your reimbursement submission"
                         : "Select the department/project for this expense")
                     }
@@ -1194,7 +1168,6 @@ function ReceiptUpload() {
                   helperText={errors.total}
                 />
 
-                {/* Show Number of People field for Meal with Client */}
                 {formData.category === "Meal with Client" && (
                   <TextField
                     label="Number of People *"
@@ -1212,7 +1185,6 @@ function ReceiptUpload() {
                   />
                 )}
 
-                {/* Show Number of Days field for Accommodation */}
                 {formData.category === "Accommodation" && (
                   <>
                     <TextField
@@ -1246,7 +1218,6 @@ function ReceiptUpload() {
                   </>
                 )}
 
-                {/* Reimbursable Amount Display - Show for categories with limits */}
                 {[
                   "Overtime Meal",
                   "Meal with Client",
@@ -1378,10 +1349,8 @@ function ReceiptUpload() {
         </CardContent>
       </Card>
 
-      {/* Confirmation Modal */}
       <ConfirmationModal />
 
-      {/* Backdrop Loader for Submission */}
       <Backdrop
         sx={{
           color: "#fff",

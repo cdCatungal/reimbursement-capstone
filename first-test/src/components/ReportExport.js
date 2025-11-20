@@ -34,6 +34,16 @@ function ReportExport() {
     resetReportData();
   }, []);
 
+  // Helper to get reimbursable amount safely
+  const getReimbursableAmount = (item) => {
+    return parseFloat(
+      item.reimbursable_amount || 
+      item.maxReimbursable ||
+      item.reimbursableAmount ||
+       0
+    );
+  };
+
   const filterData = () => {
     if (!Array.isArray(reportData)) return [];
 
@@ -64,7 +74,7 @@ function ReportExport() {
       { header: "Category", key: "category", width: 25 },
       { header: "Subject/Title", key: "subject", width: 30 },
       { header: "Description", key: "description", width: 40 },
-      { header: "Amount", key: "amount", width: 15 },
+      { header: "Reimbursable Amount", key: "reimbursableAmount", width: 30 },
       { header: "Date of Expense", key: "expenseDate", width: 18 },
       { header: "Date Submitted", key: "dateSubmitted", width: 18 },
     ];
@@ -118,6 +128,15 @@ function ReportExport() {
         }
       }
 
+      // Get reimbursable amount - check multiple possible fields
+      const reimbursableAmount = parseFloat(
+        item.reimbursableAmount || 
+        item.reimbursable_amount || 
+        item.reimbursable || 
+        item.total || 
+        0
+      );
+      
       worksheet.addRow({
         id: item.id || "N/A",
         employeeName: item.user?.name || "Unknown",
@@ -126,7 +145,7 @@ function ReportExport() {
         category: item.category || item.type || "N/A",
         subject: item.items || "N/A",
         description: item.description || "N/A",
-        amount: parseFloat(item.total) || 0,
+        reimbursableAmount: parseFloat(item.reimbursable_amount||item.maxReimbursable) ||0,
         expenseDate: expenseDate,
         dateSubmitted: submittedDate,
       });
@@ -147,8 +166,8 @@ function ReportExport() {
 
     // Format columns
     // Format Amount column as number with 2 decimals and peso sign
-    worksheet.getColumn('amount').numFmt = '₱#,##0.00';
-    worksheet.getColumn('amount').alignment = { horizontal: 'right' };
+    worksheet.getColumn('reimbursableAmount').numFmt = '₱#,##0.00';
+    worksheet.getColumn('reimbursableAmount').alignment = { horizontal: 'center' };
 
     // Format date columns as short date (MM/DD/YYYY)
     worksheet.getColumn('expenseDate').numFmt = 'mm/dd/yyyy';
@@ -182,7 +201,7 @@ function ReportExport() {
 
     // Calculate totals
     const totalAmount = filteredData.reduce(
-      (sum, item) => sum + parseFloat(item.total),
+      (sum, item) => sum + parseFloat(item.reimbursable_amount),
       0
     );
 
@@ -201,7 +220,7 @@ function ReportExport() {
     ]);
     
     // Add total amount with formatting
-    const totalAmountRow = worksheet.addRow(["Total Amount:", totalAmount]);
+    const totalAmountRow = worksheet.addRow(["Total Reimbursable Amount:", totalAmount]);
     totalAmountRow.getCell(2).numFmt = '₱#,##0.00';
 
     // Generate and save file
@@ -222,12 +241,12 @@ function ReportExport() {
     approved: filteredData.filter((item) => item.status === "Approved").length,
     rejected: filteredData.filter((item) => item.status === "Rejected").length,
     totalAmount: filteredData.reduce(
-      (sum, item) => sum + parseFloat(item.total),
+      (sum, item) => sum + parseFloat(item.reimbursable_amount||item.reimbursableAmount),
       0
     ),
     approvedAmount: filteredData
       .filter((item) => item.status === "Approved")
-      .reduce((sum, item) => sum + parseFloat(item.total), 0),
+      .reduce((sum, item) => sum + parseFloat(item.reimbursable_amount), 0),
   };
 
   const handlefilterReports = (dataStart, dataEnd) => {
@@ -520,7 +539,7 @@ function ReportExport() {
                     }}
                     align="right"
                   >
-                    Amount
+                    Reimbursable Amount
                   </TableCell>
                   <TableCell
                     sx={{
@@ -558,7 +577,7 @@ function ReportExport() {
                       {item.items?.length > 40 ? "..." : ""}
                     </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 600 }}>
-                      ₱{parseFloat(item.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ₱{parseFloat(item.reimbursable_amount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>
                       <Box>

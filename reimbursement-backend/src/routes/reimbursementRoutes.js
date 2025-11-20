@@ -33,7 +33,7 @@ router.post(
 router.get("/my-reimbursements", isAuthenticated, getUserReimbursements);
 
 // 📊 Get monthly statistics for current user - NEW ROUTE
-router.get("/monthly-stats", isAuthenticated, async (req, res) => {
+router.get("/monthly-stats", async (req, res) => {
   try {
     console.log("📊 Monthly stats endpoint hit!");
     console.log("req.user:", req.user);

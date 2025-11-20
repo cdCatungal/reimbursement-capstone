@@ -365,11 +365,41 @@ function ReceiptUpload() {
     return "";
   };
 
+  // const handleChange = (e) => {
+  //   const { name, value } = e.target;
+
+  //   setFormData((prev) => {
+  //     const updated = { ...prev, [name]: value };
+  //     return updated;
+  //   });
+
+  //   if (errors[name]) {
+  //     setErrors((prev) => ({ ...prev, [name]: "" }));
+  //   }
+  // };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
     setFormData((prev) => {
-      const updated = { ...prev, [name]: value };
+      let processedValue = value;
+
+      // ✅ Convert number fields to actual numbers
+      if (name === "total") {
+        if (value === "") {
+          processedValue = ""; // Allow empty
+        } else {
+          // Convert to number and immediately round to avoid floating point
+          processedValue = Math.round(parseFloat(value) * 100) / 100;
+        }
+      }
+
+      // ✅ Also fix other number fields
+      if (name === "number_of_people" || name === "number_of_days") {
+        processedValue = value === "" ? "" : parseInt(value) || 1;
+      }
+
+      const updated = { ...prev, [name]: processedValue };
       return updated;
     });
 

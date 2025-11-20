@@ -118,3 +118,25 @@ function generatePlainText(html) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+export async function verifyEmailConfig() {
+  try {
+    if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {
+      console.error("❌ MJ_APIKEY_PUBLIC and MJ_APIKEY_PRIVATE required");
+      return false;
+    }
+
+    console.log("✅ Mailjet API keys present in environment");
+    console.log(
+      "📧 Using sender:",
+      process.env.EMAIL_FROM || "ernitback@gmail.com"
+    );
+
+    // For Mailjet, just having the keys is often enough verification
+    // You could test with a simple send if you want to be sure
+    return true;
+  } catch (error) {
+    console.error("❌ Mailjet verification failed:", error.message);
+    return false;
+  }
+}

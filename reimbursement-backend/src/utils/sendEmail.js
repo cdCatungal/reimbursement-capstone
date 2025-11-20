@@ -3,80 +3,12 @@ import dotenv from "dotenv";
 import fetch from "node-fetch";
 dotenv.config();
 
-/**
- * Send email using SendGrid API directly
- */
-// export async function sendEmail(to, subject, html, cc = null) {
-//   try {
-//     if (!process.env.SENDGRID_API_KEY) {
-//       throw new Error("SendGrid API key missing");
-//     }
-
-//     const emailData = {
-//       personalizations: [
-//         {
-//           to: [{ email: to }],
-//           subject: subject,
-//         },
-//       ],
-//       from: {
-//         email: process.env.EMAIL_FROM || "ernitback@gmail.com",
-//         name: process.env.EMAIL_FROM_NAME || "ERNIt Reimbursement System",
-//       },
-//       reply_to: {
-//         email: process.env.EMAIL_FROM || "ernitback@gmail.com",
-//         name: process.env.EMAIL_FROM_NAME || "ERNIt Reimbursement System",
-//       },
-//       content: [
-//         {
-//           // ✅ PLAIN TEXT MUST BE FIRST
-//           type: "text/plain",
-//           value: generatePlainText(html),
-//         },
-//         {
-//           // ✅ HTML COMES SECOND
-//           type: "text/html",
-//           value: html,
-//         },
-//       ],
-//     };
-
-//     // Add CC if provided
-//     if (cc) {
-//       emailData.personalizations[0].cc = Array.isArray(cc)
-//         ? cc.map((email) => ({ email }))
-//         : [{ email: cc }];
-//     }
-
-//     const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-//       method: "POST",
-//       headers: {
-//         Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
-//         "Content-Type": "application/json",
-//       },
-//       body: JSON.stringify(emailData),
-//     });
-
-//     if (response.ok) {
-//       console.log(`✅ Email sent successfully to ${to}`);
-//       return { success: true, messageId: response.headers.get("x-message-id") };
-//     } else {
-//       const errorText = await response.text();
-//       throw new Error(`SendGrid API error: ${response.status} - ${errorText}`);
-//     }
-//   } catch (error) {
-//     console.error("❌ SendGrid error:", error.message);
-//     throw error;
-//   }
-// }
-
 export async function sendEmail(to, subject, html, cc = null) {
   try {
     if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {
       throw new Error("Mailjet API keys missing");
     }
 
-    // Create authentication header
     const auth = Buffer.from(
       `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
     ).toString("base64");
@@ -91,23 +23,28 @@ export async function sendEmail(to, subject, html, cc = null) {
           To: [
             {
               Email: to,
+              Name: "", // Optional
             },
           ],
           Subject: subject,
-          // ✅ PLAIN TEXT MUST BE FIRST (like your SendGrid version)
           TextPart: generatePlainText(html),
-          // ✅ HTML COMES SECOND (like your SendGrid version)
           HTMLPart: html,
         },
       ],
     };
 
-    // Add CC if provided (same logic as your SendGrid version)
     if (cc) {
       emailData.Messages[0].Cc = Array.isArray(cc)
         ? cc.map((email) => ({ Email: email }))
         : [{ Email: cc }];
     }
+
+    console.log("📤 Attempting to send email:", {
+      from: emailData.Messages[0].From.Email,
+      to: to,
+      subject: subject,
+      hasCC: !!cc,
+    });
 
     const response = await fetch("https://api.mailjet.com/v3.1/send", {
       method: "POST",
@@ -120,96 +57,96 @@ export async function sendEmail(to, subject, html, cc = null) {
 
     const result = await response.json();
 
-    if (response.ok) {
-      console.log(`✅ Email sent successfully to ${to}`);
-      return {
-        success: true,
-        messageId: response.headers.get("x-message-id"),
-      };
+    // ✅ Detailed logging
+    console.log("📬 Mailjet Response Status:", response.status);
+    console.log("📬 Mailjet Full Response:", JSON.stringify(result, null, 2));
+
+    // ✅ Check if email was actually sent
+    if (!response.ok) {
+      // API returned error
+      const errorMsg = result.ErrorMessage || JSON.stringify(result);
+      console.error("❌ Mailjet API Error:", errorMsg);
+      throw new Error(`Mailjet API error: ${response.status} - ${errorMsg}`);
+    }
+
+    // Check message status
+    if (result.Messages && result.Messages.length > 0) {
+      const message = result.Messages[0];
+
+      if (message.Status === "success") {
+        console.log("✅ Email sent successfully to", to);
+        console.log("📧 Message ID:", message.To[0].MessageID);
+        return {
+          success: true,
+          messageId: message.To[0].MessageID,
+          messageUUID: message.To[0].MessageUUID,
+        };
+      } else {
+        // Status is not success
+        const errors = message.Errors || [];
+        console.error("❌ Email failed:", errors);
+        throw new Error(`Email failed: ${JSON.stringify(errors)}`);
+      }
     } else {
-      // ✅ Better error handling like your SendGrid version
-      console.error("❌ Mailjet API error:", result);
-      throw new Error(
-        `Mailjet API error: ${response.status} - ${JSON.stringify(result)}`
-      );
+      console.error("❌ Unexpected response format:", result);
+      throw new Error("Unexpected Mailjet response format");
     }
   } catch (error) {
-    console.error("❌ Email error:", error.message);
+    console.error("❌ Email sending failed:", error.message);
+    console.error("Stack trace:", error.stack);
     throw error;
   }
 }
 
-/**
- * Generate plain text version from HTML (essential for deliverability)
- */
 function generatePlainText(html) {
-  return html.replace(/<[^>]*>/g, "").trim();
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<p\s*\/?>/gi, "\n\n")
+    .replace(/<h[1-6]\s*\/?>/gi, "\n\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .trim();
 }
-// function generatePlainText(html) {
-//   // Simple HTML to text conversion
-//   return html
-//     .replace(/<br\s*\/?>/gi, "\n")
-//     .replace(/<p\s*\/?>/gi, "\n\n")
-//     .replace(/<h[1-6]\s*\/?>/gi, "\n\n")
-//     .replace(/<[^>]*>/g, "") // Remove all HTML tags
-//     .replace(/\n{3,}/g, "\n\n") // Limit consecutive newlines
-//     .replace(/&nbsp;/g, " ")
-//     .replace(/&amp;/g, "&")
-//     .replace(/&lt;/g, "<")
-//     .replace(/&gt;/g, ">")
-//     .trim();
-// }
-
-/**
- * Verify SendGrid configuration
- */
-// export async function verifyEmailConfig() {
-//   try {
-//     if (!process.env.SENDGRID_API_KEY) {
-//       console.error("❌ SENDGRID_API_KEY missing in environment variables");
-//       return false;
-//     }
-
-//     // Test API key by making a simple request
-//     const response = await fetch("https://api.sendgrid.com/v3/user/account", {
-//       headers: {
-//         Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
-//       },
-//     });
-
-//     if (response.ok) {
-//       console.log("✅ SendGrid configuration is valid");
-//       console.log(
-//         "📧 Using sender:",
-//         process.env.EMAIL_FROM || "ernitback@gmail.com"
-//       );
-//       return true;
-//     } else {
-//       console.error("❌ SendGrid API key invalid or insufficient permissions");
-//       return false;
-//     }
-//   } catch (error) {
-//     console.error("❌ SendGrid verification failed:", error.message);
-//     return false;
-//   }
-// }
 
 export async function verifyEmailConfig() {
   try {
     if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {
-      console.error("❌ MJ_APIKEY_PUBLIC and MJ_APIKEY_PRIVATE required");
+      console.error("❌ Mailjet API keys missing");
       return false;
     }
 
-    console.log("✅ Mailjet API keys present in environment");
+    console.log("✅ Mailjet API keys present");
     console.log(
-      "📧 Using sender:",
+      "📧 Sender email:",
       process.env.EMAIL_FROM || "ernitback@gmail.com"
     );
 
-    // For Mailjet, just having the keys is often enough verification
-    // You could test with a simple send if you want to be sure
-    return true;
+    const auth = Buffer.from(
+      `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
+    ).toString("base64");
+
+    // Test API connectivity
+    const response = await fetch("https://api.mailjet.com/v3/REST/sender", {
+      method: "GET",
+      headers: {
+        Authorization: `Basic ${auth}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log("✅ Mailjet API connection successful");
+      console.log("📧 Available senders:", data.Count);
+      return true;
+    } else {
+      const error = await response.json();
+      console.error("❌ Mailjet API error:", error);
+      return false;
+    }
   } catch (error) {
     console.error("❌ Mailjet verification failed:", error.message);
     return false;

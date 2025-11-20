@@ -101,6 +101,34 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
+app.get("/api/test-email", async (req, res) => {
+  try {
+    console.log("🧪 Testing email send...");
+
+    const result = await sendEmail(
+      "ernitback@gmail.com", // Send to yourself first
+      "Test Email - Mailjet Integration",
+      `
+        <h1>Hello!</h1>
+        <p>This is a test email from your reimbursement system.</p>
+        <p>Time: ${new Date().toISOString()}</p>
+      `
+    );
+
+    res.json({
+      success: true,
+      message: "Email sent successfully!",
+      details: result,
+    });
+  } catch (error) {
+    console.error("Test email error:", error);
+    res.status(500).json({
+      error: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
 // ✅ Health check endpoint
 app.get("/", (req, res) => {
   res.json({

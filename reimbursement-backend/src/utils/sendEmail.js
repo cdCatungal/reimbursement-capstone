@@ -1,3 +1,4 @@
+// reimbursement-backend/src/utils/sendEmail.js
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 dotenv.config();
@@ -12,11 +13,11 @@ export async function sendEmail(to, subject, html, cc = null) {
       `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
     ).toString("base64");
 
-    // ✅ FIX 1: Use your verified domain email
-    const fromEmail = process.env.EMAIL_FROM || "noreply@yourcompany.com"; // CHANGE THIS
-    const fromName = process.env.EMAIL_FROM_NAME || "Your Company Name";
+    // ✅ FIX: Use your verified domain email instead of Gmail
+    const fromEmail = process.env.EMAIL_FROM || "noreply@yourdomain.com"; // CHANGE THIS
+    const fromName =
+      process.env.EMAIL_FROM_NAME || "ERNIt Reimbursement System";
 
-    // ✅ FIX 2: Add proper email headers
     const emailData = {
       Messages: [
         {
@@ -27,35 +28,38 @@ export async function sendEmail(to, subject, html, cc = null) {
           To: [
             {
               Email: to,
-              Name: to.split("@")[0], // Basic name from email
+              Name: "", // Optional
             },
           ],
           Subject: subject,
           TextPart: generatePlainText(html),
           HTMLPart: html,
-          // ✅ FIX 3: Add critical headers
+          // ✅ FIX: Remove problematic headers, keep only allowed ones
           Headers: {
-            "List-Unsubscribe": `<mailto:unsubscribe@yourcompany.com?subject=Unsubscribe>`,
+            "List-Unsubscribe": `<mailto:unsubscribe@${
+              fromEmail.split("@")[1]
+            }?subject=Unsubscribe>`,
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-            "X-Mailer": "ERNIt-Reimbursement-System",
-            Precedence: "bulk",
+            // ❌ REMOVED: "X-Mailer" - Mailjet blocks this
+            // ❌ REMOVED: "Precedence" - Mailjet blocks this
           },
-          // ✅ FIX 4: Add custom ID for tracking
-          CustomID: `reimbursement_${Date.now()}`,
+          // ✅ Alternative: Use CustomCampaign for tracking
+          CustomCampaign: "ERNIt-Reimbursement-System",
         },
       ],
     };
 
     if (cc) {
       emailData.Messages[0].Cc = Array.isArray(cc)
-        ? cc.map((email) => ({ Email: email, Name: email.split("@")[0] }))
-        : [{ Email: cc, Name: cc.split("@")[0] }];
+        ? cc.map((email) => ({ Email: email }))
+        : [{ Email: cc }];
     }
 
     console.log("📤 Attempting to send email:", {
       from: fromEmail,
       to: to,
       subject: subject,
+      hasCC: !!cc,
     });
 
     const response = await fetch("https://api.mailjet.com/v3.1/send", {
@@ -102,11 +106,9 @@ export async function sendEmail(to, subject, html, cc = null) {
   }
 }
 
-// ✅ FIX 5: Better plain text generation
 function generatePlainText(html) {
   return html
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>\s*<p>/gi, "\n\n")
     .replace(/<p\s*\/?>/gi, "\n\n")
     .replace(/<h[1-6]\s*\/?>/gi, "\n\n")
     .replace(/<[^>]*>/g, "")
@@ -115,26 +117,40 @@ function generatePlainText(html) {
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/\s+/g, " ")
     .trim();
 }
 
 export async function verifyEmailConfig() {
   try {
     if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {
-      console.error("❌ MJ_APIKEY_PUBLIC and MJ_APIKEY_PRIVATE required");
+      console.error("❌ Mailjet API keys missing");
       return false;
     }
 
-    console.log("✅ Mailjet API keys present in environment");
-    console.log(
-      "📧 Using sender:",
-      process.env.EMAIL_FROM || "ernitback@gmail.com"
-    );
+    console.log("✅ Mailjet API keys present");
+    console.log("📧 Sender email:", process.env.EMAIL_FROM);
 
-    // For Mailjet, just having the keys is often enough verification
-    // You could test with a simple send if you want to be sure
-    return true;
+    const auth = Buffer.from(
+      `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
+    ).toString("base64");
+
+    const response = await fetch("https://api.mailjet.com/v3/REST/sender", {
+      method: "GET",
+      headers: {
+        Authorization: `Basic ${auth}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log("✅ Mailjet API connection successful");
+      console.log("📧 Available senders:", data.Count);
+      return true;
+    } else {
+      const error = await response.json();
+      console.error("❌ Mailjet API error:", error);
+      return false;
+    }
   } catch (error) {
     console.error("❌ Mailjet verification failed:", error.message);
     return false;

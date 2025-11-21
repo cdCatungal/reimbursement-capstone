@@ -1,107 +1,56 @@
-// reimbursement-backend/src/utils/sendEmail.js
 import dotenv from "dotenv";
-import fetch from "node-fetch";
+import nodemailer from "nodemailer";
 dotenv.config();
+
+// Create Mailjet SMTP transporter
+const transporter = nodemailer.createTransport({
+  host: "in-v3.mailjet.com",
+  port: 587,
+  secure: false, // Use TLS
+  auth: {
+    user: process.env.MJ_APIKEY_PUBLIC, // Your API Key from Mailjet
+    pass: process.env.MAILJET_SECRET_KEY, // Your Secret Key from environment
+  },
+});
 
 export async function sendEmail(to, subject, html, cc = null) {
   try {
-    if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {
-      throw new Error("Mailjet API keys missing");
-    }
-
-    const auth = Buffer.from(
-      `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
-    ).toString("base64");
-
-    // ✅ FIX: Use your verified domain email instead of Gmail
-    const fromEmail = process.env.EMAIL_FROM || "noreply@yourdomain.com"; // CHANGE THIS
+    const fromEmail = process.env.EMAIL_FROM || "noreply@yourdomain.com";
     const fromName =
       process.env.EMAIL_FROM_NAME || "ERNIt Reimbursement System";
 
-    const emailData = {
-      Messages: [
-        {
-          From: {
-            Email: fromEmail,
-            Name: fromName,
-          },
-          To: [
-            {
-              Email: to,
-              Name: "", // Optional
-            },
-          ],
-          Subject: subject,
-          TextPart: generatePlainText(html),
-          HTMLPart: html,
-          // ✅ FIX: Remove problematic headers, keep only allowed ones
-          Headers: {
-            "List-Unsubscribe": `<mailto:unsubscribe@${
-              fromEmail.split("@")[1]
-            }?subject=Unsubscribe>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-            // ❌ REMOVED: "X-Mailer" - Mailjet blocks this
-            // ❌ REMOVED: "Precedence" - Mailjet blocks this
-          },
-          // ✅ Alternative: Use CustomCampaign for tracking
-          CustomCampaign: "ERNIt-Reimbursement-System",
-        },
-      ],
+    const mailOptions = {
+      from: `"${fromName}" <${fromEmail}>`,
+      to: to,
+      subject: subject,
+      html: html,
+      text: generatePlainText(html),
     };
 
     if (cc) {
-      emailData.Messages[0].Cc = Array.isArray(cc)
-        ? cc.map((email) => ({ Email: email }))
-        : [{ Email: cc }];
+      mailOptions.cc = cc;
     }
 
-    console.log("📤 Attempting to send email:", {
+    console.log("📤 Sending email via Mailjet SMTP:", {
       from: fromEmail,
       to: to,
       subject: subject,
       hasCC: !!cc,
     });
 
-    const response = await fetch("https://api.mailjet.com/v3.1/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${auth}`,
-      },
-      body: JSON.stringify(emailData),
-    });
+    const result = await transporter.sendMail(mailOptions);
 
-    const result = await response.json();
+    console.log("✅ Email sent successfully via Mailjet SMTP");
+    console.log("📧 Message ID:", result.messageId);
+    console.log("📨 Response:", result.response);
 
-    console.log("📬 Mailjet Response Status:", response.status);
-
-    if (!response.ok) {
-      const errorMsg = result.ErrorMessage || JSON.stringify(result);
-      console.error("❌ Mailjet API Error:", errorMsg);
-      throw new Error(`Mailjet API error: ${response.status} - ${errorMsg}`);
-    }
-
-    if (result.Messages && result.Messages.length > 0) {
-      const message = result.Messages[0];
-      if (message.Status === "success") {
-        console.log("✅ Email sent successfully to", to);
-        console.log("📧 Message ID:", message.To[0].MessageID);
-        return {
-          success: true,
-          messageId: message.To[0].MessageID,
-          messageUUID: message.To[0].MessageUUID,
-        };
-      } else {
-        const errors = message.Errors || [];
-        console.error("❌ Email failed:", errors);
-        throw new Error(`Email failed: ${JSON.stringify(errors)}`);
-      }
-    } else {
-      console.error("❌ Unexpected response format:", result);
-      throw new Error("Unexpected Mailjet response format");
-    }
+    return {
+      success: true,
+      messageId: result.messageId,
+      service: "mailjet-smtp",
+    };
   } catch (error) {
-    console.error("❌ Email sending failed:", error.message);
+    console.error("❌ Mailjet SMTP email failed:", error.message);
     throw error;
   }
 }
@@ -122,37 +71,20 @@ function generatePlainText(html) {
 
 export async function verifyEmailConfig() {
   try {
-    if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {
-      console.error("❌ Mailjet API keys missing");
+    if (!process.env.MAILJET_SECRET_KEY) {
+      console.error("❌ Mailjet Secret Key missing");
       return false;
     }
 
-    console.log("✅ Mailjet API keys present");
+    console.log("✅ Mailjet configuration present");
     console.log("📧 Sender email:", process.env.EMAIL_FROM);
 
-    const auth = Buffer.from(
-      `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
-    ).toString("base64");
-
-    const response = await fetch("https://api.mailjet.com/v3/REST/sender", {
-      method: "GET",
-      headers: {
-        Authorization: `Basic ${auth}`,
-      },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log("✅ Mailjet API connection successful");
-      console.log("📧 Available senders:", data.Count);
-      return true;
-    } else {
-      const error = await response.json();
-      console.error("❌ Mailjet API error:", error);
-      return false;
-    }
+    // Test SMTP connection
+    await transporter.verify();
+    console.log("✅ Mailjet SMTP connection successful");
+    return true;
   } catch (error) {
-    console.error("❌ Mailjet verification failed:", error.message);
+    console.error("❌ Mailjet SMTP connection failed:", error.message);
     return false;
   }
 }

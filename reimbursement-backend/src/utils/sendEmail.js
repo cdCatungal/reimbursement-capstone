@@ -13,10 +13,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// reimbursement-backend/src/utils/sendEmail.js
-import dotenv from "dotenv";
-dotenv.config();
-
 export async function sendEmail(to, subject, html, cc = null) {
   try {
     if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {

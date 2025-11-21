@@ -5,52 +5,76 @@ dotenv.config();
 // Create Mailjet SMTP transporter
 const transporter = nodemailer.createTransport({
   host: "in-v3.mailjet.com",
-  port: 587,
-  secure: false, // Use TLS
+  port: 2525, // or 8025, 587, 25
+  secure: false,
   auth: {
     user: process.env.MJ_APIKEY_PUBLIC, // Your API Key from Mailjet
     pass: process.env.MJ_APIKEY_PRIVATE, // Your Secret Key from environment
   },
 });
 
+// reimbursement-backend/src/utils/sendEmail.js
+import dotenv from "dotenv";
+dotenv.config();
+
 export async function sendEmail(to, subject, html, cc = null) {
   try {
-    const fromEmail = process.env.EMAIL_FROM || "noreply@yourdomain.com";
+    if (!process.env.MJ_APIKEY_PUBLIC || !process.env.MJ_APIKEY_PRIVATE) {
+      throw new Error("Mailjet API keys missing");
+    }
+
+    const auth = Buffer.from(
+      `${process.env.MJ_APIKEY_PUBLIC}:${process.env.MJ_APIKEY_PRIVATE}`
+    ).toString("base64");
+
+    // ✅ CRITICAL: Change from Gmail to verified domain
+    const fromEmail =
+      process.env.EMAIL_FROM || "noreply@your-verified-domain.com";
     const fromName =
       process.env.EMAIL_FROM_NAME || "ERNIt Reimbursement System";
 
-    const mailOptions = {
-      from: `"${fromName}" <${fromEmail}>`,
-      to: to,
-      subject: subject,
-      html: html,
-      text: generatePlainText(html),
+    const emailData = {
+      Messages: [
+        {
+          From: {
+            Email: fromEmail, // NOT Gmail!
+            Name: fromName,
+          },
+          To: [{ Email: to }],
+          Subject: subject,
+          TextPart: generatePlainText(html),
+          HTMLPart: html,
+        },
+      ],
     };
 
     if (cc) {
-      mailOptions.cc = cc;
+      emailData.Messages[0].Cc = Array.isArray(cc)
+        ? cc.map((email) => ({ Email: email }))
+        : [{ Email: cc }];
     }
 
-    console.log("📤 Sending email via Mailjet SMTP:", {
-      from: fromEmail,
-      to: to,
-      subject: subject,
-      hasCC: !!cc,
+    console.log("📤 Sending via Mailjet API...");
+
+    const response = await fetch("https://api.mailjet.com/v3.1/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${auth}`,
+      },
+      body: JSON.stringify(emailData),
     });
 
-    const result = await transporter.sendMail(mailOptions);
+    const result = await response.json();
 
-    console.log("✅ Email sent successfully via Mailjet SMTP");
-    console.log("📧 Message ID:", result.messageId);
-    console.log("📨 Response:", result.response);
-
-    return {
-      success: true,
-      messageId: result.messageId,
-      service: "mailjet-smtp",
-    };
+    if (result.Messages?.[0]?.Status === "success") {
+      console.log("✅ Email sent via API");
+      return { success: true, messageId: result.Messages[0].To[0].MessageID };
+    } else {
+      throw new Error(result.ErrorMessage || "Email failed");
+    }
   } catch (error) {
-    console.error("❌ Mailjet SMTP email failed:", error.message);
+    console.error("❌ Email failed:", error.message);
     throw error;
   }
 }

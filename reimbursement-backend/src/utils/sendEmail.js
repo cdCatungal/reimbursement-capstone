@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
   secure: false, // Use TLS
   auth: {
     user: process.env.MJ_APIKEY_PUBLIC, // Your API Key from Mailjet
-    pass: process.env.MAILJET_SECRET_KEY, // Your Secret Key from environment
+    pass: process.env.MJ_APIKEY_PRIVATE, // Your Secret Key from environment
   },
 });
 
@@ -71,7 +71,7 @@ function generatePlainText(html) {
 
 export async function verifyEmailConfig() {
   try {
-    if (!process.env.MAILJET_SECRET_KEY) {
+    if (!process.env.MJ_APIKEY_PRIVATE) {
       console.error("❌ Mailjet Secret Key missing");
       return false;
     }

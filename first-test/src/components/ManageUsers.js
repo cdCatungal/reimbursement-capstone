@@ -60,7 +60,7 @@ function ManageUsers() {
   const { sapCodes, fetchActiveSapCodes } = useManageSapCodesStore();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("All");
+  const [roleFilter, setRoleFilter] = useState("Employee");
   const [statusFilter, setStatusFilter] = useState("All");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

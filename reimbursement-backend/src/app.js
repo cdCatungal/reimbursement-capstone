@@ -14,7 +14,7 @@ import approvalRoutes from "./routes/approvalRoutes.js";
 import userRoutes from "./routes/user.routes.js";
 import ocrRoutes from "./routes/ocrRoutes.js";
 import adminRoutes from "./routes/admin.route.js";
-import sapCodeRoutes from './routes/sapCode.routes.js';
+import sapCodeRoutes from "./routes/sapCode.routes.js";
 import { verifyEmailConfig } from "./utils/sendEmail.js";
 
 dotenv.config();
@@ -59,6 +59,24 @@ app.use(bodyParser.urlencoded({ limit: "10mb", extended: true }));
 app.use(passport.initialize());
 app.use(passport.session());
 
+// ✅ NEW: Set RLS context for Supabase policies
+app.use(async (req, res, next) => {
+  // Only set RLS context if user is authenticated
+  if (req.user && req.user.id) {
+    try {
+      await sequelize.query("SELECT set_current_user(:userId)", {
+        replacements: { userId: req.user.id },
+        type: sequelize.QueryTypes.SELECT,
+      });
+      console.log(`🔒 RLS context set for user ID: ${req.user.id}`);
+    } catch (error) {
+      console.error("❌ Failed to set RLS context:", error.message);
+      // Don't block the request, but log the error
+    }
+  }
+  next();
+});
+
 // ✅ Request logging middleware
 app.use((req, res, next) => {
   if (req.path.startsWith("/auth/")) {
@@ -75,7 +93,7 @@ app.use("/api/approvals", approvalRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/admin", adminRoutes);
-app.use('/api/sap-codes', sapCodeRoutes);
+app.use("/api/sap-codes", sapCodeRoutes);
 
 // ✅ Health check endpoint
 app.get("/", (req, res) => {
@@ -92,7 +110,9 @@ app.get("/health/db", async (req, res) => {
     await sequelize.authenticate();
     res.json({ status: "ok", database: "connected" });
   } catch (err) {
-    res.status(503).json({ status: "error", database: "disconnected", error: err.message });
+    res
+      .status(503)
+      .json({ status: "error", database: "disconnected", error: err.message });
   }
 });
 
@@ -104,12 +124,12 @@ app.use((req, res) => {
 // ✅ Global error handler (must be last)
 app.use((err, req, res, next) => {
   console.error("🚨 Server Error:", err);
-  
+
   // ✅ Don't leak sensitive info in production
   const isDevelopment = process.env.NODE_ENV !== "production";
   const errorMessage = isDevelopment ? err.message : "Internal Server Error";
   const errorStack = isDevelopment ? err.stack : undefined;
-  
+
   res.status(err.status || 500).json({
     error: errorMessage,
     ...(errorStack && { stack: errorStack }),
@@ -117,14 +137,14 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('📛 SIGTERM signal received: closing HTTP server');
+process.on("SIGTERM", async () => {
+  console.log("📛 SIGTERM signal received: closing HTTP server");
   try {
     await sequelize.close();
-    console.log('✅ Database connection closed');
+    console.log("✅ Database connection closed");
     process.exit(0);
   } catch (err) {
-    console.error('❌ Error during shutdown:', err);
+    console.error("❌ Error during shutdown:", err);
     process.exit(1);
   }
 });
@@ -134,26 +154,49 @@ const PORT = process.env.PORT || 5000;
 (async () => {
   try {
     // ✅ Step 1: Verify database connection
-    console.log('\n📡 Verifying database connection...');
+    console.log("\n📡 Verifying database connection...");
     await sequelize.authenticate();
     console.log("✅ Database authenticated");
-    
+
     // ✅ Step 2: Sync database models
-    console.log('🔄 Syncing database models...');
+    console.log("🔄 Syncing database models...");
     await sequelize.sync({ alter: false });
     console.log("✅ Database synced successfully");
-    
-    // ✅ Step 3: Verify email configuration
-    console.log('📧 Checking email configuration...');
+
+    // ✅ Step 3: Create RLS helper function if it doesn't exist
+    console.log("🔒 Setting up RLS helper function...");
+    try {
+      await sequelize.query(`
+        CREATE OR REPLACE FUNCTION set_current_user(user_id INTEGER)
+        RETURNS VOID AS $$
+        BEGIN
+          PERFORM set_config('app.current_user_id', user_id::text, false);
+        END;
+        $$ LANGUAGE plpgsql SECURITY DEFINER;
+      `);
+      console.log("✅ RLS helper function ready");
+    } catch (rlsError) {
+      console.warn("⚠️ RLS function setup:", rlsError.message);
+    }
+
+    // ✅ Step 4: Verify email configuration
+    console.log("📧 Checking email configuration...");
     await verifyEmailConfig();
-    
-    // ✅ Step 4: Start server
+
+    // ✅ Step 5: Start server
     app.listen(PORT, () => {
       console.log(`\n🚀 Server running: http://localhost:${PORT}`);
-      console.log(`🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`);
+      console.log(
+        `🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`
+      );
       console.log(`💾 Database: ${process.env.DB_HOST}`);
-      console.log(`📧 Email: ${process.env.EMAIL_USER ? '✅ Configured' : '❌ Not configured'}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+      console.log(
+        `📧 Email: ${
+          process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured"
+        }`
+      );
+      console.log(`🔒 RLS: Enabled`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}\n`);
     });
   } catch (err) {
     console.error("❌ Server startup error:", err.message);

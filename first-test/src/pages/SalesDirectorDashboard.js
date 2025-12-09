@@ -16,7 +16,7 @@ import {
   ListItemButton,
   ListItemIcon,
   List,
-  ListItemText,
+  Tooltip,
   Avatar,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -39,7 +39,6 @@ function SalesDirectorDashboard() {
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(true);
-  const [reimbursementOpen, setReimbursementOpen] = useState(true);
   const [tabValue, setTabValue] = useState(0);
 
   useEffect(() => {
@@ -87,10 +86,6 @@ function SalesDirectorDashboard() {
     setDrawerOpen(!drawerOpen);
   };
 
-  const handleReimbursementClick = () => {
-    setReimbursementOpen(!reimbursementOpen);
-  };
-
   const handleTabChange = (newValue) => {
     setTabValue(newValue);
   };
@@ -102,45 +97,59 @@ function SalesDirectorDashboard() {
 
   const firstName = user?.username?.split(" ")[0] || user?.username || "Admin";
 
+  const allTabs = [
+    {
+      label: "Reimbursement List",
+      icon: <ListAltIcon />,
+      component: <SalesDirectorReimbursementList />,
+    },
+    {
+      label: "Export Reports",
+      icon: <AssessmentIcon />,
+      component: <SalesDirectorReportExport />,
+    },
+    {
+      label: "Manage SAP Codes",
+      icon: <CodeIcon />,
+      component: <ManageSAPCodes />,
+    },
+    {
+      label: "Manage Users",
+      icon: <PeopleIcon />,
+      component: <ManageUsers />,
+    },
+  ];
+
   const renderContent = () => {
     if (tabValue === -1) {
       return <UserSettings />;
     }
-
-    switch (tabValue) {
-      case 0:
-        return <SalesDirectorReimbursementList />;
-      case 1:
-      // return <ReimberursementEmployee />;
-      case 2:
-        return <SalesDirectorReportExport />;
-      case 3:
-        return <ManageSAPCodes />;
-      case 4:
-        return <ManageUsers />;
-      default:
-        return <SalesDirectorReimbursementList />;
+    if (tabValue >= 0 && tabValue < allTabs.length) {
+      return allTabs[tabValue].component;
     }
+    return null;
   };
 
   return (
-    <Container
-      maxWidth="lg"
-      sx={{ py: 0, display: "flex", minHeight: "100vh" }}
-    >
-      {/* Sidepanel */}
+    <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <Drawer
         variant="persistent"
         anchor="left"
         open={true}
         sx={{
-          width: drawerOpen ? 10 : 10,
+          width: drawerOpen ? 240 : 64,
           flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: drawerOpen ? 240 : 64,
+            height: "100vh",
             boxSizing: "border-box",
             transition: "width 0.3s ease-in-out",
             overflowX: "hidden",
+            background: "linear-gradient(180deg, #0c5dcf 0%, #083778 100%)",
+            color: "#ffffff",
+            borderRight: "none",
+            borderRadius: 0,
+            backgroundColor: "transparent",
           },
         }}
       >
@@ -148,164 +157,118 @@ function SalesDirectorDashboard() {
           sx={{
             p: 2,
             display: "flex",
-            justifyContent: drawerOpen ? "flex-end" : "center",
+            justifyContent: "flex-start",
           }}
         >
-          <IconButton onClick={toggleDrawer} color="inherit" size="large">
+          <IconButton
+            onClick={toggleDrawer}
+            size="large"
+            sx={{ color: "#ffffff", ml: drawerOpen ? 0 : "-6px" }}
+          >
             <MenuIcon />
           </IconButton>
         </Box>
-
         <List>
-          {/* Reimbursement Dropdown */}
-          <ListItemButton
-            selected={tabValue === 0}
-            // onClick={handleReimbursementClick}
-            onClick={() => handleTabChange(0)}
-            sx={{
-              borderRadius: 2,
-              mb: 0.5,
-              "&.Mui-selected": {
-                backgroundColor: (theme) => theme.palette.action.selected,
-                color: (theme) => theme.palette.primary.main,
-              },
-            }}
-          >
-            <ListItemIcon>
-              <ListAltIcon />
-            </ListItemIcon>
-            <ListItemText primary="Reimbursement List" />
-          </ListItemButton>
-
-          {/* <Collapse in={reimbursementOpen} timeout="auto" unmountOnExit>
-            <List component="div" disablePadding>
+          {allTabs.map((tab, index) => (
+            <Tooltip
+              key={tab.label}
+              title={tab.label}
+              placement="right"
+              arrow
+              PopperProps={{
+                modifiers: [
+                  {
+                    name: "preventOverflow",
+                    enabled: true,
+                    options: { boundariesElement: "window" },
+                  },
+                ],
+              }}
+            >
               <ListItemButton
-                selected={tabValue === 0}
-                onClick={() => handleTabChange(0)}
+                selected={tabValue === index}
+                onClick={() => handleTabChange(index)}
                 sx={{
-                  pl: 4,
                   borderRadius: 2,
                   mb: 0.5,
+                  mx: 1,
+                  color: "#ffffff",
+                  justifyContent: drawerOpen ? "flex-start" : "center",
+                  px: drawerOpen ? 2 : 0.5,
+                  transition: "all 0.3s ease",
                   "&.Mui-selected": {
-                    backgroundColor: (theme) => theme.palette.action.selected,
-                    color: (theme) => theme.palette.primary.main,
+                    backgroundColor: "rgba(255, 255, 255, 0.15)",
+                    "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.2)" },
                   },
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" },
                 }}
               >
-                <ListItemIcon>
-                  <ReceiptIcon />
+                <ListItemIcon
+                  sx={{
+                    color: "#ffffff",
+                    minWidth: 0,
+                    mr: drawerOpen ? 2 : "auto",
+                    ml: drawerOpen ? 0 : 1,
+                    justifyContent: "center",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  {tab.icon}
                 </ListItemIcon>
-                <ListItemText primary="Admin Reimbursement" />
+
+                <Box
+                  component="span"
+                  sx={{
+                    opacity: drawerOpen ? 1 : 0,
+                    width: drawerOpen ? "auto" : 0,
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
+                    minWidth: 0,
+                    transition: "all 0.3s ease",
+                    flexGrow: 1,
+                  }}
+                >
+                  {tab.label}
+                </Box>
               </ListItemButton>
-
-              <ListItemButton
-                selected={tabValue === 1}
-                onClick={() => handleTabChange(1)}
-                sx={{
-                  pl: 4,
-                  borderRadius: 2,
-                  mb: 0.5,
-                  "&.Mui-selected": {
-                    backgroundColor: (theme) => theme.palette.action.selected,
-                    color: (theme) => theme.palette.primary.main,
-                  },
-                }}
-              >
-                <ListItemIcon>
-                  <TrackChangesIcon />
-                </ListItemIcon>
-                <ListItemText primary="Employee Reimbursement" />
-              </ListItemButton>
-            </List>
-          </Collapse> */}
-
-          {/* Export Reports */}
-          <ListItemButton
-            selected={tabValue === 2}
-            onClick={() => handleTabChange(2)}
-            sx={{
-              borderRadius: 2,
-              mb: 0.5,
-              "&.Mui-selected": {
-                backgroundColor: (theme) => theme.palette.action.selected,
-                color: (theme) => theme.palette.primary.main,
-              },
-            }}
-          >
-            <ListItemIcon>
-              <AssessmentIcon />
-            </ListItemIcon>
-            <ListItemText primary="Export Reports" />
-          </ListItemButton>
-
-          {/* Manage SAP Codes */}
-          <ListItemButton
-            selected={tabValue === 3}
-            onClick={() => handleTabChange(3)}
-            sx={{
-              borderRadius: 2,
-              mb: 0.5,
-              "&.Mui-selected": {
-                backgroundColor: (theme) => theme.palette.action.selected,
-                color: (theme) => theme.palette.primary.main,
-              },
-            }}
-          >
-            <ListItemIcon>
-              <CodeIcon />
-            </ListItemIcon>
-            <ListItemText primary="Manage SAP Codes" />
-          </ListItemButton>
-
-          {/* Manage Users */}
-          <ListItemButton
-            selected={tabValue === 4}
-            onClick={() => handleTabChange(4)}
-            sx={{
-              borderRadius: 2,
-              mb: 0.5,
-              "&.Mui-selected": {
-                backgroundColor: (theme) => theme.palette.action.selected,
-                color: (theme) => theme.palette.primary.main,
-              },
-            }}
-          >
-            <ListItemIcon>
-              <PeopleIcon />
-            </ListItemIcon>
-            <ListItemText primary="Manage Users" />
-          </ListItemButton>
+            </Tooltip>
+          ))}
         </List>
       </Drawer>
 
-      {/* Main Content */}
       <Box
         sx={{
           flexGrow: 1,
-          ml: drawerOpen ? "240px" : "64px",
-          transition: "margin-left 0.3s ease-in-out",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        {/* Header */}
         <Box
           sx={{
             p: 2,
-            borderBottom: 1,
-            borderColor: "divider",
+            borderBottom: `2px solid ${
+              theme.palette.mode === "dark"
+                ? "rgba(255, 255, 255, 0.33)"
+                : "rgba(0, 0, 0, 0.51)"
+            }`,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            mb: 3,
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-  <img
-    src={theme.palette.mode === "dark" ? "/erni-logo-darkmode.png" : "/erni-logo.png"}
-    alt="ERNI Logo"
-    style={{ height: "40px", cursor: "pointer" }}
-    onClick={() => handleTabChange(0)}
-  />
-</Box>
+            <img
+              src={
+                theme.palette.mode === "dark"
+                  ? "/erni-logo-darkmode.png"
+                  : "/erni-logo.png"
+              }
+              alt="ERNI Logo"
+              style={{ height: "40px", cursor: "pointer" }}
+              onClick={() => handleTabChange(0)}
+            />
+          </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Typography variant="h6">Welcome, {firstName}</Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -347,18 +310,11 @@ function SalesDirectorDashboard() {
           </Box>
         </Box>
 
-        {/* Main Content Area for Routes */}
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            p: 3,
-          }}
-        >
+        <Container maxWidth="lg" sx={{ py: 3, flexGrow: 1 }}>
           {renderContent()}
-        </Box>
+        </Container>
       </Box>
-    </Container>
+    </Box>
   );
 }
 

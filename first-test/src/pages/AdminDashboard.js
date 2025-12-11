@@ -99,7 +99,7 @@ function AdminDashboard() {
       visible: true,
     },
     {
-      label: "Export Summary Reports",
+      label: "Export Reports",
       icon: <AssessmentIcon />,
       component: <ReportExport />,
       visible: true,

@@ -11,11 +11,16 @@ const UserSettings = () => {
   }, []);
 
   // Roles that don't have SAP codes
-  const rolesWithoutSapCodes = ['Admin', 'Invoice Specialist', 'Sales Director', 'Finance Officer'];
-  
+  const rolesWithoutSapCodes = [
+    "Admin",
+    "Invoice Specialist",
+    "Sales Director",
+    "Finance Officer",
+  ];
+
   // Check if user has SAP codes
   const hasSapCodes = user && !rolesWithoutSapCodes.includes(user.role);
-  
+
   // Get user's SAP codes
   const sapCodes = [];
   if (user?.sap_code_1) sapCodes.push(user.sap_code_1);
@@ -27,7 +32,6 @@ const UserSettings = () => {
         bgcolor: "background.default",
         minHeight: "100vh",
         py: 4,
-        marginTop: -10,
       }}
     >
       <Box sx={{ maxWidth: "md", mx: "auto", p: 2, py: 4 }}>
@@ -127,7 +131,9 @@ const UserSettings = () => {
               <Box
                 sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
               >
-                <Briefcase sx={{ width: 20, height: 20, color: "text.secondary" }} />
+                <Briefcase
+                  sx={{ width: 20, height: 20, color: "text.secondary" }}
+                />
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   Role
                 </Typography>
@@ -188,80 +194,96 @@ const UserSettings = () => {
                   {user?.createdAt?.split("T")[0]}
                 </Typography>
               </Box>
-              
+
               {/* SAP Code Section - Only show if user has SAP codes */}
               {hasSapCodes && (
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      py: 1.5,
-      borderBottom: 1,
-      borderColor: "divider",
-    }}
-  >
-    <Typography sx={{ color: "text.secondary" }}>
-      {user?.role === 'Employee' ? "SAP Codes" : "Managed SAP Codes"}
-    </Typography>
-    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
-      {user?.sapCodes && user.sapCodes.length > 0 ? (
-        user.sapCodes.map((sapCode, index) => (
-          <Chip
-            key={index}
-            label={sapCode.code}
-            color="primary"
-            variant="outlined"
-            size="small"
-            sx={{ fontWeight: 600 }}
-          />
-        ))
-      ) : (
-        <Typography
-          sx={{ color: "warning.main", fontWeight: "medium", fontSize: "0.875rem" }}
-        >
-          No SAP codes assigned
-        </Typography>
-      )}
-    </Box>
-  </Box>
-)}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    py: 1.5,
+                    borderBottom: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <Typography sx={{ color: "text.secondary" }}>
+                    {user?.role === "Employee"
+                      ? "SAP Codes"
+                      : "Managed SAP Codes"}
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    {user?.sapCodes && user.sapCodes.length > 0 ? (
+                      user.sapCodes.map((sapCode, index) => (
+                        <Chip
+                          key={index}
+                          label={sapCode.code}
+                          color="primary"
+                          variant="outlined"
+                          size="small"
+                          sx={{ fontWeight: 600 }}
+                        />
+                      ))
+                    ) : (
+                      <Typography
+                        sx={{
+                          color: "warning.main",
+                          fontWeight: "medium",
+                          fontSize: "0.875rem",
+                        }}
+                      >
+                        No SAP codes assigned
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
 
-{/* Assigned SUL - Only for Employees */}
-{user?.role === 'Employee' && (
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      py: 1.5,
-      borderBottom: 1,
-      borderColor: "divider",
-    }}
-  >
-    <Typography sx={{ color: "text.secondary" }}>
-      Assigned SUL
-    </Typography>
-    <Box>
-      {user?.assignedSUL ? (
-        <Chip
-          label={user.assignedSUL.name}
-          color="info"
-          variant="outlined"
-          size="small"
-          sx={{ fontWeight: 600 }}
-        />
-      ) : (
-        <Typography
-          sx={{ color: "warning.main", fontWeight: "medium", fontSize: "0.875rem" }}
-        >
-          No SUL assigned
-        </Typography>
-      )}
-    </Box>
-  </Box>
-)}
-              
+              {/* Assigned SUL - Only for Employees */}
+              {user?.role === "Employee" && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    py: 1.5,
+                    borderBottom: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <Typography sx={{ color: "text.secondary" }}>
+                    Assigned SUL
+                  </Typography>
+                  <Box>
+                    {user?.assignedSUL ? (
+                      <Chip
+                        label={user.assignedSUL.name}
+                        color="info"
+                        variant="outlined"
+                        size="small"
+                        sx={{ fontWeight: 600 }}
+                      />
+                    ) : (
+                      <Typography
+                        sx={{
+                          color: "warning.main",
+                          fontWeight: "medium",
+                          fontSize: "0.875rem",
+                        }}
+                      >
+                        No SUL assigned
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
             </Box>
           </Paper>
         </Paper>

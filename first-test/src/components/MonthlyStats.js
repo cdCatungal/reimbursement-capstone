@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, CircularProgress } from "@mui/material";
 import { useAppContext } from "../App";
-<<<<<<< HEAD
-import { axiosInstance } from "../lib/axios.js";
-=======
->>>>>>> origin/main
 
 function MonthlyStats() {
   const REFRESH_INTERVAL = 3000; // 3 seconds
@@ -16,7 +12,7 @@ function MonthlyStats() {
     total: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [setLastUpdated] = useState(new Date());
   const { showNotification } = useAppContext();
 
   // Initial fetch
@@ -37,27 +33,6 @@ function MonthlyStats() {
 
   const fetchMonthlyStats = async (silent = false) => {
     try {
-<<<<<<< HEAD
-      // const response = await fetch(
-      //   "http://localhost:5000/api/reimbursements/monthly-stats",
-      //   {
-      //     credentials: "include",
-      //   }
-      // );
-
-      const response = await axiosInstance.get("/reimbursements/monthly-stats");
-      const data = response.data;
-
-      // if (response.ok) {
-      //   const data = await response.json();
-      setStats(data);
-      // } else {
-      //   showNotification("Failed to fetch monthly stats", "error");
-      // }
-    } catch (error) {
-      console.error("Error fetching monthly stats:", error);
-      showNotification("Error loading stats", "error");
-=======
       if (!silent) setLoading(true);
 
       const response = await fetch(
@@ -79,7 +54,6 @@ function MonthlyStats() {
       if (!silent) {
         showNotification("Error loading stats", "error");
       }
->>>>>>> origin/main
     } finally {
       if (!silent) setLoading(false);
     }
@@ -137,18 +111,12 @@ function MonthlyStats() {
             height: 8,
             borderRadius: "50%",
             bgcolor: "success.main",
-<<<<<<< HEAD
-=======
             animation: "pulse 2s infinite",
->>>>>>> origin/main
           }}
         />
       </Box>
 
-<<<<<<< HEAD
-=======
       {/* Stats display - same as before */}
->>>>>>> origin/main
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
         <Box
           sx={{

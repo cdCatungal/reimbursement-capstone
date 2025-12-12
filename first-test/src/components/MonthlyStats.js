@@ -12,7 +12,7 @@ function MonthlyStats() {
     total: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [setLastUpdated] = useState(new Date());
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   const { showNotification } = useAppContext();
 
   // Initial fetch
@@ -50,7 +50,7 @@ function MonthlyStats() {
         showNotification("Failed to fetch monthly stats", "error");
       }
     } catch (error) {
-      console.error("Error fetching monthly stats:", error);
+      console.error("Error fetching monthly stats:", error.message);
       if (!silent) {
         showNotification("Error loading stats", "error");
       }

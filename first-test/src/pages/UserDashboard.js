@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Container, useMediaQuery, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import MonthlyStats from "../components/MonthlyStats.js";
 import {
+  Container,
   Box,
   Typography,
   Drawer,
@@ -28,28 +29,15 @@ import { userUserStore } from "../store/userUserStore.js";
 
 function UserDashboard() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  // const isTablet = useMediaQuery(theme.breakpoints.down("md"));
-  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
-
   const { user, setIsAuthenticated, setIsAdmin, setUser, showNotification } =
     useAppContext();
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
-  const [drawerOpen, setDrawerOpen] = useState(isDesktop);
+  const [drawerOpen, setDrawerOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState(null);
-
-  // Close drawer on mobile by default, keep open on desktop
-  useEffect(() => {
-    setDrawerOpen(isDesktop);
-  }, [isDesktop]);
 
   const handleTabChange = (newValue) => {
     setTabValue(newValue);
-    // Auto-close drawer on mobile after selecting a tab
-    if (isMobile) {
-      setDrawerOpen(false);
-    }
   };
 
   const toggleDrawer = () => {
@@ -66,13 +54,10 @@ function UserDashboard() {
 
   const handleLogoutClick = async () => {
     try {
-      const response = await fetch(
-        `${process.env.REACT_APP_API_URL}/auth/logout`,
-        {
-          method: "GET",
-          credentials: "include",
-        }
-      );
+      const response = await fetch("http://localhost:5000/auth/logout", {
+        method: "GET",
+        credentials: "include",
+      });
 
       if (response.ok) {
         setIsAuthenticated(false);
@@ -119,20 +104,12 @@ function UserDashboard() {
 
   const firstName = user?.username?.split(" ")[0] || user?.username || "User";
 
-  // Determine drawer variant based on screen size
-  const drawerVariant = isMobile ? "temporary" : "persistent";
-  // const drawerWidth = 240;
-
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <Drawer
-        variant={drawerVariant}
+        variant="persistent"
         anchor="left"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        ModalProps={{
-          keepMounted: true, // Better mobile performance
-        }}
+        open={true}
         sx={{
           width: drawerOpen ? 240 : 64,
           flexShrink: 0,
@@ -165,8 +142,7 @@ function UserDashboard() {
             <MenuIcon />
           </IconButton>
         </Box>
-
-        <List sx={{ px: 1 }}>
+        <List>
           {tabs.map((tab, index) => (
             <Tooltip
               key={tab.label}
@@ -242,14 +218,12 @@ function UserDashboard() {
       </Drawer>
 
       <Box
-        component="main"
         sx={{
           flexGrow: 1,
           display: "flex",
           flexDirection: "column",
         }}
       >
-        {/* Header */}
         <Box
           sx={{
             p: 2,
@@ -261,10 +235,6 @@ function UserDashboard() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            backgroundColor: "background.paper",
-            position: "sticky",
-            top: 0,
-            zIndex: 1100,
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>

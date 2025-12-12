@@ -50,7 +50,7 @@ function MonthlyStats() {
         showNotification("Failed to fetch monthly stats", "error");
       }
     } catch (error) {
-      console.error("Error fetching monthly stats:", error.message);
+      console.error("Error fetching monthly stats:", error);
       if (!silent) {
         showNotification("Error loading stats", "error");
       }
@@ -101,6 +101,7 @@ function MonthlyStats() {
           sx={{
             fontWeight: 600,
             fontSize: "1rem",
+            color: "text.primary",
           }}
         >
           This Month
@@ -116,7 +117,7 @@ function MonthlyStats() {
         />
       </Box>
 
-      {/* Stats display - same as before */}
+      {/* Stats display */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
         <Box
           sx={{
@@ -198,7 +199,13 @@ function MonthlyStats() {
           >
             Total
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700,
+              color: "text.primary",
+            }}
+          >
             {stats.total}
           </Typography>
         </Box>

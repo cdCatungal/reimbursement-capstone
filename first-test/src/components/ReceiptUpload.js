@@ -136,14 +136,12 @@ function ReceiptUpload() {
     }
   };
 
-  // ✅ UPDATED: Only Invoice Specialist bypasses SAP validation
   const bypassesSapValidation = user?.role === "Invoice Specialist";
 
   useEffect(() => {
     if (user) {
       fetchUserSapCodes();
 
-      // ✅ UPDATED: Only set default for Invoice Specialist
       if (user.role === "Invoice Specialist") {
         setFormData((prev) => ({ ...prev, sap_code: "INVOICE_SPECIALIST" }));
       }
@@ -164,7 +162,6 @@ function ReceiptUpload() {
         const codes = data.data.sapCodes.map((sc) => sc.code);
         setAvailableSapCodes(codes);
 
-        // Auto-select if only one SAP code (for all roles that need SAP codes)
         if (codes.length === 1 && !bypassesSapValidation) {
           setFormData((prev) => ({ ...prev, sap_code: codes[0] }));
         }
@@ -176,7 +173,6 @@ function ReceiptUpload() {
       }
     } catch (error) {
       console.error("Failed to fetch SAP codes:", error);
-      // ✅ Only show error if user doesn't bypass SAP validation
       if (!bypassesSapValidation) {
         showNotification("Failed to load SAP codes", "error");
       }
@@ -431,7 +427,6 @@ function ReceiptUpload() {
       }
     }
 
-    // Only validate SAP code if user doesn't bypass validation
     if (!bypassesSapValidation && !formData.sap_code) {
       newErrors.sap_code = "SAP code is required";
     }
@@ -524,7 +519,6 @@ function ReceiptUpload() {
       showNotification("Reimbursement submitted successfully!", "success");
       console.log("Created reimbursement:", data);
 
-      // ✅ UPDATED: Reset with proper default
       const defaultSapCode = bypassesSapValidation
         ? "INVOICE_SPECIALIST"
         : availableSapCodes.length === 1
@@ -586,7 +580,7 @@ function ReceiptUpload() {
         <DialogTitle
           sx={{
             bgcolor: "primary.main",
-            color: "white",
+            color: "primary.contrastText",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -597,7 +591,7 @@ function ReceiptUpload() {
           </Typography>
           <IconButton
             onClick={() => setShowConfirmModal(false)}
-            sx={{ color: "white" }}
+            sx={{ color: "primary.contrastText" }}
           >
             <Close />
           </IconButton>
@@ -771,9 +765,21 @@ function ReceiptUpload() {
                 <Paper
                   sx={{
                     p: 2,
-                    bgcolor: isOverLimit ? "#fff3e0" : "#e8f5e9",
+                    bgcolor: isOverLimit
+                      ? theme.palette.mode === "dark"
+                        ? "rgba(255, 152, 0, 0.15)"
+                        : "#fff3e0"
+                      : theme.palette.mode === "dark"
+                      ? "rgba(76, 175, 80, 0.15)"
+                      : "#e8f5e9",
                     border: 1,
-                    borderColor: isOverLimit ? "#f57c00" : "#2e7d32",
+                    borderColor: isOverLimit
+                      ? theme.palette.mode === "dark"
+                        ? "#ff9800"
+                        : "#f57c00"
+                      : theme.palette.mode === "dark"
+                      ? "#4caf50"
+                      : "#2e7d32",
                   }}
                 >
                   <Typography variant="caption" color="text.secondary">
@@ -783,7 +789,13 @@ function ReceiptUpload() {
                     variant="h5"
                     sx={{
                       fontWeight: 700,
-                      color: isOverLimit ? "#d84315" : "#1b5e20",
+                      color: isOverLimit
+                        ? theme.palette.mode === "dark"
+                          ? "#ff9800"
+                          : "#d84315"
+                        : theme.palette.mode === "dark"
+                        ? "#4caf50"
+                        : "#1b5e20",
                       mt: 0.5,
                     }}
                   >
@@ -886,7 +898,6 @@ function ReceiptUpload() {
             Upload Receipt for Reimbursement
           </Typography>
 
-          {/* ✅ Show warning only if SAP codes required but none available */}
           {!bypassesSapValidation && availableSapCodes.length === 0 && (
             <Alert severity="warning" sx={{ mb: 3 }}>
               No SAP codes assigned to your account. Please contact your Sales
@@ -1079,7 +1090,6 @@ function ReceiptUpload() {
 
             <Grid item xs={12} md={6}>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-                {/* ✅ Only show SAP code selector for roles that need it */}
                 {!bypassesSapValidation && (
                   <TextField
                     select
@@ -1227,10 +1237,16 @@ function ReceiptUpload() {
                     <Box
                       sx={{
                         p: 2,
-                        bgcolor: "grey.100",
+                        bgcolor:
+                          theme.palette.mode === "dark"
+                            ? "rgba(76, 175, 80, 0.15)"
+                            : "grey.100",
                         borderRadius: 1,
                         border: 1,
-                        borderColor: "success.main",
+                        borderColor:
+                          theme.palette.mode === "dark"
+                            ? "#4caf50"
+                            : "success.main",
                       }}
                     >
                       <Typography
@@ -1242,7 +1258,13 @@ function ReceiptUpload() {
                       </Typography>
                       <Typography
                         variant="h6"
-                        sx={{ fontWeight: 700, color: "#1b5e20" }}
+                        sx={{
+                          fontWeight: 700,
+                          color:
+                            theme.palette.mode === "dark"
+                              ? "#4caf50"
+                              : "#1b5e20",
+                        }}
                       >
                         ₱
                         {calculateReimbursableAmount(

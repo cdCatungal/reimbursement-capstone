@@ -277,6 +277,7 @@ export async function createReimbursement(req, res) {
             description: reimbursement.description,
             date_of_expense: dateOfExpense,
             submitted_at: reimbursement.submitted_at,
+            reimbursable_amount: reimbursement.reimbursable_amount,
           },
           {
             name: user.name,

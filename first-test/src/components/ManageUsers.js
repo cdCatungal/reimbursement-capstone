@@ -60,7 +60,7 @@ function ManageUsers() {
   const { sapCodes, fetchActiveSapCodes } = useManageSapCodesStore();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("All");
+  const [roleFilter, setRoleFilter] = useState("Employee");
   const [statusFilter, setStatusFilter] = useState("All");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -524,15 +524,6 @@ function ManageUsers() {
                                 onClick={() => handleEditClick(user)}
                               >
                                 <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete user">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => handleDeleteClick(user)}
-                              >
-                                <DeleteIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                           </Box>

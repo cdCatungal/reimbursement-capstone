@@ -74,6 +74,24 @@ app.use(bodyParser.urlencoded({ limit: "10mb", extended: true }));
 app.use(passport.initialize());
 app.use(passport.session());
 
+// ✅ NEW: Set RLS context for Supabase policies
+app.use(async (req, res, next) => {
+  // Only set RLS context if user is authenticated
+  if (req.user && req.user.id) {
+    try {
+      await sequelize.query("SELECT set_current_user(:userId)", {
+        replacements: { userId: req.user.id },
+        type: sequelize.QueryTypes.SELECT,
+      });
+      console.log(`🔒 RLS context set for user ID: ${req.user.id}`);
+    } catch (error) {
+      console.error("❌ Failed to set RLS context:", error.message);
+      // Don't block the request, but log the error
+    }
+  }
+  next();
+});
+
 // ✅ Request logging middleware
 app.use((req, res, next) => {
   if (req.path.startsWith("/auth/")) {
@@ -91,6 +109,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/sap-codes", sapCodeRoutes);
+<<<<<<< HEAD
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.resolve(__dirname, "../../first-test/build")));
@@ -128,6 +147,8 @@ app.get("/api/test-email", async (req, res) => {
     });
   }
 });
+=======
+>>>>>>> origin/main
 
 // ✅ Health check endpoint
 app.get("/", (req, res) => {
@@ -197,6 +218,7 @@ const PORT = process.env.PORT || 4000;
     await sequelize.sync({ alter: false });
     console.log("✅ Database synced successfully");
 
+<<<<<<< HEAD
     // ✅ Step 3: Verify email configuration
     console.log("📧 Checking email configuration...");
     await verifyEmailConfig();
@@ -227,6 +249,42 @@ const PORT = process.env.PORT || 4000;
         setInterval(keepAlive, 10 * 60 * 1000); // Subsequent pings every 10 minutes
         console.log("🔄 Keep-alive service started");
       }, 30000);
+=======
+    // ✅ Step 3: Create RLS helper function if it doesn't exist
+    console.log("🔒 Setting up RLS helper function...");
+    try {
+      await sequelize.query(`
+        CREATE OR REPLACE FUNCTION set_current_user(user_id INTEGER)
+        RETURNS VOID AS $$
+        BEGIN
+          PERFORM set_config('app.current_user_id', user_id::text, false);
+        END;
+        $$ LANGUAGE plpgsql SECURITY DEFINER;
+      `);
+      console.log("✅ RLS helper function ready");
+    } catch (rlsError) {
+      console.warn("⚠️ RLS function setup:", rlsError.message);
+    }
+
+    // ✅ Step 4: Verify email configuration
+    console.log("📧 Checking email configuration...");
+    await verifyEmailConfig();
+
+    // ✅ Step 5: Start server
+    app.listen(PORT, () => {
+      console.log(`\n🚀 Server running: http://localhost:${PORT}`);
+      console.log(
+        `🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`
+      );
+      console.log(`💾 Database: ${process.env.DB_HOST}`);
+      console.log(
+        `📧 Email: ${
+          process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured"
+        }`
+      );
+      console.log(`🔒 RLS: Enabled`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}\n`);
+>>>>>>> origin/main
     });
   } catch (err) {
     console.error("❌ Server startup error:", err.message);
@@ -234,6 +292,7 @@ const PORT = process.env.PORT || 4000;
     process.exit(1);
   }
 })();
+<<<<<<< HEAD
 
 // (async () => {
 //   try {
@@ -266,3 +325,5 @@ const PORT = process.env.PORT || 4000;
 //     process.exit(1);
 //   }
 // })();
+=======
+>>>>>>> origin/main

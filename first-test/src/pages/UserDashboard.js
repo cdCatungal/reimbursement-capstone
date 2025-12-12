@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
+<<<<<<< HEAD
 import { useTheme, useMediaQuery } from "@mui/material";
+=======
+import { useTheme } from "@mui/material";
+>>>>>>> origin/main
 import { useNavigate } from "react-router-dom";
 import MonthlyStats from "../components/MonthlyStats.js";
 import {
@@ -8,12 +12,15 @@ import {
   Drawer,
   List,
   ListItemButton,
-  ListItemText,
   ListItemIcon,
   IconButton,
   Menu,
   MenuItem,
   Avatar,
+<<<<<<< HEAD
+=======
+  Tooltip,
+>>>>>>> origin/main
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import ReceiptIcon from "@mui/icons-material/Receipt";
@@ -134,6 +141,7 @@ function UserDashboard() {
           keepMounted: true, // Better mobile performance
         }}
         sx={{
+<<<<<<< HEAD
           width: drawerOpen ? drawerWidth : 0,
           flexShrink: 0,
           "& .MuiDrawer-paper": {
@@ -143,6 +151,21 @@ function UserDashboard() {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.enteringScreen,
             }),
+=======
+          width: drawerOpen ? 240 : 64,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: drawerOpen ? 240 : 64,
+            height: "100vh",
+            boxSizing: "border-box",
+            transition: "width 0.3s ease-in-out",
+            overflowX: "hidden",
+            background: "linear-gradient(180deg, #0c5dcf 0%, #083778 100%)",
+            color: "#ffffff",
+            borderRight: "none",
+            borderRadius: 0,
+            backgroundColor: "transparent",
+>>>>>>> origin/main
           },
         }}
       >
@@ -150,45 +173,109 @@ function UserDashboard() {
           sx={{
             p: 2,
             display: "flex",
+<<<<<<< HEAD
             justifyContent: "space-between",
             alignItems: "center",
+=======
+            justifyContent: "flex-start",
+>>>>>>> origin/main
           }}
         >
-          <IconButton onClick={toggleDrawer} color="inherit" size="large">
+          <IconButton
+            onClick={toggleDrawer}
+            size="large"
+            sx={{ color: "#ffffff", ml: drawerOpen ? 0 : "-6px" }}
+          >
             <MenuIcon />
           </IconButton>
         </Box>
 
         <List sx={{ px: 1 }}>
           {tabs.map((tab, index) => (
-            <ListItemButton
+            <Tooltip
               key={tab.label}
-              selected={tabValue === index}
-              onClick={() => handleTabChange(index)}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                "&.Mui-selected": {
-                  backgroundColor: (theme) => theme.palette.action.selected,
-                  color: (theme) => theme.palette.primary.main,
-                },
+              title={tab.label}
+              placement="right"
+              arrow
+              PopperProps={{
+                modifiers: [
+                  {
+                    name: "preventOverflow",
+                    enabled: true,
+                    options: { boundariesElement: "window" },
+                  },
+                ],
               }}
             >
-              <ListItemIcon>{tab.icon}</ListItemIcon>
-              <ListItemText primary={tab.label} />
-            </ListItemButton>
+              <ListItemButton
+                selected={tabValue === index}
+                onClick={() => handleTabChange(index)}
+                sx={{
+                  borderRadius: 2,
+                  mb: 0.5,
+                  mx: 1,
+                  color: "#ffffff",
+                  justifyContent: drawerOpen ? "flex-start" : "center",
+                  px: drawerOpen ? 2 : 0.5,
+                  transition: "all 0.3s ease",
+                  "&.Mui-selected": {
+                    backgroundColor: "rgba(255, 255, 255, 0.15)",
+                    "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.2)" },
+                  },
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color: "#ffffff",
+                    minWidth: 0,
+                    mr: drawerOpen ? 2 : "auto",
+                    ml: drawerOpen ? 0 : 1,
+                    justifyContent: "center",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  {tab.icon}
+                </ListItemIcon>
+
+                <Box
+                  component="span"
+                  sx={{
+                    opacity: drawerOpen ? 1 : 0,
+                    width: drawerOpen ? "auto" : 0,
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
+                    minWidth: 0,
+                    transition: "all 0.3s ease",
+                    flexGrow: 1,
+                  }}
+                >
+                  {tab.label}
+                </Box>
+              </ListItemButton>
+            </Tooltip>
           ))}
         </List>
 
+<<<<<<< HEAD
         <Box sx={{ mt: "auto", p: 2 }}>
           <MonthlyStats />
         </Box>
+=======
+        {drawerOpen && (
+          <Box sx={{ mt: "auto", color: "#000000ff" }}>
+            <MonthlyStats />
+          </Box>
+        )}
+>>>>>>> origin/main
       </Drawer>
 
       <Box
         component="main"
         sx={{
           flexGrow: 1,
+<<<<<<< HEAD
           width: {
             xs: "100%",
             sm: `calc(100% - ${drawerOpen ? drawerWidth : 0}px)`,
@@ -197,14 +284,26 @@ function UserDashboard() {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
+=======
+          display: "flex",
+          flexDirection: "column",
+>>>>>>> origin/main
         }}
       >
         {/* Header */}
         <Box
           sx={{
             p: 2,
+<<<<<<< HEAD
             borderBottom: 1,
             borderColor: "divider",
+=======
+            borderBottom: `2px solid ${
+              theme.palette.mode === "dark"
+                ? "rgba(255, 255, 255, 0.33)"
+                : "rgba(0, 0, 0, 0.51)"
+            }`,
+>>>>>>> origin/main
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -215,6 +314,7 @@ function UserDashboard() {
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+<<<<<<< HEAD
             {!drawerOpen && (
               <IconButton onClick={toggleDrawer} edge="start">
                 <MenuIcon />
@@ -269,6 +369,44 @@ function UserDashboard() {
               </Avatar>
             </IconButton>
 
+=======
+            <img
+              src={
+                theme.palette.mode === "dark"
+                  ? "/erni-logo-darkmode.png"
+                  : "/erni-logo.png"
+              }
+              alt="ERNI Logo"
+              style={{ height: "40px", cursor: "pointer" }}
+              onClick={() => handleTabChange(0)}
+            />
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Typography variant="h6">Welcome, {firstName}</Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <ThemeToggle />
+              <IconButton
+                onClick={handleProfileClick}
+                color="inherit"
+                size="large"
+              >
+                <Avatar
+                  src={storeUser?.profilePicture}
+                  alt={storeUser?.name || storeUser?.username}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    bgcolor: "primary.main",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  {!storeUser?.profilePicture &&
+                    (storeUser?.name?.charAt(0).toUpperCase() ||
+                      storeUser?.username?.charAt(0).toUpperCase())}
+                </Avatar>
+              </IconButton>
+            </Box>
+>>>>>>> origin/main
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
@@ -292,6 +430,7 @@ function UserDashboard() {
           </Box>
         </Box>
 
+<<<<<<< HEAD
         {/* Main Content */}
         {/* Main Content */}
         <Box
@@ -312,12 +451,18 @@ function UserDashboard() {
               : tabs[tabValue]?.component}
           </Box>
         </Box>
+=======
+        <Container maxWidth="lg" sx={{ py: 3, flexGrow: 1 }}>
+          {tabValue === -1 ? settingsTab.component : tabs[tabValue]?.component}
+        </Container>
+>>>>>>> origin/main
       </Box>
     </Box>
   );
 }
 
 export default UserDashboard;
+<<<<<<< HEAD
 
 // import React, { useState, useEffect } from "react";
 // import { useTheme } from "@mui/material";
@@ -594,3 +739,5 @@ export default UserDashboard;
 // }
 
 // export default UserDashboard;
+=======
+>>>>>>> origin/main

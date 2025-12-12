@@ -13,6 +13,7 @@ import {
   ListItemButton,
   ListItemIcon,
   List,
+  Tooltip,
   ListItemText,
   Avatar,
 } from "@mui/material";
@@ -25,10 +26,10 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import ReportExport from "../components/ReportExport.js";
 import ReceiptUpload from "../components/ReceiptUpload.js";
 import StatusTracker from "../components/StatusTracker.js";
+import UserSettings from "../components/UserSettings.js";
 import ReimbursementList from "../components/ReimbursementList.js";
 import ThemeToggle from "../components/ThemeToggle.js";
 import { useAppContext } from "../App.js";
-import UserSettings from "../components/UserSettings.js";
 import { userUserStore } from "../store/userUserStore.js";
 
 function AdminDashboard() {
@@ -96,44 +97,42 @@ function AdminDashboard() {
     getUser();
   }, []);
 
-  // Check if user is Finance Officer
   const isFinanceOfficer = user?.role === "Finance Officer";
 
-  // Define all tabs with their visibility rules
   const allTabs = [
     {
       label: "Reimbursement Lists",
       icon: <ListAltIcon />,
       component: <ReimbursementList />,
-      visible: true, // Always visible
+      visible: true,
     },
     {
-      label: "Export Summary Reports",
+      label: "Export Reports",
       icon: <AssessmentIcon />,
       component: <ReportExport />,
-      visible: true, // Always visible
+      visible: true,
     },
     {
       label: "Upload Receipt",
       icon: <ReceiptIcon />,
       component: <ReceiptUpload />,
-      visible: !isFinanceOfficer, // Hidden for Finance Officers
+      visible: !isFinanceOfficer,
     },
     {
       label: "Track Status",
       icon: <TrackChangesIcon />,
       component: <StatusTracker />,
-      visible: !isFinanceOfficer, // Hidden for Finance Officers
+      visible: !isFinanceOfficer,
     },
   ];
 
+<<<<<<< HEAD
   // Filter tabs based on visibility
+=======
+>>>>>>> origin/main
   const visibleTabs = allTabs.filter((tab) => tab.visible);
 
-  const settingsTab = {
-    label: "Settings",
-    component: <UserSettings />,
-  };
+  const settingsTab = { label: "Settings", component: <UserSettings /> };
 
   const firstName = user?.username?.split(" ")[0] || user?.username || "Admin";
 
@@ -141,32 +140,32 @@ function AdminDashboard() {
     if (tabValue === -1) {
       return settingsTab.component;
     }
-
-    // Get the selected tab from visible tabs
     if (tabValue >= 0 && tabValue < visibleTabs.length) {
       return visibleTabs[tabValue].component;
     }
-
     return null;
   };
 
   return (
-    <Container
-      maxWidth="lg"
-      sx={{ py: 0, display: "flex", minHeight: "100vh" }}
-    >
+    <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <Drawer
         variant="persistent"
         anchor="left"
         open={true}
         sx={{
-          width: drawerOpen ? 10 : 10,
+          width: drawerOpen ? 240 : 64,
           flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: drawerOpen ? 240 : 64,
+            height: "100vh", // ensure full height — no white corners
             boxSizing: "border-box",
             transition: "width 0.3s ease-in-out",
             overflowX: "hidden",
+            background: "linear-gradient(180deg, #0c5dcf 0%, #083778 100%)",
+            color: "#ffffff",
+            borderRight: "none",
+            borderRadius: 0, // remove default rounded corners
+            backgroundColor: "transparent", // avoid white background bleed-through
           },
         }}
       >
@@ -174,36 +173,90 @@ function AdminDashboard() {
           sx={{
             p: 2,
             display: "flex",
-            justifyContent: drawerOpen ? "flex-end" : "center",
+            justifyContent: "flex-start",
           }}
         >
-          <IconButton onClick={toggleDrawer} color="inherit" size="large">
+          <IconButton
+            onClick={toggleDrawer}
+            size="large"
+            sx={{ color: "#ffffff", ml: drawerOpen ? 0 : "-6px" }}
+          >
             <MenuIcon />
           </IconButton>
         </Box>
         <List>
           {visibleTabs.map((tab, index) => (
-            <ListItemButton
+            <Tooltip
               key={tab.label}
-              selected={tabValue === index}
-              onClick={() => handleTabChange(index)}
-              sx={{
-                borderRadius: 2,
-                mb: 0.5,
-                "&.Mui-selected": {
-                  backgroundColor: (theme) => theme.palette.action.selected,
-                  color: (theme) => theme.palette.primary.main,
-                },
+              title={tab.label}
+              placement="right"
+              arrow
+              PopperProps={{
+                // Only show tooltip if text is truncated OR drawer is closed
+                modifiers: [
+                  {
+                    name: "preventOverflow",
+                    enabled: true,
+                    options: { boundariesElement: "window" },
+                  },
+                ],
               }}
             >
-              <ListItemIcon>{tab.icon}</ListItemIcon>
-              <ListItemText primary={tab.label} />
-            </ListItemButton>
+              <ListItemButton
+                selected={tabValue === index}
+                onClick={() => handleTabChange(index)}
+                sx={{
+                  borderRadius: 2,
+                  mb: 0.5,
+                  mx: 1,
+                  color: "#ffffff",
+                  justifyContent: drawerOpen ? "flex-start" : "center",
+                  px: drawerOpen ? 2 : 0.5,
+                  transition: "all 0.3s ease",
+                  "&.Mui-selected": {
+                    backgroundColor: "rgba(255, 255, 255, 0.15)",
+                    "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.2)" },
+                  },
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.1)" },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color: "#ffffff",
+                    minWidth: 0,
+                    mr: drawerOpen ? 2 : "auto",
+                    ml: drawerOpen ? 0 : 1,
+                    justifyContent: "center",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  {tab.icon}
+                </ListItemIcon>
+
+                <Box
+                  component="span"
+                  sx={{
+                    opacity: drawerOpen ? 1 : 0,
+                    width: drawerOpen ? "auto" : 0,
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
+                    minWidth: 0,
+                    transition: "all 0.3s ease",
+                    // This line makes tooltip work even when drawer is open but text is cut off
+                    // (optional but recommended)
+                    flexGrow: 1,
+                  }}
+                >
+                  {tab.label}
+                </Box>
+              </ListItemButton>
+            </Tooltip>
           ))}
         </List>
 
         {drawerOpen && !isFinanceOfficer && (
-          <Box sx={{ mt: "auto" }}>
+          <Box sx={{ mt: "auto", color: "#000000ff" }}>
             <MonthlyStats />
           </Box>
         )}
@@ -212,16 +265,18 @@ function AdminDashboard() {
       <Box
         sx={{
           flexGrow: 1,
-          ml: drawerOpen ? "240px" : "64px",
-          transition: "margin-left 0.3s ease-in-out",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <Box
           sx={{
             p: 2,
-            borderBottom: 1,
-            borderColor: "divider",
-            mb: 3,
+            borderBottom: `2px solid ${
+              theme.palette.mode === "dark"
+                ? "rgba(255, 255, 255, 0.33)"
+                : "rgba(0, 0, 0, 0.51)"
+            }`,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -287,19 +342,11 @@ function AdminDashboard() {
           </Box>
         </Box>
 
-        <Box sx={{ p: 2 }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mb: 3,
-            }}
-          ></Box>
+        <Container maxWidth="lg" sx={{ py: 3, flexGrow: 1 }}>
           {renderContent()}
-        </Box>
+        </Container>
       </Box>
-    </Container>
+    </Box>
   );
 }
 

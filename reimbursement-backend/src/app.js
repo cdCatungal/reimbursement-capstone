@@ -106,11 +106,42 @@ app.use((req, res, next) => {
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: "3.0.0",
-    info: { title: "Reimbursement API", version: "1.0.0" },
+    info: {
+      title: "Reimbursement API",
+      version: "1.0.0",
+      description: "API documentation for Reimbursement Management System",
+    },
+    servers: [
+      {
+        url: "https://reimbursement-capstone-main.onrender.com",
+        description: "Production server",
+      },
+      {
+        url: `http://localhost:${process.env.PORT || 4000}`,
+        description: "Local development server",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
-  apis: ["./routes/*.js"],
+  // ✅ FIXED: Use absolute path with __dirname
+  apis: [
+    path.join(__dirname, "./routes/*.js"),
+    path.join(__dirname, "./routes/*/*.js"),
+  ],
 });
-
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // ✅ Routes

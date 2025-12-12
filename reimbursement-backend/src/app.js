@@ -94,15 +94,6 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// ✅ Request logging middleware
-app.use((req, res, next) => {
-  if (req.path.startsWith("/auth/")) {
-    console.log("📍 Request:", req.method, req.path);
-    console.log("👤 Authenticated user:", req.user?.email || "None");
-  }
-  next();
-});
-
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: "3.0.0",
@@ -143,6 +134,15 @@ const swaggerSpec = swaggerJsdoc({
   ],
 });
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// ✅ Request logging middleware
+app.use((req, res, next) => {
+  if (req.path.startsWith("/auth/")) {
+    console.log("📍 Request:", req.method, req.path);
+    console.log("👤 Authenticated user:", req.user?.email || "None");
+  }
+  next();
+});
 
 // ✅ Routes
 app.use("/auth", authRoutes);

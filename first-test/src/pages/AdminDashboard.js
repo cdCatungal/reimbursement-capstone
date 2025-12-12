@@ -126,10 +126,6 @@ function AdminDashboard() {
     },
   ];
 
-<<<<<<< HEAD
-  // Filter tabs based on visibility
-=======
->>>>>>> origin/main
   const visibleTabs = allTabs.filter((tab) => tab.visible);
 
   const settingsTab = { label: "Settings", component: <UserSettings /> };

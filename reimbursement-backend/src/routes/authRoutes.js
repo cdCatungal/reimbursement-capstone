@@ -1,3 +1,45 @@
+/**
+ * @swagger
+ * tags:
+ *   name: Authentication
+ *   description: Microsoft OAuth authentication endpoints
+ */
+
+/**
+ * @swagger
+ * components:
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ *   schemas:
+ *     AuthResponse:
+ *       type: object
+ *       properties:
+ *         token:
+ *           type: string
+ *           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *         user:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: integer
+ *               example: 1
+ *             email:
+ *               type: string
+ *               example: "john@example.com"
+ *             name:
+ *               type: string
+ *               example: "John Doe"
+ *     Error:
+ *       type: object
+ *       properties:
+ *         error:
+ *           type: string
+ *           example: "Authentication failed"
+ */
+
 import express from "express";
 import passport from "passport";
 
@@ -5,6 +47,17 @@ const router = express.Router();
 
 /**
  * STEP 1: Redirect to Microsoft Login
+ */
+
+/**
+ * @swagger
+ * /auth/microsoft:
+ *   get:
+ *     summary: Initiate Microsoft OAuth login
+ *     tags: [Authentication]
+ *     responses:
+ *       302:
+ *         description: Redirects to Microsoft login page
  */
 router.get(
   "/microsoft",
@@ -22,6 +75,30 @@ router.get(
 
 /**
  * STEP 2: Handle Microsoft redirect (POST)
+ */
+
+/**
+ * @swagger
+ * /auth/microsoft/callback:
+ *   get:
+ *     summary: Microsoft OAuth callback endpoint
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema:
+ *           type: string
+ *         description: OAuth authorization code from Microsoft
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           type: string
+ *         description: OAuth state parameter
+ *     responses:
+ *       302:
+ *         description: Redirects to frontend with JWT token
+ *       401:
+ *         description: Authentication failed
  */
 router.post(
   "/microsoft/callback",
@@ -82,6 +159,25 @@ router.get("/me", (req, res) => {
 
 /**
  * STEP 5: Logout
+ */
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout user
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Successfully logged out
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Logged out successfully"
  */
 router.get("/logout", (req, res, next) => {
   console.log("\n👋 ====== LOGOUT INITIATED ======");

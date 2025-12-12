@@ -19,6 +19,8 @@ import { verifyEmailConfig } from "./utils/sendEmail.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import https from "https";
+import swaggerJsdoc from "swagger-jsdoc";
+import swaggerUi from "swagger-ui-express";
 
 dotenv.config();
 // Fix __dirname for ES modules
@@ -101,6 +103,16 @@ app.use((req, res, next) => {
   next();
 });
 
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: "3.0.0",
+    info: { title: "Reimbursement API", version: "1.0.0" },
+  },
+  apis: ["./routes/*.js"],
+});
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // ✅ Routes
 app.use("/auth", authRoutes);
 app.use("/api/reimbursements", reimbursementRoutes);
@@ -109,46 +121,6 @@ app.use("/api/users", userRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/sap-codes", sapCodeRoutes);
-<<<<<<< HEAD
-
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.resolve(__dirname, "../../first-test/build")));
-
-  // ✅ WORKS on Express 5.x — matches everything that’s not handled above
-  app.use((req, res) => {
-    res.sendFile(path.resolve(__dirname, "../../first-test/build/index.html"));
-  });
-}
-
-app.get("/api/test-email", async (req, res) => {
-  try {
-    console.log("🧪 Testing email send...");
-
-    const result = await sendEmail(
-      "ernitback@gmail.com", // Send to yourself first
-      "Test Email - Mailjet Integration",
-      `
-        <h1>Hello!</h1>
-        <p>This is a test email from your reimbursement system.</p>
-        <p>Time: ${new Date().toISOString()}</p>
-      `
-    );
-
-    res.json({
-      success: true,
-      message: "Email sent successfully!",
-      details: result,
-    });
-  } catch (error) {
-    console.error("Test email error:", error);
-    res.status(500).json({
-      error: error.message,
-      stack: error.stack,
-    });
-  }
-});
-=======
->>>>>>> origin/main
 
 // ✅ Health check endpoint
 app.get("/", (req, res) => {
@@ -218,38 +190,6 @@ const PORT = process.env.PORT || 4000;
     await sequelize.sync({ alter: false });
     console.log("✅ Database synced successfully");
 
-<<<<<<< HEAD
-    // ✅ Step 3: Verify email configuration
-    console.log("📧 Checking email configuration...");
-    await verifyEmailConfig();
-
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`\n🚀 Server running on port: ${PORT}`);
-      console.log(
-        `📧 Email notifications: ${
-          process.env.EMAIL_USER ? "✅ Configured" : "❌ Not configured"
-        }\n`
-      );
-      // ✅ ADD KEEP-ALIVE CODE HERE (after server starts)
-
-      function keepAlive() {
-        https
-          .get("https://reimbursement-capstone-main.onrender.com", (res) => {
-            console.log(`✅ Keep-alive ping: ${new Date().toISOString()}`);
-          })
-          .on("error", (err) => {
-            console.log("❌ Keep-alive failed:", err.message);
-          });
-      }
-
-      // Start pinging 30 seconds after startup, then every 10 minutes
-      setTimeout(() => {
-        keepAlive(); // Initial ping
-        setInterval(keepAlive, 10 * 60 * 1000); // Subsequent pings every 10 minutes
-        console.log("🔄 Keep-alive service started");
-      }, 30000);
-=======
     // ✅ Step 3: Create RLS helper function if it doesn't exist
     console.log("🔒 Setting up RLS helper function...");
     try {
@@ -284,7 +224,23 @@ const PORT = process.env.PORT || 4000;
       );
       console.log(`🔒 RLS: Enabled`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}\n`);
->>>>>>> origin/main
+
+      function keepAlive() {
+        https
+          .get("https://reimbursement-capstone-main.onrender.com", (res) => {
+            console.log(`✅ Keep-alive ping: ${new Date().toISOString()}`);
+          })
+          .on("error", (err) => {
+            console.log("❌ Keep-alive failed:", err.message);
+          });
+      }
+
+      // Start pinging 30 seconds after startup, then every 10 minutes
+      setTimeout(() => {
+        keepAlive(); // Initial ping
+        setInterval(keepAlive, 10 * 60 * 1000); // Subsequent pings every 10 minutes
+        console.log("🔄 Keep-alive service started");
+      }, 30000);
     });
   } catch (err) {
     console.error("❌ Server startup error:", err.message);
@@ -292,38 +248,3 @@ const PORT = process.env.PORT || 4000;
     process.exit(1);
   }
 })();
-<<<<<<< HEAD
-
-// (async () => {
-//   try {
-//     // ✅ Step 1: Verify database connection
-//     console.log('\n📡 Verifying database connection...');
-//     await sequelize.authenticate();
-//     console.log("✅ Database authenticated");
-
-//     // ✅ Step 2: Sync database models
-//     console.log('🔄 Syncing database models...');
-//     await sequelize.sync({ alter: false });
-//     console.log("✅ Database synced successfully");
-
-//     // ✅ Step 3: Verify email configuration
-//     console.log('📧 Checking email configuration...');
-//     await verifyEmailConfig();
-
-//     // ✅ Step 4: Start server
-//     app.listen(PORT, () => {
-//       console.log(`\n🚀 Server running: http://localhost:${PORT}`);
-//       console.log(`🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`);
-//       console.log(`💾 Database: ${process.env.DB_HOST}`);
-//       console.log(`📧 Email: ${process.env.EMAIL_USER ? '✅ Configured' : '❌ Not configured'}`);
-//       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
-// >>>>>>> origin/main
-//     });
-//   } catch (err) {
-//     console.error("❌ Server startup error:", err.message);
-//     console.error(err);
-//     process.exit(1);
-//   }
-// })();
-=======
->>>>>>> origin/main

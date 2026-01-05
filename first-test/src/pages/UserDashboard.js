@@ -54,10 +54,13 @@ function UserDashboard() {
 
   const handleLogoutClick = async () => {
     try {
-      const response = await fetch("http://localhost:5000/auth/logout", {
-        method: "GET",
-        credentials: "include",
-      });
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL}/auth/logout`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
 
       if (response.ok) {
         setIsAuthenticated(false);

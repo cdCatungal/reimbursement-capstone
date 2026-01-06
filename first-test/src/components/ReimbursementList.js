@@ -104,6 +104,7 @@ function ReimbursementList() {
       }
 
       const data = await response.json();
+      console.log("data:", data);
       setPendings(data);
       hasFetched.current = true;
     } catch (err) {

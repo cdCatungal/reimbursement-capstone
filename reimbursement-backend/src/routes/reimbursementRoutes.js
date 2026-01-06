@@ -68,6 +68,7 @@ import {
 import { upload } from "../middlewares/upload.js";
 import Reimbursement from "../models/Reimbursement.js"; // ← MUST HAVE THIS
 import { Op } from "sequelize"; // ← MUST HAVE THIS
+import Approval from "../models/Approval.js";
 
 const router = express.Router();
 
@@ -182,39 +183,85 @@ router.get("/monthly-stats", isAuthenticated, async (req, res) => {
     console.log("req.user:", req.user);
 
     const userId = req.user.id || req.user.userId || req.user.user_id;
+    const userRole = req.user.role;
     console.log("Looking for reimbursements for userId:", userId);
 
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
-    console.log("Start of month:", startOfMonth);
+    console.log("Start of month12:", startOfMonth);
 
-    const reimbursements = await Reimbursement.findAll({
-      where: {
-        user_id: userId,
-        submitted_at: {
-          [Op.gte]: startOfMonth,
+    if (userRole === "Employee") {
+      const reimbursements = await Reimbursement.findAll({
+        where: {
+          user_id: userId,
+          // submitted_at: {
+          //   [Op.gte]: startOfMonth,
+          // },
         },
-      },
-    });
+      });
 
-    console.log("Found reimbursements:", reimbursements.length);
+      console.log("Found reimbursements:", reimbursements.length);
 
-    const stats = {
-      submitted: reimbursements.length,
-      approved: reimbursements.filter((r) => r.status === "Approved").length,
-      pending: reimbursements.filter(
-        (r) =>
-          r.status === "Pending" ||
-          r.status === "Manager Approved" ||
-          r.status === "Michelle Approved"
-      ).length,
-      rejected: reimbursements.filter((r) => r.status === "Rejected").length,
-      total: reimbursements.length,
-    };
+      const stats = {
+        submitted: reimbursements.length,
+        approved: reimbursements.filter((r) => r.status === "Approved").length,
+        pending: reimbursements.filter(
+          (r) =>
+            r.status === "Pending" ||
+            r.status === "Manager Approved" ||
+            r.status === "Michelle Approved"
+        ).length,
+        rejected: reimbursements.filter((r) => r.status === "Rejected").length,
+        total: reimbursements.length,
+      };
 
-    console.log("Calculated stats:", stats);
-    res.json(stats);
+      console.log("Calculated stats:", stats);
+      return res.json(stats);
+    } else {
+      const approval = await Approval.findAll({
+        where: {
+          approver_id: userId,
+          // submitted_at: {
+          //   [Op.gte]: startOfMonth,
+          // },
+        },
+      });
+
+      console.log("Found approval:", approval.length);
+
+      const stats = {
+        submitted: approval.length,
+        approved: approval.filter((r) => r.status === "Approved").length,
+        pending: approval.filter(
+          (r) =>
+            r.status === "Pending" ||
+            r.status === "Manager Approved" ||
+            r.status === "Michelle Approved"
+        ).length,
+        rejected: approval.filter((r) => r.status === "Rejected").length,
+        total: approval.length,
+      };
+
+      console.log("Calculated stats:", stats);
+      return res.json(stats);
+    }
+
+    // const stats = {
+    //   submitted: reimbursements.length,
+    //   approved: reimbursements.filter((r) => r.status === "Approved").length,
+    //   pending: reimbursements.filter(
+    //     (r) =>
+    //       r.status === "Pending" ||
+    //       r.status === "Manager Approved" ||
+    //       r.status === "Michelle Approved"
+    //   ).length,
+    //   rejected: reimbursements.filter((r) => r.status === "Rejected").length,
+    //   total: reimbursements.length,
+    // };
+
+    // console.log("Calculated stats:", stats);
+    // res.json(stats);
   } catch (error) {
     console.error("Error fetching monthly stats:", error);
     res.status(500).json({ message: "Error fetching monthly statistics" });

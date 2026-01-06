@@ -195,7 +195,10 @@ router.get("/monthly-stats", isAuthenticated, async (req, res) => {
       const reimbursements = await Reimbursement.findAll({
         where: {
           user_id: userId,
-          submitted_at: {
+          // submitted_at: {
+          //   [Op.gte]: startOfMonth,
+          // },
+          updated_at: {
             [Op.gte]: startOfMonth,
           },
         },

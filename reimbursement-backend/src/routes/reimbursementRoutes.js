@@ -189,15 +189,15 @@ router.get("/monthly-stats", isAuthenticated, async (req, res) => {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
-    console.log("Start of month12:", startOfMonth);
+    console.log("Start of month:", startOfMonth);
 
     if (userRole === "Employee") {
       const reimbursements = await Reimbursement.findAll({
         where: {
           user_id: userId,
-          // submitted_at: {
-          //   [Op.gte]: startOfMonth,
-          // },
+          submitted_at: {
+            [Op.gte]: startOfMonth,
+          },
         },
       });
 

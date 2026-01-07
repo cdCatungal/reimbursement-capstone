@@ -350,6 +350,34 @@ function ReceiptUpload() {
     return "";
   };
 
+  const handleNumericInput = (e) => {
+    const { name, value } = e.target;
+
+    // Remove non-numeric characters (except decimal point for total)
+    let cleanValue = value;
+    if (name === "total") {
+      // Allow only numbers and one decimal point
+      cleanValue = value.replace(/[^0-9.]/g, "");
+      // Ensure only one decimal point
+      const parts = cleanValue.split(".");
+      if (parts.length > 2) {
+        cleanValue = parts[0] + "." + parts.slice(1).join("");
+      }
+    } else {
+      // For number_of_people and number_of_days, only allow integers
+      cleanValue = value.replace(/[^0-9]/g, "");
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: cleanValue,
+    }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -524,7 +552,25 @@ function ReceiptUpload() {
     setImage(null);
     setImagePreview(null);
     setExtractedText("");
-    setErrors((prev) => ({ ...prev, image: "" }));
+    setErrors({});
+
+    const defaultSapCode = bypassesSapValidation
+      ? "INVOICE_SPECIALIST"
+      : availableSapCodes.length === 1
+      ? availableSapCodes[0]
+      : "";
+
+    setFormData({
+      date: new Date().toISOString().split("T")[0],
+      items: "",
+      total: "",
+      description: "",
+      category: "Meal with Client",
+      merchant: "",
+      sap_code: defaultSapCode,
+      number_of_people: 1,
+      number_of_days: 1,
+    });
   };
 
   const ConfirmationModal = () => {
@@ -1138,11 +1184,16 @@ function ReceiptUpload() {
                 <TextField
                   label="Total Amount (₱) *"
                   name="total"
-                  type="number"
+                  type="text" // Changed from "number"
                   value={formData.total}
-                  onChange={handleChange}
+                  onChange={handleNumericInput} // Use new handler
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-"].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   fullWidth
-                  inputProps={{ step: "0.01", min: "0" }}
+                  inputProps={{ inputMode: "decimal" }}
                   error={!!errors.total}
                   helperText={errors.total}
                 />
@@ -1151,11 +1202,16 @@ function ReceiptUpload() {
                   <TextField
                     label="Number of People *"
                     name="number_of_people"
-                    type="number"
+                    type="text"
                     value={formData.number_of_people}
-                    onChange={handleChange}
+                    onChange={handleNumericInput}
+                    onKeyDown={(e) => {
+                      if (["e", "E", "+", "-", "."].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     fullWidth
-                    inputProps={{ step: "1", min: "1" }}
+                    inputProps={{ inputMode: "numeric" }}
                     error={!!errors.number_of_people}
                     helperText={
                       errors.number_of_people ||
@@ -1169,11 +1225,16 @@ function ReceiptUpload() {
                     <TextField
                       label="Number of Days *"
                       name="number_of_days"
-                      type="number"
+                      type="text"
                       value={formData.number_of_days}
-                      onChange={handleChange}
+                      onChange={handleNumericInput}
+                      onKeyDown={(e) => {
+                        if (["e", "E", "+", "-", "."].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       fullWidth
-                      inputProps={{ step: "1", min: "1" }}
+                      inputProps={{ inputMode: "numeric" }}
                       error={!!errors.number_of_days}
                       helperText={
                         errors.number_of_days ||
@@ -1183,11 +1244,16 @@ function ReceiptUpload() {
                     <TextField
                       label="Number of People *"
                       name="number_of_people"
-                      type="number"
+                      type="text"
                       value={formData.number_of_people}
-                      onChange={handleChange}
+                      onChange={handleNumericInput}
+                      onKeyDown={(e) => {
+                        if (["e", "E", "+", "-", "."].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       fullWidth
-                      inputProps={{ step: "1", min: "1" }}
+                      inputProps={{ inputMode: "numeric" }}
                       error={!!errors.number_of_people}
                       helperText={
                         errors.number_of_people ||

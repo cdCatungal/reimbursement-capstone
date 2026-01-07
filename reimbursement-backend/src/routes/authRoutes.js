@@ -1,3 +1,41 @@
+/**
+ * @swagger
+ * tags:
+ *   name: Authentication
+ *   description: Microsoft OAuth authentication endpoints
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           example: 1
+ *         email:
+ *           type: string
+ *           example: "john.doe@company.com"
+ *         name:
+ *           type: string
+ *           example: "John Doe"
+ *         role:
+ *           type: string
+ *           enum: [user, approver, admin]
+ *           example: "user"
+ *         profilePicture:
+ *           type: string
+ *           example: "https://example.com/profile.jpg"
+ *         sap_code_1:
+ *           type: string
+ *           example: "SAP001"
+ *         sap_code_2:
+ *           type: string
+ *           example: "SAP002"
+ */
+
 import express from "express";
 import passport from "passport";
 
@@ -6,6 +44,21 @@ const router = express.Router();
 /**
  * STEP 1: Redirect to Microsoft Login
  */
+
+/**
+ * @swagger
+ * /auth/microsoft:
+ *   get:
+ *     summary: Initiate Microsoft OAuth login
+ *     tags: [Authentication]
+ *     description: Redirects user to Microsoft login page for authentication
+ *     responses:
+ *       302:
+ *         description: Redirects to Microsoft login page
+ *       401:
+ *         description: Authentication failed
+ */
+
 router.get(
   "/microsoft",
   (req, res, next) => {
@@ -23,6 +76,32 @@ router.get(
 /**
  * STEP 2: Handle Microsoft redirect (POST)
  */
+
+/**
+ * @swagger
+ * /auth/microsoft/callback:
+ *   post:
+ *     summary: Microsoft OAuth callback endpoint
+ *     tags: [Authentication]
+ *     description: Handles the callback from Microsoft after successful authentication
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema:
+ *           type: string
+ *         description: OAuth authorization code from Microsoft
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           type: string
+ *         description: OAuth state parameter
+ *     responses:
+ *       302:
+ *         description: Redirects to frontend with session established
+ *       401:
+ *         description: Authentication failed
+ */
+
 router.post(
   "/microsoft/callback",
   (req, res, next) => {
@@ -47,6 +126,29 @@ router.post(
 /**
  * STEP 3: Failure handler
  */
+
+/**
+ * @swagger
+ * /auth/failure:
+ *   get:
+ *     summary: Authentication failure handler
+ *     tags: [Authentication]
+ *     responses:
+ *       401:
+ *         description: Microsoft authentication failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Microsoft authentication failed"
+ */
+
 router.get("/failure", (req, res) => {
   res
     .status(401)
@@ -56,6 +158,47 @@ router.get("/failure", (req, res) => {
 /**
  * STEP 4: Get current user session
  */
+
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Get current authenticated user
+ *     tags: [Authentication]
+ *     description: Returns the current user's session information
+ *     responses:
+ *       200:
+ *         description: User is authenticated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 authenticated:
+ *                   type: boolean
+ *                   example: true
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         description: User is not authenticated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 authenticated:
+ *                   type: boolean
+ *                   example: false
+ *                 user:
+ *                   type: null
+ */
+
 router.get("/me", (req, res) => {
   console.log("\n🔍 ====== AUTH CHECK ======");
   console.log("🔑 Session ID:", req.sessionID);
@@ -83,6 +226,19 @@ router.get("/me", (req, res) => {
 /**
  * STEP 5: Logout
  */
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   get:
+ *     summary: Logout user
+ *     tags: [Authentication]
+ *     description: Logs out the user and redirects to Microsoft logout
+ *     responses:
+ *       302:
+ *         description: Redirects to Microsoft logout page
+ */
+
 router.get("/logout", (req, res, next) => {
   console.log("\n👋 ====== LOGOUT INITIATED ======");
   console.log("👤 Logging out user:", req.user?.email || "Unknown");

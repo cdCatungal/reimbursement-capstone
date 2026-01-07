@@ -1,4 +1,5 @@
-//reimbursement-backend/src/app.js
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
 import express from "express";
 import session from "express-session";
 import cookieParser from "cookie-parser";
@@ -16,11 +17,58 @@ import ocrRoutes from "./routes/ocrRoutes.js";
 import adminRoutes from "./routes/admin.route.js";
 import sapCodeRoutes from "./routes/sapCode.routes.js";
 import { verifyEmailConfig } from "./utils/sendEmail.js";
+import swaggerJsdoc from "swagger-jsdoc";
+import swaggerUi from "swagger-ui-express";
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const app = express();
 app.set("trust proxy", 1);
+
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Reimbursement API",
+      version: "1.0.0",
+      description: "API documentation for Reimbursement Management System",
+    },
+    servers: [
+      {
+        url: "https://reimbursement-capstone-main.onrender.com",
+        description: "Production server",
+      },
+      {
+        url: `http://localhost:${process.env.PORT || 4000}`,
+        description: "Local development server",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
+  },
+  apis: [
+    path.join(__dirname, "./routes/*.js"),
+    path.join(__dirname, "./routes/*/*.js"),
+  ],
+});
+
+// ✅ Mount Swagger FIRST - before any auth middleware
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // ✅ Middleware order is critical for security and functionality
 app.use(cookieParser());
@@ -59,7 +107,22 @@ app.use(bodyParser.urlencoded({ limit: "10mb", extended: true }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ✅ NEW: Set RLS context for Supabase policies
+// ✅ Define public paths that don't require authentication
+const publicPaths = ["/api-docs", "/health", "/"];
+
+// ✅ Skip authentication for public paths
+app.use((req, res, next) => {
+  // Check if the request path starts with any public path
+  if (publicPaths.some((path) => req.path.startsWith(path))) {
+    console.log(`✓ Public path accessed: ${req.path}`);
+    return next();
+  }
+
+  // For all other paths, continue to next middleware
+  next();
+});
+
+// ✅ Set RLS context for Supabase policies (only for authenticated users)
 app.use(async (req, res, next) => {
   // Only set RLS context if user is authenticated
   if (req.user && req.user.id) {
@@ -95,7 +158,7 @@ app.use("/api/ocr", ocrRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/sap-codes", sapCodeRoutes);
 
-// ✅ Health check endpoint
+// ✅ Health check endpoint (root)
 app.get("/", (req, res) => {
   res.json({
     status: "running",
@@ -186,6 +249,7 @@ const PORT = process.env.PORT || 5000;
     // ✅ Step 5: Start server
     app.listen(PORT, () => {
       console.log(`\n🚀 Server running: http://localhost:${PORT}`);
+      console.log(`📚 API Docs: http://localhost:${PORT}/api-docs`);
       console.log(
         `🔑 Microsoft login: http://localhost:${PORT}/auth/microsoft`
       );

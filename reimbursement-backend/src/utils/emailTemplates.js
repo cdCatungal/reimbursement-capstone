@@ -3,7 +3,24 @@
 /**
  * Email template for intermediate approval (not final)
  */
-export const approvalProgressTemplate = (reimbursement, approverName, approverRole, nextApproverRole, approvalLevel) => {
+
+export const approvalProgressTemplate = (
+  reimbursement,
+  approverName,
+  approverRole,
+  nextApproverRole,
+  approvalLevel
+) => {
+  const getTotal = () => {
+    const total = parseFloat(reimbursement.total) || 0;
+    const reimbursableAmount =
+      parseFloat(reimbursement.reimbursable_amount) || 0;
+
+    return total > reimbursableAmount
+      ? reimbursement.reimbursable_amount
+      : reimbursement.total;
+  };
+  const total = getTotal();
   return `
     <!DOCTYPE html>
     <html>
@@ -33,11 +50,26 @@ export const approvalProgressTemplate = (reimbursement, approverName, approverRo
           <p>Your reimbursement request has been approved by <strong>${approverName}</strong> (${approverRole}).</p>
           
           <div class="details">
-            <p><span class="label">SAP Code:</span> ${reimbursement.sap_code}</p>
-            <p><span class="label">Category:</span> ${reimbursement.category}</p>
-            <p><span class="label">Amount:</span> <span class="amount">₱${parseFloat(reimbursement.total).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></p>
-            <p><span class="label">Description:</span> ${reimbursement.items || reimbursement.description || 'N/A'}</p>
-            <p><span class="label">Date of Expense:</span> ${reimbursement.date_of_expense ? new Date(reimbursement.date_of_expense).toLocaleDateString() : 'N/A'}</p>
+            <p><span class="label">SAP Code:</span> ${
+              reimbursement.sap_code
+            }</p>
+            <p><span class="label">Category:</span> ${
+              reimbursement.category
+            }</p>
+            <p><span class="label">Amount:</span> <span class="amount">₱${parseFloat(
+              total
+            ).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span></p>
+            <p><span class="label">Receipt totals:</span> ${
+              reimbursement.reimbursable_amount
+            }</p>
+            <p><span class="label">Description:</span> ${
+              reimbursement.items || reimbursement.description || "N/A"
+            }</p>
+            <p><span class="label">Date of Expense:</span> ${
+              reimbursement.date_of_expense
+                ? new Date(reimbursement.date_of_expense).toLocaleDateString()
+                : "N/A"
+            }</p>
           </div>
           
           <div class="progress-box">
@@ -60,7 +92,21 @@ export const approvalProgressTemplate = (reimbursement, approverName, approverRo
 /**
  * Email template for final approval (all levels complete)
  */
-export const finalApprovalTemplate = (reimbursement, approverName, approverRole) => {
+export const finalApprovalTemplate = (
+  reimbursement,
+  approverName,
+  approverRole
+) => {
+  const getTotal = () => {
+    const total = parseFloat(reimbursement.total) || 0;
+    const reimbursableAmount =
+      parseFloat(reimbursement.reimbursable_amount) || 0;
+
+    return total > reimbursableAmount
+      ? reimbursement.reimbursable_amount
+      : reimbursement.total;
+  };
+  const total = getTotal();
   return `
     <!DOCTYPE html>
     <html>
@@ -92,11 +138,26 @@ export const finalApprovalTemplate = (reimbursement, approverName, approverRole)
           </div>
           
           <div class="details">
-            <p><span class="label">SAP Code:</span> ${reimbursement.sap_code}</p>
-            <p><span class="label">Category:</span> ${reimbursement.category}</p>
-            <p><span class="label">Amount:</span> <span class="amount">₱${parseFloat(reimbursement.total).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></p>
-            <p><span class="label">Description:</span> ${reimbursement.items || reimbursement.description || 'N/A'}</p>
-            <p><span class="label">Date of Expense:</span> ${reimbursement.date_of_expense ? new Date(reimbursement.date_of_expense).toLocaleDateString() : 'N/A'}</p>
+            <p><span class="label">SAP Code:</span> ${
+              reimbursement.sap_code
+            }</p>
+            <p><span class="label">Category:</span> ${
+              reimbursement.category
+            }</p>
+            <p><span class="label">Amount:</span> <span class="amount">₱${parseFloat(
+              total
+            ).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span></p>
+            <p><span class="label">Receipt amount:</Cspan> ${
+              reimbursement.reimbursable_amount
+            }</p>
+            <p><span class="label">Description:</Cspan> ${
+              reimbursement.items || reimbursement.description || "N/A"
+            }</p>
+            <p><span class="label">Date of Expense:</span> ${
+              reimbursement.date_of_expense
+                ? new Date(reimbursement.date_of_expense).toLocaleDateString()
+                : "N/A"
+            }</p>
             <p><span class="label">Final Approved by:</span> ${approverName} (${approverRole})</p>
           </div>
           <p>Good day,</p>
@@ -116,7 +177,24 @@ export const finalApprovalTemplate = (reimbursement, approverName, approverRole)
 /**
  * Email template for rejection
  */
-export const rejectionTemplate = (reimbursement, requesterName, approverName, approverRole, remarks, approvalLevel) => {
+export const rejectionTemplate = (
+  reimbursement,
+  requesterName,
+  approverName,
+  approverRole,
+  remarks,
+  approvalLevel
+) => {
+  const getTotal = () => {
+    const total = parseFloat(reimbursement.total) || 0;
+    const reimbursableAmount =
+      parseFloat(reimbursement.reimbursable_amount) || 0;
+
+    return total > reimbursableAmount
+      ? reimbursement.reimbursable_amount
+      : reimbursement.total;
+  };
+  const total = getTotal();
   return `
     <!DOCTYPE html>
     <html>
@@ -146,11 +224,26 @@ export const rejectionTemplate = (reimbursement, requesterName, approverName, ap
           <p>Unfortunately, your reimbursement request has been <strong>rejected</strong>.</p>
           
           <div class="details">
-            <p><span class="label">SAP Code:</span> ${reimbursement.sap_code}</p>
-            <p><span class="label">Category:</span> ${reimbursement.category}</p>
-            <p><span class="label">Amount:</span> <span class="amount">₱${parseFloat(reimbursement.total).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></p>
-            <p><span class="label">Description:</span> ${reimbursement.items || reimbursement.description || 'N/A'}</p>
-            <p><span class="label">Date of Expense:</span> ${reimbursement.date_of_expense ? new Date(reimbursement.date_of_expense).toLocaleDateString() : 'N/A'}</p>
+            <p><span class="label">SAP Code:</span> ${
+              reimbursement.sap_code
+            }</p>
+            <p><span class="label">Category:</span> ${
+              reimbursement.category
+            }</p>
+            <p><span class="label">Amount:</span> <span class="amount">₱${parseFloat(
+              total
+            ).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span></p>
+            <p><span class="label">Receipt total:</span> ${
+              reimbursement.total
+            }</p>
+            <p><span class="label">Description:</span> ${
+              reimbursement.items || reimbursement.description || "N/A"
+            }</p>
+            <p><span class="label">Date of Expense:</span> ${
+              reimbursement.date_of_expense
+                ? new Date(reimbursement.date_of_expense).toLocaleDateString()
+                : "N/A"
+            }</p>
             <p><span class="label">Rejected by:</span> ${approverName} (${approverRole})</p>
           </div>
           
@@ -175,7 +268,23 @@ export const rejectionTemplate = (reimbursement, requesterName, approverName, ap
 /**
  * Email template for NEW reimbursement submission - sent to FIRST APPROVER
  */
-export const newSubmissionToApproverTemplate = (reimbursement, requester, approverName) => {
+export const newSubmissionToApproverTemplate = (
+  reimbursement,
+  requester,
+  approverName
+) => {
+  const getTotal = () => {
+    const total = parseFloat(reimbursement.total) || 0;
+    const reimbursableAmount =
+      parseFloat(reimbursement.reimbursable_amount) || 0;
+
+    return total > reimbursableAmount
+      ? reimbursement.reimbursable_amount
+      : reimbursement.total;
+  };
+  const total = getTotal();
+
+  console.log("obejct: ", reimbursement);
   return `
     <!DOCTYPE html>
     <html>
@@ -206,20 +315,43 @@ export const newSubmissionToApproverTemplate = (reimbursement, requester, approv
           <p>A new reimbursement request has been submitted and requires your approval.</p>
           
           <div class="details">
-            <p><span class="label">Submitted by:</span> ${requester.name} (${requester.role})</p>
-            <p><span class="label">SAP Code:</span> ${reimbursement.sap_code}</p>
-            <p><span class="label">Category:</span> ${reimbursement.category}</p>
-            <p><span class="label">Amount:</span> <span class="amount">₱${parseFloat(reimbursement.total).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></p>
-            <p><span class="label">Purpose:</span> ${reimbursement.items || 'N/A'}</p>
-            <p><span class="label">Description:</span> ${reimbursement.description || 'N/A'}</p>
-            <p><span class="label">Date of Expense:</span> ${reimbursement.date_of_expense ? new Date(reimbursement.date_of_expense).toLocaleDateString() : 'N/A'}</p>
-            <p><span class="label">Submitted on:</span> ${new Date(reimbursement.submitted_at).toLocaleString()}</p>
+            <p><span class="label">Submitted by:</span> ${requester.name} (${
+    requester.role
+  })</p>
+            <p><span class="label">SAP Code:</span> ${
+              reimbursement.sap_code
+            }</p>
+            <p><span class="label">Category:</span> ${
+              reimbursement.category
+            }</p>
+            <p><span class="label">Reimbursable Amount:</span> <span class="amount">₱${parseFloat(
+              total
+            ).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span></p>
+            <p><span class="label">Receipt total:</span> ${
+              reimbursement.total
+            }</p>
+            <p><span class="label">Purpose:</span> ${
+              reimbursement.items || "N/A"
+            }</p>
+            <p><span class="label">Description:</span> ${
+              reimbursement.description || "N/A"
+            }</p>
+            <p><span class="label">Date of Expense:</span> ${
+              reimbursement.date_of_expense
+                ? new Date(reimbursement.date_of_expense).toLocaleDateString()
+                : "N/A"
+            }</p>
+            <p><span class="label">Submitted on:</span> ${new Date(
+              reimbursement.submitted_at
+            ).toLocaleString()}</p>
           </div>
           
           <div class="action-box">
             <p style="margin: 0 0 15px 0; font-weight: bold;">⏰ Action Required</p>
             <p style="margin: 0 0 15px 0;">This request is waiting for your review and approval.</p>
-            <a href="${process.env.CLIENT_URL}/dashboard" class="button" style="color: #ffffff !important; text-decoration: none;">Review Request</a>
+            <a href="${
+              process.env.CLIENT_URL
+            }/dashboard" class="button" style="color: #ffffff !important; text-decoration: none;">Review Request</a>
           </div>
           
           <p>Please log in to the ERNIt Back system to review the complete details including the receipt and make your decision.</p>
@@ -237,7 +369,23 @@ export const newSubmissionToApproverTemplate = (reimbursement, requester, approv
 /**
  * Email template for notifying NEXT APPROVER after intermediate approval
  */
-export const nextApproverNotificationTemplate = (reimbursement, requester, previousApprover, nextApproverName, approvalLevel) => {
+export const nextApproverNotificationTemplate = (
+  reimbursement,
+  requester,
+  previousApprover,
+  nextApproverName,
+  approvalLevel
+) => {
+  const getTotal = () => {
+    const total = parseFloat(reimbursement.total) || 0;
+    const reimbursableAmount =
+      parseFloat(reimbursement.reimbursable_amount) || 0;
+
+    return total > reimbursableAmount
+      ? reimbursement.reimbursable_amount
+      : reimbursement.total;
+  };
+  const total = getTotal();
   return `
     <!DOCTYPE html>
     <html>
@@ -266,27 +414,52 @@ export const nextApproverNotificationTemplate = (reimbursement, requester, previ
         </div>
         <div class="content">
           <p>Dear ${nextApproverName},</p>
-          <p>A reimbursement request has been approved at Level ${approvalLevel - 1} and now requires your approval.</p>
+          <p>A reimbursement request has been approved at Level ${
+            approvalLevel - 1
+          } and now requires your approval.</p>
           
           <div class="progress-box">
             <p style="margin: 0 0 10px 0;"><span class="label">✅ Previous Approval:</span></p>
-            <p style="margin: 0;">Approved by ${previousApprover.name} (${previousApprover.role})</p>
+            <p style="margin: 0;">Approved by ${previousApprover.name} (${
+    previousApprover.role
+  })</p>
           </div>
           
           <div class="details">
-            <p><span class="label">Submitted by:</span> ${requester.name} (${requester.role})</p>
-            <p><span class="label">SAP Code:</span> ${reimbursement.sap_code}</p>
-            <p><span class="label">Category:</span> ${reimbursement.category}</p>
-            <p><span class="label">Amount:</span> <span class="amount">₱${parseFloat(reimbursement.total).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></p>
-            <p><span class="label">Purpose:</span> ${reimbursement.items || 'N/A'}</p>
-            <p><span class="label">Description:</span> ${reimbursement.description || 'N/A'}</p>
-            <p><span class="label">Date of Expense:</span> ${reimbursement.date_of_expense ? new Date(reimbursement.date_of_expense).toLocaleDateString() : 'N/A'}</p>
+            <p><span class="label">Submitted by:</span> ${requester.name} (${
+    requester.role
+  })</p>
+            <p><span class="label">SAP Code:</span> ${
+              reimbursement.sap_code
+            }</p>
+            <p><span class="label">Category:</span> ${
+              reimbursement.category
+            }</p>
+            <p><span class="label">Reimbursable Amount:</span> <span class="amount">₱${parseFloat(
+              total
+            ).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span></p>
+            <p><span class="label">Receipt total:</span> ${
+              reimbursement.reimbursable_amount
+            }</p>
+            <p><span class="label">Purpose:</span> ${
+              reimbursement.items || "N/A"
+            }</p>
+            <p><span class="label">Description:</span> ${
+              reimbursement.description || "N/A"
+            }</p>
+            <p><span class="label">Date of Expense:</span> ${
+              reimbursement.date_of_expense
+                ? new Date(reimbursement.date_of_expense).toLocaleDateString()
+                : "N/A"
+            }</p>
           </div>
           
           <div class="action-box">
             <p style="margin: 0 0 15px 0; font-weight: bold;">⏰ Your Approval Needed - Level ${approvalLevel}</p>
             <p style="margin: 0 0 15px 0;">This request is now waiting for your review.</p>
-            <a href="${process.env.CLIENT_URL}/dashboard" class="button" style="color: #ffffff !important; text-decoration: none;">Review & Approve</a>
+            <a href="${
+              process.env.CLIENT_URL
+            }/dashboard" class="button" style="color: #ffffff !important; text-decoration: none;">Review & Approve</a>
           </div>
           
           <p>Please review the complete request details including the receipt and approval history in the ERNIt Back system.</p>
@@ -310,7 +483,12 @@ export const nextApproverNotificationTemplate = (reimbursement, requester, previ
  * @param {number} reimbursementCount - Number of pending reimbursements reassigned
  * @param {Array} reimbursements - Array of reimbursement objects with basic info
  */
-export const newSulAssignmentTemplate = (sulName, employeeName, reimbursementCount, reimbursements = []) => {
+export const newSulAssignmentTemplate = (
+  sulName,
+  employeeName,
+  reimbursementCount,
+  reimbursements = []
+) => {
   return `
     <!DOCTYPE html>
     <html>
@@ -433,32 +611,63 @@ export const newSulAssignmentTemplate = (sulName, employeeName, reimbursementCou
           <strong>👤 ${employeeName}</strong>
         </div>
         
-        ${reimbursementCount > 0 ? `
-          <p>As a result of this assignment, <strong>${reimbursementCount}</strong> pending reimbursement${reimbursementCount > 1 ? 's have' : ' has'} been automatically reassigned to you for approval.</p>
+        ${
+          reimbursementCount > 0
+            ? `
+          <p>As a result of this assignment, <strong>${reimbursementCount}</strong> pending reimbursement${
+                reimbursementCount > 1 ? "s have" : " has"
+              } been automatically reassigned to you for approval.</p>
           
-          ${reimbursements.length > 0 ? `
+          ${
+            reimbursements.length > 0
+              ? `
             <div class="reimbursement-list">
               <h3 style="margin-top: 0; color: #1976d2;">📋 Pending Reimbursements:</h3>
-              ${reimbursements.map(r => `
+              ${reimbursements
+                .map(
+                  (r) => `
                 <div class="reimbursement-item">
                   <strong>Reimbursement #${r.id}</strong>
                   <div class="detail">📁 Category: ${r.category}</div>
-                  <div class="detail">💰 Amount: ₱${parseFloat(r.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  <div class="detail">💰 Amount: ₱${parseFloat(
+                    r.total
+                  ).toLocaleString("en-PH", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}</div>
                   <div class="detail">🏢 SAP Code: ${r.sap_code}</div>
-                  ${r.date_of_expense ? `<div class="detail">📅 Date: ${new Date(r.date_of_expense).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>` : ''}
+                  ${
+                    r.date_of_expense
+                      ? `<div class="detail">📅 Date: ${new Date(
+                          r.date_of_expense
+                        ).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}</div>`
+                      : ""
+                  }
                 </div>
-              `).join('')}
+              `
+                )
+                .join("")}
             </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <div style="text-align: center;">
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/approvals" class="cta-button">
+            <a href="${
+              process.env.FRONTEND_URL || "http://localhost:5173"
+            }/approvals" class="cta-button">
               📋 Review Pending Approvals
             </a>
           </div>
-        ` : `
+        `
+            : `
           <p>This employee currently has no pending reimbursements awaiting your approval.</p>
-        `}
+        `
+        }
         
         <div class="divider"></div>
         
@@ -488,7 +697,12 @@ export const newSulAssignmentTemplate = (sulName, employeeName, reimbursementCou
  * @param {number} reimbursementCount - Number of pending reimbursements reassigned
  * @param {Array} reimbursements - Array of reimbursement objects with basic info
  */
-export const newAccountManagerAssignmentTemplate = (amName, sapCode, reimbursementCount, reimbursements = []) => {
+export const newAccountManagerAssignmentTemplate = (
+  amName,
+  sapCode,
+  reimbursementCount,
+  reimbursements = []
+) => {
   return `
     <!DOCTYPE html>
     <html>
@@ -636,32 +850,67 @@ export const newAccountManagerAssignmentTemplate = (amName, sapCode, reimburseme
           <div class="name">${sapCode.name}</div>
         </div>
         
-        ${reimbursementCount > 0 ? `
-          <p>As a result of this assignment, <strong>${reimbursementCount}</strong> pending reimbursement${reimbursementCount > 1 ? 's have' : ' has'} been automatically reassigned to you for approval.</p>
+        ${
+          reimbursementCount > 0
+            ? `
+          <p>As a result of this assignment, <strong>${reimbursementCount}</strong> pending reimbursement${
+                reimbursementCount > 1 ? "s have" : " has"
+              } been automatically reassigned to you for approval.</p>
           
-          ${reimbursements.length > 0 ? `
+          ${
+            reimbursements.length > 0
+              ? `
             <div class="reimbursement-list">
               <h3 style="margin-top: 0; color: #2e7d32;">📋 Pending Reimbursements:</h3>
-              ${reimbursements.map(r => `
+              ${reimbursements
+                .map(
+                  (r) => `
                 <div class="reimbursement-item">
                   <strong>Reimbursement #${r.id}</strong>
                   <div class="detail">📁 Category: ${r.category}</div>
-                  <div class="detail">💰 Amount: ₱${parseFloat(r.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                  ${r.date_of_expense ? `<div class="detail">📅 Date: ${new Date(r.date_of_expense).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>` : ''}
-                  ${r.user ? `<div class="submitter">👤 ${r.user.name}</div>` : ''}
+                  <div class="detail">💰 Amount: ₱${parseFloat(
+                    r.total
+                  ).toLocaleString("en-PH", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}</div>
+                  ${
+                    r.date_of_expense
+                      ? `<div class="detail">📅 Date: ${new Date(
+                          r.date_of_expense
+                        ).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}</div>`
+                      : ""
+                  }
+                  ${
+                    r.user
+                      ? `<div class="submitter">👤 ${r.user.name}</div>`
+                      : ""
+                  }
                 </div>
-              `).join('')}
+              `
+                )
+                .join("")}
             </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <div style="text-align: center;">
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/approvals" class="cta-button">
+            <a href="${
+              process.env.FRONTEND_URL || "http://localhost:5173"
+            }/approvals" class="cta-button">
               📋 Review Pending Approvals
             </a>
           </div>
-        ` : `
+        `
+            : `
           <p>This SAP code currently has no pending reimbursements awaiting your approval.</p>
-        `}
+        `
+        }
         
         <div class="divider"></div>
         
@@ -696,7 +945,12 @@ export const newAccountManagerAssignmentTemplate = (amName, sapCode, reimburseme
  * @param {string} newAmName - Name of the new Account Manager
  * @param {number} reimbursementCount - Number of pending reimbursements reassigned
  */
-export const oldAccountManagerRemovalTemplate = (oldAmName, sapCode, newAmName, reimbursementCount) => {
+export const oldAccountManagerRemovalTemplate = (
+  oldAmName,
+  sapCode,
+  newAmName,
+  reimbursementCount
+) => {
   return `
     <!DOCTYPE html>
     <html>
@@ -793,11 +1047,19 @@ export const oldAccountManagerRemovalTemplate = (oldAmName, sapCode, newAmName, 
           <div class="name">${sapCode.name}</div>
         </div>
         
-        ${reimbursementCount > 0 ? `
-          <p><strong>${reimbursementCount}</strong> pending reimbursement${reimbursementCount > 1 ? 's that were' : ' that was'} awaiting your approval ${reimbursementCount > 1 ? 'have' : 'has'} been reassigned to the new Account Manager.</p>
-        ` : `
+        ${
+          reimbursementCount > 0
+            ? `
+          <p><strong>${reimbursementCount}</strong> pending reimbursement${
+                reimbursementCount > 1 ? "s that were" : " that was"
+              } awaiting your approval ${
+                reimbursementCount > 1 ? "have" : "has"
+              } been reassigned to the new Account Manager.</p>
+        `
+            : `
           <p>There were no pending reimbursements to transfer.</p>
-        `}
+        `
+        }
         
         <div class="new-am-box">
           <p style="margin: 0;">

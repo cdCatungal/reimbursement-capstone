@@ -41,9 +41,15 @@ import { useAppContext } from "../App";
 
 const isPDF = (receipt) => {
   if (typeof receipt === "string") {
-    return receipt.toLowerCase().endsWith('.pdf');
+    return receipt.toLowerCase().endsWith(".pdf");
   }
   return receipt?.mimetype === "application/pdf";
+};
+
+const truncateText = (text, maxLength = 50) => {
+  if (!text) return text;
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + "...";
 };
 
 function ReimbursementList() {
@@ -104,6 +110,7 @@ function ReimbursementList() {
       }
 
       const data = await response.json();
+      console.log("data:", data);
       setPendings(data);
       hasFetched.current = true;
     } catch (err) {
@@ -175,7 +182,7 @@ function ReimbursementList() {
 
   // Get unique statuses
   const getUniqueStatuses = () => {
-    return ["All Status", "Pending", "Approved", "Rejected",];
+    return ["All Status", "Pending", "Approved", "Rejected"];
   };
 
   // Get unique categories
@@ -288,22 +295,23 @@ function ReimbursementList() {
     setReceiptZoom((prev) => Math.max(prev - 0.25, 0.5));
 
   const handleDownloadReceipt = () => {
-  if (!selectedTicket?.receipt) return;
+    if (!selectedTicket?.receipt) return;
 
-  try {
-    const link = document.createElement("a");
-    link.href = selectedTicket.receipt.url;
-    link.download = selectedTicket.receipt.filename || `receipt-${selectedTicket.id}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showNotification("Receipt downloaded successfully", "success");
-  } catch (error) {
-    console.error("Download failed:", error);
-    showNotification("Failed to download receipt", "error");
-  }
-};
+    try {
+      const link = document.createElement("a");
+      link.href = selectedTicket.receipt.url;
+      link.download =
+        selectedTicket.receipt.filename || `receipt-${selectedTicket.id}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showNotification("Receipt downloaded successfully", "success");
+    } catch (error) {
+      console.error("Download failed:", error);
+      showNotification("Failed to download receipt", "error");
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -469,9 +477,16 @@ function ReimbursementList() {
                 <TableRow>
                   <TableCell sx={{ fontWeight: "bold" }}>EMPLOYEE</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>REQUEST</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>REIMBURSABLE</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    REIMBURSABLE AMOUNT
+                  </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>DATES</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    DATE OF EXPENSE
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    REIMBURSEMENT SUBMISSION DATE
+                  </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
                   <TableCell></TableCell>
                 </TableRow>
@@ -481,7 +496,10 @@ function ReimbursementList() {
                   <TableRow key={item.id} hover>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: "medium" }}
+                        >
                           {item.user?.name || "Unknown"}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -491,18 +509,34 @@ function ReimbursementList() {
                     </TableCell>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: "medium" }}>
-                          {item.items || `${item.category} Reimbursement`}
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: "medium" }}
+                          title={item.items || `${item.category} Reimbursement`}
+                        >
+                          {truncateText(
+                            item.items || `${item.category} Reimbursement`,
+                            50
+                          )}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.description || "No description provided"}
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          title={item.description || "No description provided"}
+                        >
+                          {truncateText(
+                            item.description || "No description provided",
+                            50
+                          )}
                         </Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: "medium" }}>
                         ₱
-                        {parseFloat(item.reimbursable_amount || item.total).toLocaleString("en-PH", {
+                        {parseFloat(
+                          item.reimbursable_amount || item.total
+                        ).toLocaleString("en-PH", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -512,14 +546,16 @@ function ReimbursementList() {
                       <Typography variant="body2">{item.category}</Typography>
                     </TableCell>
                     <TableCell>
-                      <Box>
-                        <Typography variant="body2">
-                          {item.date ? formatDate(item.date) : "N/A"}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Submitted: {formatDate(item.submittedAt)}
-                        </Typography>
-                      </Box>
+                      <Typography variant="body2">
+                        {item.date ? formatDate(item.date) : "N/A"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {item.submittedAt
+                          ? formatDate(item.submittedAt)
+                          : "N/A"}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -605,18 +641,27 @@ function ReimbursementList() {
                   borderColor: "divider",
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <Avatar
                       src={selectedTicket.user?.profile_picture}
                       alt={
-                        selectedTicket.user?.name || selectedTicket.user?.username
+                        selectedTicket.user?.name ||
+                        selectedTicket.user?.username
                       }
                       sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
                     >
                       {!selectedTicket.user?.profile_picture &&
                         (selectedTicket.user?.name?.charAt(0).toUpperCase() ||
-                          selectedTicket.user?.username?.charAt(0).toUpperCase())}
+                          selectedTicket.user?.username
+                            ?.charAt(0)
+                            .toUpperCase())}
                     </Avatar>
                     <Box>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -630,13 +675,17 @@ function ReimbursementList() {
                       </Typography>
                     </Box>
                   </Box>
-                  
+
                   {/* SAP Code Display - Right side */}
                   <Box sx={{ textAlign: "right" }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mb: 0.5 }}
+                    >
                       SAP Code
                     </Typography>
-                    <Chip 
+                    <Chip
                       label={selectedTicket.sapCode || "N/A"}
                       color="primary"
                       variant="outlined"
@@ -691,56 +740,72 @@ function ReimbursementList() {
                       </Typography>
                     </Box>
 
-                    {selectedTicket.reimbursable_amount && selectedTicket.reimbursable_amount < selectedTicket.total && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Reimbursable Amount:
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>
-                          ₱{parseFloat(selectedTicket.reimbursable_amount).toLocaleString('en-PH', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })}
-                        </Typography>
-                        <Typography variant="caption" color="warning.main">
-                          (Limited by category maximum)
-                        </Typography>
-                      </Box>
-                    )}
+                    {selectedTicket.reimbursable_amount &&
+                      selectedTicket.reimbursable_amount <
+                        selectedTicket.total && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Reimbursable Amount:
+                          </Typography>
+                          <Typography
+                            variant="h6"
+                            sx={{ fontWeight: 700, color: "success.main" }}
+                          >
+                            ₱
+                            {parseFloat(
+                              selectedTicket.reimbursable_amount
+                            ).toLocaleString("en-PH", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </Typography>
+                          <Typography variant="caption" color="warning.main">
+                            (Limited by category maximum)
+                          </Typography>
+                        </Box>
+                      )}
 
-                    {selectedTicket.category === 'Meal with Client' && selectedTicket.number_of_people && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Number of People:
-                        </Typography>
-                        <Typography variant="body2">
-                          {selectedTicket.number_of_people} {selectedTicket.number_of_people === 1 ? 'person' : 'people'}
-                        </Typography>
-                      </Box>
-                    )}
+                    {selectedTicket.category === "Meal with Client" &&
+                      selectedTicket.number_of_people && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Number of People:
+                          </Typography>
+                          <Typography variant="body2">
+                            {selectedTicket.number_of_people}{" "}
+                            {selectedTicket.number_of_people === 1
+                              ? "person"
+                              : "people"}
+                          </Typography>
+                        </Box>
+                      )}
 
-                    {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_days && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Number of Days:
-                        </Typography>
-                        <Typography variant="body2">
-                          {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'}
-                        </Typography>
-                      </Box>
-                    )}
+                    {selectedTicket.category === "Accomodation" &&
+                      selectedTicket.number_of_days && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Number of Days:
+                          </Typography>
+                          <Typography variant="body2">
+                            {selectedTicket.number_of_days}{" "}
+                            {selectedTicket.number_of_days === 1
+                              ? "day"
+                              : "days"}
+                          </Typography>
+                        </Box>
+                      )}
 
                     <Box sx={{ mb: 2 }}>
                       <Typography
@@ -778,9 +843,7 @@ function ReimbursementList() {
                         Date of Expense:
                       </Typography>
                       <Typography variant="body2">
-                        {new Date(
-                          selectedTicket.date
-                        ).toLocaleDateString()}
+                        {new Date(selectedTicket.date).toLocaleDateString()}
                       </Typography>
                     </Box>
 
@@ -906,65 +969,77 @@ function ReimbursementList() {
                           {receiptLoading && (
                             <CircularProgress sx={{ position: "absolute" }} />
                           )}
-                          
+
                           {isPDF(selectedTicket.receipt) ? (
-  <Box
-    component="iframe"
-    src={selectedTicket.receipt.url}
-    sx={{
-      width: "100%",
-      height: "480px",
-      border: "none",
-      borderRadius: 1,
-      display: receiptLoading ? "none" : "block",
-    }}
-    onLoad={() => setReceiptLoading(false)}
-    onLoadStart={() => setReceiptLoading(true)}
-    onError={(e) => {
-      console.error("Failed to load receipt PDF:", selectedTicket.receipt);
-      setReceiptLoading(false);
-      showNotification("Failed to load receipt PDF", "error");
-    }}
-    title="Receipt PDF"
-  />
-) : (
-  <Box
-    component="img"
-    src={selectedTicket.receipt.url}
-    alt="Receipt"
-    sx={{
-      maxWidth: "100%",
-      maxHeight: "480px",
-      objectFit: "contain",
-      transform: `scale(${receiptZoom})`,
-      transition: "transform 0.2s ease-in-out",
-      display: receiptLoading ? "none" : "block",
-    }}
-    onLoad={() => setReceiptLoading(false)}
-    onLoadStart={() => setReceiptLoading(true)}
-    onError={(e) => {
-      console.error("Failed to load receipt:", selectedTicket.receipt);
-      setReceiptLoading(false);
-      showNotification("Failed to load receipt image", "error");
-    }}
-  />
-)}
+                            <Box
+                              component="iframe"
+                              src={selectedTicket.receipt.url}
+                              sx={{
+                                width: "100%",
+                                height: "480px",
+                                border: "none",
+                                borderRadius: 1,
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error(
+                                  "Failed to load receipt PDF:",
+                                  selectedTicket.receipt
+                                );
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt PDF",
+                                  "error"
+                                );
+                              }}
+                              title="Receipt PDF"
+                            />
+                          ) : (
+                            <Box
+                              component="img"
+                              src={selectedTicket.receipt.url}
+                              alt="Receipt"
+                              sx={{
+                                maxWidth: "100%",
+                                maxHeight: "480px",
+                                objectFit: "contain",
+                                transform: `scale(${receiptZoom})`,
+                                transition: "transform 0.2s ease-in-out",
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error(
+                                  "Failed to load receipt:",
+                                  selectedTicket.receipt
+                                );
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt image",
+                                  "error"
+                                );
+                              }}
+                            />
+                          )}
                         </Box>
 
                         {selectedTicket.receipt.filename && (
-  <Typography
-    variant="caption"
-    color="text.secondary"
-    sx={{
-      display: "block",
-      mt: 1,
-      textAlign: "center",
-    }}
-  >
-    {selectedTicket.receipt.filename}
-    {isPDF(selectedTicket.receipt) && " (PDF)"}
-  </Typography>
-)}
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              display: "block",
+                              mt: 1,
+                              textAlign: "center",
+                            }}
+                          >
+                            {selectedTicket.receipt.filename}
+                            {isPDF(selectedTicket.receipt) && " (PDF)"}
+                          </Typography>
+                        )}
                       </Box>
                     )}
                   </Box>

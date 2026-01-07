@@ -52,7 +52,7 @@ import { useAppContext } from "../App";
 // Helper function to check if receipt is PDF
 const isPDF = (receipt) => {
   if (typeof receipt === "string") {
-    return receipt.toLowerCase().endsWith('.pdf');
+    return receipt.toLowerCase().endsWith(".pdf");
   }
   return receipt?.mimetype === "application/pdf";
 };
@@ -613,7 +613,10 @@ function SalesDirectorReimbursementList() {
                   <TableRow key={item.id} hover>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: "medium" }}
+                        >
                           {item.user?.name || "Unknown"}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -623,7 +626,10 @@ function SalesDirectorReimbursementList() {
                     </TableCell>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: "medium" }}
+                        >
                           {item.items || `${item.category} Reimbursement`}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -736,18 +742,27 @@ function SalesDirectorReimbursementList() {
                   borderColor: "divider",
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <Avatar
                       src={selectedTicket.user?.profile_picture}
                       alt={
-                        selectedTicket.user?.name || selectedTicket.user?.username
+                        selectedTicket.user?.name ||
+                        selectedTicket.user?.username
                       }
                       sx={{ width: 56, height: 56, bgcolor: "primary.main" }}
                     >
                       {!selectedTicket.user?.profile_picture &&
                         (selectedTicket.user?.name?.charAt(0).toUpperCase() ||
-                          selectedTicket.user?.username?.charAt(0).toUpperCase())}
+                          selectedTicket.user?.username
+                            ?.charAt(0)
+                            .toUpperCase())}
                     </Avatar>
                     <Box>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -764,10 +779,14 @@ function SalesDirectorReimbursementList() {
 
                   {/* SAP Code Display - Right side */}
                   <Box sx={{ textAlign: "right" }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mb: 0.5 }}
+                    >
                       SAP Code
                     </Typography>
-                    <Chip 
+                    <Chip
                       label={selectedTicket.sapCode || "N/A"}
                       color="primary"
                       variant="outlined"
@@ -822,56 +841,72 @@ function SalesDirectorReimbursementList() {
                       </Typography>
                     </Box>
 
-                    {selectedTicket.category === 'Meal with Client' && selectedTicket.number_of_people && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Number of People:
-                        </Typography>
-                        <Typography variant="body2">
-                          {selectedTicket.number_of_people} {selectedTicket.number_of_people === 1 ? 'person' : 'people'}
-                        </Typography>
-                      </Box>
-                    )}
+                    {selectedTicket.category === "Meal with Client" &&
+                      selectedTicket.number_of_people && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Number of People:
+                          </Typography>
+                          <Typography variant="body2">
+                            {selectedTicket.number_of_people}{" "}
+                            {selectedTicket.number_of_people === 1
+                              ? "person"
+                              : "people"}
+                          </Typography>
+                        </Box>
+                      )}
 
-                    {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_days && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Number of Days:
-                        </Typography>
-                        <Typography variant="body2">
-                          {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'}
-                        </Typography>
-                      </Box>
-                    )}
+                    {selectedTicket.category === "Accomodation" &&
+                      selectedTicket.number_of_days && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Number of Days:
+                          </Typography>
+                          <Typography variant="body2">
+                            {selectedTicket.number_of_days}{" "}
+                            {selectedTicket.number_of_days === 1
+                              ? "day"
+                              : "days"}
+                          </Typography>
+                        </Box>
+                      )}
 
-                    {selectedTicket.reimbursable_amount && selectedTicket.reimbursable_amount < selectedTicket.total && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Reimbursable Amount:
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>
-                          ₱{parseFloat(selectedTicket.reimbursable_amount).toLocaleString('en-PH', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })}
-                        </Typography>
-                        <Typography variant="caption" color="warning.main">
-                          (Limited by category maximum)
-                        </Typography>
-                      </Box>
-                    )}
+                    {selectedTicket.reimbursable_amount &&
+                      selectedTicket.reimbursable_amount <
+                        selectedTicket.total && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Reimbursable Amount:
+                          </Typography>
+                          <Typography
+                            variant="h6"
+                            sx={{ fontWeight: 700, color: "success.main" }}
+                          >
+                            ₱
+                            {parseFloat(
+                              selectedTicket.reimbursable_amount
+                            ).toLocaleString("en-PH", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </Typography>
+                          <Typography variant="caption" color="warning.main">
+                            (Limited by category maximum)
+                          </Typography>
+                        </Box>
+                      )}
 
                     <Box sx={{ mb: 2 }}>
                       <Typography
@@ -1037,7 +1072,7 @@ function SalesDirectorReimbursementList() {
                           {receiptLoading && (
                             <CircularProgress sx={{ position: "absolute" }} />
                           )}
-                          
+
                           {isPDF(selectedTicket.receipt) ? (
   <Box
     component="iframe"

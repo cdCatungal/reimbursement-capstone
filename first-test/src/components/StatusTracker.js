@@ -1,3 +1,4 @@
+//reimbursement-capstone/first-test/src/components/StatusTracker.js
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -46,9 +47,15 @@ import { userUserStore } from "../store/userUserStore";
 
 const isPDF = (receipt) => {
   if (typeof receipt === "string") {
-    return receipt.toLowerCase().endsWith('.pdf');
+    return receipt.toLowerCase().endsWith(".pdf");
   }
   return receipt?.mimetype === "application/pdf";
+};
+
+const truncateText = (text, maxLength = 50) => {
+  if (!text) return text;
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + "...";
 };
 
 function StatusTracker() {
@@ -296,7 +303,10 @@ function StatusTracker() {
   const totalPages = Math.ceil(filteredReimbursements.length / itemsPerPage);
   const startIndex = (page - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedReimbursements = filteredReimbursements.slice(startIndex, endIndex);
+  const paginatedReimbursements = filteredReimbursements.slice(
+    startIndex,
+    endIndex
+  );
 
   const handlePageChange = (event, value) => {
     setPage(value);
@@ -402,9 +412,12 @@ function StatusTracker() {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: "bold" }}>REQUEST</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>REIMBURSABLE</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    REIMBURSABLE AMOUNT
+                  </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>DATES</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>DATE OF EXPENSE</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>REIMBURSEMENT SUBMISSION DATE</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
                   <TableCell></TableCell>
                 </TableRow>
@@ -414,18 +427,28 @@ function StatusTracker() {
                   <TableRow key={item.id} hover>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: "medium" }}>
-                          {item.items || `${item.category} Reimbursement`}
+                        <Typography
+                          variant="body2"
+                          sx={{ fontWeight: "medium" }}
+                          title={item.items || `${item.category} Reimbursement`}
+                        >
+                          {truncateText(item.items || `${item.category} Reimbursement`, 50)}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.description || "No description provided"}
+                        <Typography 
+                          variant="caption" 
+                          color="text.secondary"
+                          title={item.description || "No description provided"}
+                        >
+                          {truncateText(item.description || "No description provided", 50)}
                         </Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: "medium" }}>
                         ₱
-                        {parseFloat(item.reimbursable_amount || item.total).toLocaleString("en-PH", {
+                        {parseFloat(
+                          item.reimbursable_amount || item.total
+                        ).toLocaleString("en-PH", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -435,16 +458,14 @@ function StatusTracker() {
                       <Typography variant="body2">{item.category}</Typography>
                     </TableCell>
                     <TableCell>
-                      <Box>
-                        <Typography variant="body2">
-                          {item.submittedAt
-                            ? formatDate(item.submittedAt)
-                            : "N/A"}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Submitted: {formatDate(item.submittedAt)}
-                        </Typography>
-                      </Box>
+                      <Typography variant="body2">
+                        {item.date ? formatDate(item.date) : "N/A"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {item.submittedAt ? formatDate(item.submittedAt) : "N/A"}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -616,47 +637,63 @@ function StatusTracker() {
                         sx={{ fontWeight: 700, color: "primary.main" }}
                       >
                         ₱
-                        {parseFloat(selectedTicket.reimbursable_amount).toLocaleString(
-                          "en-PH",
-                          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-                        )}
+                        {parseFloat(
+                          selectedTicket.reimbursable_amount
+                        ).toLocaleString("en-PH", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </Typography>
-                      {selectedTicket.reimbursable_amount && selectedTicket.reimbursable_amount < selectedTicket.total && (
-                        <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
-                          (Limited by category maximum)
-                        </Typography>
-                      )}
+                      {selectedTicket.reimbursable_amount &&
+                        selectedTicket.reimbursable_amount <
+                          selectedTicket.total && (
+                          <Typography
+                            variant="caption"
+                            color="warning.main"
+                            sx={{ display: "block", mt: 0.5 }}
+                          >
+                            (Limited by category maximum)
+                          </Typography>
+                        )}
                     </Box>
 
-                    {selectedTicket.category === 'Meal with Client' && selectedTicket.number_of_people && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Number of People:
-                        </Typography>
-                        <Typography variant="body2">
-                          {selectedTicket.number_of_people} {selectedTicket.number_of_people === 1 ? 'person' : 'people'}
-                        </Typography>
-                      </Box>
-                    )}
+                    {selectedTicket.category === "Meal with Client" &&
+                      selectedTicket.number_of_people && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Number of People:
+                          </Typography>
+                          <Typography variant="body2">
+                            {selectedTicket.number_of_people}{" "}
+                            {selectedTicket.number_of_people === 1
+                              ? "person"
+                              : "people"}
+                          </Typography>
+                        </Box>
+                      )}
 
-                    {selectedTicket.category === 'Accomodation' && selectedTicket.number_of_days && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          Number of Days:
-                        </Typography>
-                        <Typography variant="body2">
-                          {selectedTicket.number_of_days} {selectedTicket.number_of_days === 1 ? 'day' : 'days'}
-                        </Typography>
-                      </Box>
-                    )}
+                    {selectedTicket.category === "Accomodation" &&
+                      selectedTicket.number_of_days && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            Number of Days:
+                          </Typography>
+                          <Typography variant="body2">
+                            {selectedTicket.number_of_days}{" "}
+                            {selectedTicket.number_of_days === 1
+                              ? "day"
+                              : "days"}
+                          </Typography>
+                        </Box>
+                      )}
 
                     <Box sx={{ mb: 2 }}>
                       <Typography
@@ -694,9 +731,7 @@ function StatusTracker() {
                         Date of Expense:
                       </Typography>
                       <Typography variant="body2">
-                        {new Date(
-                          selectedTicket.date
-                        ).toLocaleDateString()}
+                        {new Date(selectedTicket.date).toLocaleDateString()}
                       </Typography>
                     </Box>
 
@@ -723,7 +758,7 @@ function StatusTracker() {
                       >
                         SAP Code:
                       </Typography>
-                      <Chip 
+                      <Chip
                         label={selectedTicket.sapCode || "N/A"}
                         color="primary"
                         variant="outlined"
@@ -841,7 +876,7 @@ function StatusTracker() {
                           {receiptLoading && (
                             <CircularProgress sx={{ position: "absolute" }} />
                           )}
-                          
+
                           {isPDF(selectedTicket.receipt) ? (
   <Box
     component="iframe"

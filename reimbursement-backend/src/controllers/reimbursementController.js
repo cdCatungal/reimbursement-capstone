@@ -437,6 +437,10 @@ export async function getPendingApprovals(req, res) {
         return true;
       }
 
+      // if (userApproval.status === "Rejected") {
+      //   return true;
+      // }
+
       return false;
     });
 

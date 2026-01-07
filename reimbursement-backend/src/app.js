@@ -17,16 +17,21 @@ import ocrRoutes from "./routes/ocrRoutes.js";
 import adminRoutes from "./routes/admin.route.js";
 import sapCodeRoutes from "./routes/sapCode.routes.js";
 import { verifyEmailConfig } from "./utils/sendEmail.js";
+import path from "path";
+import { fileURLToPath } from "url";
+import https from "https";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 
 dotenv.config();
+// Fix __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-app.set("trust proxy", 1);
 
 const swaggerSpec = swaggerJsdoc({
   definition: {
@@ -72,8 +77,8 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // ✅ Middleware order is critical for security and functionality
 app.use(cookieParser());
-
-// ✅ Session middleware with store (if using production, use RedisStore)
+app.set("trust proxy", 1);
+// ✅ Session middleware (must come before passport)
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "fallback_secret",
@@ -90,9 +95,19 @@ app.use(
 
 app.use(flash());
 
-// ✅ CORS configuration
+// ✅ CORS (allow cookies)
+// const corsOptions = {
+//   origin: process.env.CLIENT_URL || "http://localhost:3000",
+//   credentials: true,
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+// };
+
 const corsOptions = {
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  origin: [
+    "http://localhost:3000",
+    "https://reimbursement-capstone-main.onrender.com",
+  ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -140,6 +155,47 @@ app.use(async (req, res, next) => {
   next();
 });
 
+const swaggerSpec = swaggerJsdoc({
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Reimbursement API",
+      version: "1.0.0",
+      description: "API documentation for Reimbursement Management System",
+    },
+    servers: [
+      {
+        url: "https://reimbursement-capstone-main.onrender.com",
+        description: "Production server",
+      },
+      {
+        url: `http://localhost:${process.env.PORT || 4000}`,
+        description: "Local development server",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
+  },
+  // ✅ FIXED: Use absolute path with __dirname
+  apis: [
+    path.join(__dirname, "./routes/*.js"),
+    path.join(__dirname, "./routes/*/*.js"),
+  ],
+});
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // ✅ Request logging middleware
 app.use((req, res, next) => {
   if (req.path.startsWith("/auth/")) {
@@ -158,7 +214,16 @@ app.use("/api/ocr", ocrRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/sap-codes", sapCodeRoutes);
 
-// ✅ Health check endpoint (root)
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.resolve(__dirname, "../../first-test/build")));
+
+  // ✅ WORKS on Express 5.x — matches everything that’s not handled above
+  app.use((req, res) => {
+    res.sendFile(path.resolve(__dirname, "../../first-test/build/index.html"));
+  });
+}
+
+// ✅ Health check endpoint
 app.get("/", (req, res) => {
   res.json({
     status: "running",
@@ -212,8 +277,8 @@ process.on("SIGTERM", async () => {
   }
 });
 
-// ✅ Enhanced server startup
-const PORT = process.env.PORT || 5000;
+// ✅ Enhanced server startup with email verification
+const PORT = process.env.PORT || 4000;
 (async () => {
   try {
     // ✅ Step 1: Verify database connection
@@ -261,6 +326,23 @@ const PORT = process.env.PORT || 5000;
       );
       console.log(`🔒 RLS: Enabled`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}\n`);
+
+      function keepAlive() {
+        https
+          .get("https://reimbursement-capstone-main.onrender.com", (res) => {
+            console.log(`✅ Keep-alive ping: ${new Date().toISOString()}`);
+          })
+          .on("error", (err) => {
+            console.log("❌ Keep-alive failed:", err.message);
+          });
+      }
+
+      // Start pinging 30 seconds after startup, then every 10 minutes
+      setTimeout(() => {
+        keepAlive(); // Initial ping
+        setInterval(keepAlive, 10 * 60 * 1000); // Subsequent pings every 10 minutes
+        console.log("🔄 Keep-alive service started");
+      }, 30000);
     });
   } catch (err) {
     console.error("❌ Server startup error:", err.message);

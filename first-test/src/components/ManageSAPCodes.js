@@ -33,8 +33,15 @@ import { useManageSapCodesStore } from "../store/manageSapCodesStore.js";
 import { axiosInstance } from "../lib/axios.js"; // ✅ ADD THIS IMPORT
 
 function ManageSAPCodes() {
-  const { sapCodes, loading, fetchSapCodes, createSapCode, updateSapCode, deleteSapCode } = useManageSapCodesStore();
-  
+  const {
+    sapCodes,
+    loading,
+    fetchSapCodes,
+    createSapCode,
+    updateSapCode,
+    deleteSapCode,
+  } = useManageSapCodesStore();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -69,23 +76,27 @@ function ManageSAPCodes() {
   const fetchAccountManagers = async () => {
     setLoadingAccountManagers(true);
     setAccountManagerError(null);
-    
+
     try {
       const response = await axiosInstance.get("/users");
       console.log("✅ Users response:", response.data);
-      
+
       // Filter for Account Managers only
-      const ams = response.data.data.filter(u => u.role === 'Account Manager');
+      const ams = response.data.data.filter(
+        (u) => u.role === "Account Manager"
+      );
       console.log("✅ Found Account Managers:", ams);
-      
+
       setAccountManagers(ams);
-      
+
       if (ams.length === 0) {
         setAccountManagerError("No Account Managers found in the system");
       }
     } catch (error) {
       console.error("❌ Failed to fetch Account Managers:", error);
-      setAccountManagerError(error.response?.data?.message || "Failed to load Account Managers");
+      setAccountManagerError(
+        error.response?.data?.message || "Failed to load Account Managers"
+      );
     } finally {
       setLoadingAccountManagers(false);
     }
@@ -138,10 +149,10 @@ function ManageSAPCodes() {
 
   const handleCloseAddDialog = () => {
     setAddDialogOpen(false);
-    setFormData({ 
-      code: "", 
-      name: "", 
-      description: "", 
+    setFormData({
+      code: "",
+      name: "",
+      description: "",
       status: "Active",
       account_manager_id: null,
     });
@@ -183,10 +194,10 @@ function ManageSAPCodes() {
   const handleCloseEditDialog = () => {
     setEditDialogOpen(false);
     setSelectedSapCode(null);
-    setFormData({ 
-      code: "", 
-      name: "", 
-      description: "", 
+    setFormData({
+      code: "",
+      name: "",
+      description: "",
       status: "Active",
       account_manager_id: null,
     });
@@ -238,7 +249,7 @@ function ManageSAPCodes() {
   // ✅ Helper function to get Account Manager name
   const getAccountManagerName = (accountManagerId) => {
     if (!accountManagerId) return "Not assigned";
-    const am = accountManagers.find(a => a.id === accountManagerId);
+    const am = accountManagers.find((a) => a.id === accountManagerId);
     return am ? am.name : "Unknown";
   };
 
@@ -326,8 +337,17 @@ function ManageSAPCodes() {
                     >
                       <ListItemText
                         primary={
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            <Typography
+                              variant="subtitle1"
+                              sx={{ fontWeight: 600 }}
+                            >
                               {code.name}
                             </Typography>
                             <Chip
@@ -357,11 +377,22 @@ function ManageSAPCodes() {
                               </Typography>
                             )}
                             {/* ✅ ADD: Display Account Manager */}
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                              Account Manager: <strong>{getAccountManagerName(code.account_manager_id)}</strong>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ display: "block", mt: 0.5 }}
+                            >
+                              Account Manager:{" "}
+                              <strong>
+                                {getAccountManagerName(code.account_manager_id)}
+                              </strong>
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Created: {new Date(code.createdAt).toLocaleDateString()}
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              Created:{" "}
+                              {new Date(code.createdAt).toLocaleDateString()}
                             </Typography>
                           </Box>
                         }
@@ -431,15 +462,28 @@ function ManageSAPCodes() {
         )}
 
         {/* Add Dialog */}
-        <Dialog open={addDialogOpen} onClose={handleCloseAddDialog} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Dialog
+          open={addDialogOpen}
+          onClose={handleCloseAddDialog}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <Typography variant="h6">Add New SAP Code</Typography>
             <IconButton onClick={handleCloseAddDialog} size="small">
               <CloseIcon />
             </IconButton>
           </DialogTitle>
           <DialogContent dividers>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 2 }}>
+            <Box
+              sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 2 }}
+            >
               <TextField
                 label="SAP Code"
                 value={formData.code}
@@ -471,7 +515,9 @@ function ManageSAPCodes() {
               <TextField
                 label="Description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 fullWidth
                 multiline
                 rows={3}
@@ -482,7 +528,9 @@ function ManageSAPCodes() {
                 select
                 label="Status"
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, status: e.target.value })
+                }
                 fullWidth
               >
                 <MenuItem value="Active">Active</MenuItem>
@@ -493,15 +541,22 @@ function ManageSAPCodes() {
               <TextField
                 select
                 label="Account Manager"
-                value={formData.account_manager_id || ''}
-                onChange={(e) => setFormData({ ...formData, account_manager_id: e.target.value || null })}
+                value={formData.account_manager_id || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    account_manager_id: e.target.value || null,
+                  })
+                }
                 fullWidth
-                disabled={loadingAccountManagers || accountManagers.length === 0}
+                disabled={
+                  loadingAccountManagers || accountManagers.length === 0
+                }
                 helperText={
-                  loadingAccountManagers 
-                    ? "Loading Account Managers..." 
-                    : accountManagers.length === 0 
-                    ? "No Account Managers available" 
+                  loadingAccountManagers
+                    ? "Loading Account Managers..."
+                    : accountManagers.length === 0
+                    ? "No Account Managers available"
                     : "Assign an Account Manager to this SAP code"
                 }
               >
@@ -531,8 +586,19 @@ function ManageSAPCodes() {
         </Dialog>
 
         {/* Edit Dialog */}
-        <Dialog open={editDialogOpen} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Dialog
+          open={editDialogOpen}
+          onClose={handleCloseEditDialog}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
             <Typography variant="h6">Edit SAP Code</Typography>
             <IconButton onClick={handleCloseEditDialog} size="small">
               <CloseIcon />
@@ -540,7 +606,9 @@ function ManageSAPCodes() {
           </DialogTitle>
           <DialogContent dividers>
             {selectedSapCode && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 2 }}>
+              <Box
+                sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 2 }}
+              >
                 <TextField
                   label="SAP Code"
                   value={formData.code}
@@ -572,7 +640,9 @@ function ManageSAPCodes() {
                 <TextField
                   label="Description"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   fullWidth
                   multiline
                   rows={3}
@@ -583,7 +653,9 @@ function ManageSAPCodes() {
                   select
                   label="Status"
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value })
+                  }
                   fullWidth
                 >
                   <MenuItem value="Active">Active</MenuItem>
@@ -594,15 +666,22 @@ function ManageSAPCodes() {
                 <TextField
                   select
                   label="Account Manager"
-                  value={formData.account_manager_id || ''}
-                  onChange={(e) => setFormData({ ...formData, account_manager_id: e.target.value || null })}
+                  value={formData.account_manager_id || ""}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      account_manager_id: e.target.value || null,
+                    })
+                  }
                   fullWidth
-                  disabled={loadingAccountManagers || accountManagers.length === 0}
+                  disabled={
+                    loadingAccountManagers || accountManagers.length === 0
+                  }
                   helperText={
-                    loadingAccountManagers 
-                      ? "Loading Account Managers..." 
-                      : accountManagers.length === 0 
-                      ? "No Account Managers available" 
+                    loadingAccountManagers
+                      ? "Loading Account Managers..."
+                      : accountManagers.length === 0
+                      ? "No Account Managers available"
                       : "Assign an Account Manager to this SAP code"
                   }
                 >
@@ -633,13 +712,19 @@ function ManageSAPCodes() {
         </Dialog>
 
         {/* Delete Confirmation Dialog */}
-        <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog} maxWidth="xs" fullWidth>
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={handleCloseDeleteDialog}
+          maxWidth="xs"
+          fullWidth
+        >
           <DialogTitle>Confirm Delete</DialogTitle>
           <DialogContent>
             {selectedSapCode && (
               <Typography>
-                Are you sure you want to delete SAP code <strong>{selectedSapCode.code}</strong> ({selectedSapCode.name})? 
-                This action cannot be undone.
+                Are you sure you want to delete SAP code{" "}
+                <strong>{selectedSapCode.code}</strong> ({selectedSapCode.name}
+                )? This action cannot be undone.
               </Typography>
             )}
           </DialogContent>

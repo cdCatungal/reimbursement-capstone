@@ -14,6 +14,8 @@ import {
   CheckCircleOutline,
 } from "@mui/icons-material";
 import { useAppContext } from "../App";
+import { axiosInstance, axiosInstanceWithAuth } from "../lib/axios.js";
+import { baseURL } from "../lib/baseUrl.js";
 
 function Login() {
   const {
@@ -30,66 +32,68 @@ function Login() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("http://localhost:5000/auth/me", {
-          credentials: "include",
-        });
+        // const response = await fetch("http://localhost:5000/auth/me", {
+        //   credentials: "include",
+        // });
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.user) {
-            console.log("✅ User data received:", data.user);
+        const response = await axiosInstanceWithAuth.get("/auth/me");
+        const data = response.data;
+        // if (response.ok) {
+        // const data = await response.json();
+        if (data.user) {
+          console.log("✅ User data received:", data.user);
 
-            setUser({
-              uid: data.user.id,
-              username: data.user.name,
-              email: data.user.email,
-              role: data.user.role,
-              authProvider: data.user.authProvider,
-            });
-            setIsAuthenticated(true);
-            setIsAdmin(
-              [
-                "Admin",
-                "SUL",
-                "Account Manager",
-                "Invoice Specialist",
-                "Finance Officer",
-                "Sales Director",
-              ].includes(data.user.role)
-            );
+          setUser({
+            uid: data.user.id,
+            username: data.user.name,
+            email: data.user.email,
+            role: data.user.role,
+            authProvider: data.user.authProvider,
+          });
+          setIsAuthenticated(true);
+          setIsAdmin(
+            [
+              "Admin",
+              "SUL",
+              "Account Manager",
+              "Invoice Specialist",
+              "Finance Officer",
+              "Sales Director",
+            ].includes(data.user.role)
+          );
 
-            setIsSalesDirector(["Sales Director"].includes(data.user.role));
-            console.log("User role:", data.user.role);
+          setIsSalesDirector(["Sales Director"].includes(data.user.role));
+          console.log("User role:", data.user.role);
 
-            // Navigate based on role
-            switch (data.user.role) {
-              case "Admin":
-              case "SUL":
-              case "Account Manager":
-              case "Invoice Specialist":
-              case "Finance Officer":
-                navigate("/admin");
-                break;
-              case "Employee":
-                navigate("/user");
-                break;
-              case "Sales Director":
-                navigate("/sales-director");
-                break;
-              default:
-                console.warn("Unknown role:", data.user.role);
-                navigate("/user");
-                break;
-            }
-
-            const firstName = data.user.name.split(" ")[0];
-            showNotification(`Welcome back, ${firstName}!`, "success");
-          } else {
-            setChecking(false);
+          // Navigate based on role
+          switch (data.user.role) {
+            case "Admin":
+            case "SUL":
+            case "Account Manager":
+            case "Invoice Specialist":
+            case "Finance Officer":
+              navigate("/admin");
+              break;
+            case "Employee":
+              navigate("/user");
+              break;
+            case "Sales Director":
+              navigate("/sales-director");
+              break;
+            default:
+              console.warn("Unknown role:", data.user.role);
+              navigate("/user");
+              break;
           }
+
+          const firstName = data.user.name.split(" ")[0];
+          showNotification(`Welcome back, ${firstName}!`, "success");
         } else {
           setChecking(false);
         }
+        // } else {
+        //   setChecking(false);
+        // }
       } catch (error) {
         console.log("Not authenticated, showing login form");
         setChecking(false);
@@ -97,10 +101,18 @@ function Login() {
     };
 
     checkAuth();
-  }, [navigate, setIsAdmin, setIsAuthenticated, setUser, showNotification, setIsSalesDirector]);
+  }, [
+    navigate,
+    setIsAdmin,
+    setIsAuthenticated,
+    setUser,
+    showNotification,
+    setIsSalesDirector,
+  ]);
 
   const handleMicrosoftLogin = () => {
-    window.location.href = "http://localhost:5000/auth/microsoft";
+    // window.location.href = "http://localhost:5000/auth/microsoft";
+    window.location.href = `${baseURL}/auth/microsoft`;
   };
 
   if (checking) {

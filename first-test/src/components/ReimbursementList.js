@@ -481,8 +481,12 @@ function ReimbursementList() {
                     REIMBURSABLE AMOUNT
                   </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>DATE OF EXPENSE</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>REIMBURSEMENT SUBMISSION DATE</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    DATE OF EXPENSE
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    REIMBURSEMENT SUBMISSION DATE
+                  </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
                   <TableCell></TableCell>
                 </TableRow>
@@ -510,14 +514,20 @@ function ReimbursementList() {
                           sx={{ fontWeight: "medium" }}
                           title={item.items || `${item.category} Reimbursement`}
                         >
-                          {truncateText(item.items || `${item.category} Reimbursement`, 50)}
+                          {truncateText(
+                            item.items || `${item.category} Reimbursement`,
+                            50
+                          )}
                         </Typography>
-                        <Typography 
-                          variant="caption" 
+                        <Typography
+                          variant="caption"
                           color="text.secondary"
                           title={item.description || "No description provided"}
                         >
-                          {truncateText(item.description || "No description provided", 50)}
+                          {truncateText(
+                            item.description || "No description provided",
+                            50
+                          )}
                         </Typography>
                       </Box>
                     </TableCell>
@@ -542,7 +552,9 @@ function ReimbursementList() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {item.submittedAt ? formatDate(item.submittedAt) : "N/A"}
+                        {item.submittedAt
+                          ? formatDate(item.submittedAt)
+                          : "N/A"}
                       </Typography>
                     </TableCell>
                     <TableCell>

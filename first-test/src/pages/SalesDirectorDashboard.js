@@ -40,7 +40,6 @@ function SalesDirectorDashboard() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [tabValue, setTabValue] = useState(0);
-
   useEffect(() => {
     getUser();
   }, []);

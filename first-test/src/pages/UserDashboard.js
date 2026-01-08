@@ -35,11 +35,9 @@ function UserDashboard() {
   const [tabValue, setTabValue] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState(null);
-
   const handleTabChange = (newValue) => {
     setTabValue(newValue);
   };
-
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
   };
@@ -82,7 +80,6 @@ function UserDashboard() {
   };
 
   const { getUser, user: storeUser } = userUserStore();
-
   useEffect(() => {
     getUser();
   }, []);

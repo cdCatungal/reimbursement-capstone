@@ -40,7 +40,6 @@ function AdminDashboard() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(true);
-
   const handleProfileClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -48,7 +47,6 @@ function AdminDashboard() {
   const handleProfileClose = () => {
     setAnchorEl(null);
   };
-
   const handleLogoutClick = async () => {
     try {
       const response = await fetch(

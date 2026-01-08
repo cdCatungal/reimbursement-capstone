@@ -57,6 +57,12 @@ const isPDF = (receipt) => {
   return receipt?.mimetype === "application/pdf";
 };
 
+const truncateText = (text, maxLength = 50) => {
+  if (!text) return text;
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + "...";
+};
+
 function SalesDirectorReimbursementList() {
   const { user, showNotification } = useAppContext();
   const [pendings, setPendings] = useState([]);
@@ -603,7 +609,8 @@ function SalesDirectorReimbursementList() {
                   <TableCell sx={{ fontWeight: "bold" }}>REQUEST</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>REIMBURSABLE</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>DATES</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>DATE OF EXPENSE</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>SUBMITTED AT</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
                   <TableCell></TableCell>
                 </TableRow>
@@ -629,11 +636,16 @@ function SalesDirectorReimbursementList() {
                         <Typography
                           variant="body2"
                           sx={{ fontWeight: "medium" }}
+                          title={item.items || `${item.category} Reimbursement`}
                         >
-                          {item.items || `${item.category} Reimbursement`}
+                          {truncateText(item.items || `${item.category} Reimbursement`, 50)}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.description || "No description provided"}
+                        <Typography 
+                          variant="caption" 
+                          color="text.secondary"
+                          title={item.description || "No description provided"}
+                        >
+                          {truncateText(item.description || "No description provided", 50)}
                         </Typography>
                       </Box>
                     </TableCell>
@@ -650,14 +662,14 @@ function SalesDirectorReimbursementList() {
                       <Typography variant="body2">{item.category}</Typography>
                     </TableCell>
                     <TableCell>
-                      <Box>
-                        <Typography variant="body2">
-                          {item.date ? formatDate(item.date) : "N/A"}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Submitted: {formatDate(item.submittedAt)}
-                        </Typography>
-                      </Box>
+                      <Typography variant="body2">
+                        {item.date ? formatDate(item.date) : "N/A"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {item.submittedAt ? formatDate(item.submittedAt) : "N/A"}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip

@@ -223,6 +223,7 @@ function ReimbursementList() {
           ? { ...p, status: 'Approved' }
           : p)); 
 
+    }catch(err){
       showNotification(
         err.message || "Failed to approve reimbursement",
         "error"

@@ -18,5 +18,9 @@
   "bugs": {
     "url": "https://github.com/cdCatungal/reimbursement-capstone/issues"
   },
-  "homepage": "https://github.com/cdCatungal/reimbursement-capstone#readme"
+  "homepage": "https://github.com/cdCatungal/reimbursement-capstone#readme",
+  "dependencies": {
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  }
 }

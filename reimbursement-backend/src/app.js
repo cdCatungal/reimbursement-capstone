@@ -17,8 +17,6 @@ import ocrRoutes from "./routes/ocrRoutes.js";
 import adminRoutes from "./routes/admin.route.js";
 import sapCodeRoutes from "./routes/sapCode.routes.js";
 import { verifyEmailConfig } from "./utils/sendEmail.js";
-import path from "path";
-import { fileURLToPath } from "url";
 import https from "https";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
@@ -27,9 +25,6 @@ dotenv.config();
 // Fix __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const app = express();
 
@@ -154,47 +149,6 @@ app.use(async (req, res, next) => {
   }
   next();
 });
-
-const swaggerSpec = swaggerJsdoc({
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "Reimbursement API",
-      version: "1.0.0",
-      description: "API documentation for Reimbursement Management System",
-    },
-    servers: [
-      {
-        url: "https://reimbursement-capstone-main.onrender.com",
-        description: "Production server",
-      },
-      {
-        url: `http://localhost:${process.env.PORT || 4000}`,
-        description: "Local development server",
-      },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: "http",
-          scheme: "bearer",
-          bearerFormat: "JWT",
-        },
-      },
-    },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
-  },
-  // ✅ FIXED: Use absolute path with __dirname
-  apis: [
-    path.join(__dirname, "./routes/*.js"),
-    path.join(__dirname, "./routes/*/*.js"),
-  ],
-});
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // ✅ Request logging middleware
 app.use((req, res, next) => {

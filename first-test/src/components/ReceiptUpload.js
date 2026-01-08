@@ -118,19 +118,25 @@ function ReceiptUpload() {
       case "Overtime Meal":
         return `Maximum reimbursable: ₱${limit.maxPerUnit.toFixed(2)}`;
       case "Meal with Client":
-        return `Maximum reimbursable: ₱${(limit.maxPerUnit * numPeople).toFixed(
-          2
-        )} (₱${limit.maxPerUnit}/person × ${numPeople} ${
-          numPeople === 1 ? "person" : "people"
-        })`;
+        return (
+          <>
+            Maximum reimbursable: ₱{(limit.maxPerUnit * numPeople).toFixed(2)}
+            <br />
+            (₱{limit.maxPerUnit}/person × {numPeople}{" "}
+            {numPeople === 1 ? "person" : "people"})
+          </>
+        );
       case "Accommodation":
-        return `Maximum reimbursable: ₱${(
-          limit.maxPerUnit *
-          numPeople *
-          numDays
-        ).toFixed(2)} (₱${limit.maxPerUnit}/person/day × ${numPeople} ${
-          numPeople === 1 ? "person" : "people"
-        } × ${numDays} ${numDays === 1 ? "day" : "days"})`;
+        return (
+          <>
+            Maximum reimbursable: ₱
+            {(limit.maxPerUnit * numPeople * numDays).toFixed(2)}
+            <br />
+            (₱{limit.maxPerUnit}/person/day × {numPeople}
+            {numPeople === 1 ? "person" : "people"})
+            <br />× {numDays} {numDays === 1 ? "day" : "days"}
+          </>
+        );
       default:
         return "";
     }
@@ -694,107 +700,214 @@ function ReceiptUpload() {
 
             <Divider />
 
-            <Grid container spacing={2}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {/* SAP Code - conditionally shown */}
               {!bypassesSapValidation && (
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    SAP Code
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "text.secondary",
+                      mb: 0.5,
+                    }}
+                  >
+                    SAP Code:
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                  <Typography sx={{ fontSize: 12 }}>
                     {formData.sap_code}
                   </Typography>
-                </Grid>
+                </Box>
               )}
 
-              <Grid item xs={12} sm={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Category
+              {/* Category */}
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    mb: 0.5,
+                  }}
+                >
+                  Category:
                 </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                <Typography sx={{ fontSize: 12 }}>
                   {formData.category}
                 </Typography>
-              </Grid>
+              </Box>
 
-              <Grid item xs={12} sm={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Date of Expense
+              {/* Date of Expense */}
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    mb: 0.5,
+                  }}
+                >
+                  Date of Expense:
                 </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                <Typography sx={{ fontSize: 12 }}>
                   {new Date(formData.date).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
                   })}
                 </Typography>
-              </Grid>
+              </Box>
 
+              {/* Merchant/Vendor - conditionally shown */}
               {formData.merchant && (
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Merchant/Vendor
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "text.secondary",
+                      mb: 0.5,
+                    }}
+                  >
+                    Merchant/Vendor:
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                  <Typography sx={{ fontSize: 12 }}>
                     {formData.merchant}
                   </Typography>
-                </Grid>
+                </Box>
               )}
 
-              <Grid item xs={12} sm={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Total Amount
+              {/* Number of People for Meal with Client */}
+              {formData.category === "Meal with Client" && (
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "text.secondary",
+                      mb: 0.5,
+                    }}
+                  >
+                    Number of People:
+                  </Typography>
+                  <Typography sx={{ fontSize: 12 }}>
+                    {formData.number_of_people}{" "}
+                    {parseInt(formData.number_of_people) === 1
+                      ? "person"
+                      : "people"}
+                  </Typography>
+                </Box>
+              )}
+
+              {/* Accommodation fields */}
+              {formData.category === "Accommodation" && (
+                <>
+                  <Box>
+                    <Typography
+                      sx={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        mb: 0.5,
+                      }}
+                    >
+                      Number of Days:
+                    </Typography>
+                    <Typography sx={{ fontSize: 12 }}>
+                      {formData.number_of_days}{" "}
+                      {parseInt(formData.number_of_days) === 1 ? "day" : "days"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography
+                      sx={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        mb: 0.5,
+                      }}
+                    >
+                      Number of People:
+                    </Typography>
+                    <Typography sx={{ fontSize: 12 }}>
+                      {formData.number_of_people}{" "}
+                      {parseInt(formData.number_of_people) === 1
+                        ? "person"
+                        : "people"}
+                    </Typography>
+                  </Box>
+                </>
+              )}
+
+              {/* Purpose */}
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    mb: 0.5,
+                  }}
+                >
+                  Purpose:
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {formData.items}
+                </Typography>
+              </Box>
+
+              {/* Description */}
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    mb: 0.5,
+                  }}
+                >
+                  Description:
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {formData.description}
+                </Typography>
+              </Box>
+
+              {/* Total Amount */}
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "text.secondary",
+                    mb: 0.5,
+                  }}
+                >
+                  Total Amount:
                 </Typography>
                 <Typography
                   variant="h5"
                   sx={{
                     fontWeight: 700,
                     color: "#1565c0",
-                    mt: 0.5,
                   }}
                 >
                   ₱{parseFloat(formData.total).toFixed(2)}
                 </Typography>
-              </Grid>
+              </Box>
 
-              {formData.category === "Meal with Client" && (
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Number of People
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {formData.number_of_people}{" "}
-                    {parseInt(formData.number_of_people) === 1
-                      ? "person"
-                      : "people"}
-                  </Typography>
-                </Grid>
-              )}
-
-              {formData.category === "Accommodation" && (
-                <>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Number of Days
-                    </Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                      {formData.number_of_days}{" "}
-                      {parseInt(formData.number_of_days) === 1 ? "day" : "days"}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="caption" color="text.secondary">
-                      Number of People
-                    </Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                      {formData.number_of_people}{" "}
-                      {parseInt(formData.number_of_people) === 1
-                        ? "person"
-                        : "people"}
-                    </Typography>
-                  </Grid>
-                </>
-              )}
-
-              <Grid item xs={12}>
+              {/* Reimbursable Amount */}
+              <Box>
                 <Paper
                   sx={{
                     p: 2,
@@ -815,8 +928,15 @@ function ReceiptUpload() {
                       : "#2e7d32",
                   }}
                 >
-                  <Typography variant="caption" color="text.secondary">
-                    Reimbursable Amount
+                  <Typography
+                    sx={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "text.secondary",
+                      mb: 0.5,
+                    }}
+                  >
+                    Reimbursable Amount:
                   </Typography>
                   <Typography
                     variant="h5"
@@ -849,49 +969,14 @@ function ReceiptUpload() {
                   )}
                   {isOverLimit && (
                     <Alert severity="warning" sx={{ mt: 1 }}>
-                      Your total amount exceeds the category limit. Only ₱
-                      {reimbursableAmount.toFixed(2)} will be reimbursed.
+                      Your total amount exceeds the category limit.
+                      <br />
+                      Only ₱{reimbursableAmount.toFixed(2)} will be reimbursed.
                     </Alert>
                   )}
                 </Paper>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">
-                  Purpose
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    mt: 0.5,
-                    whiteSpace: "pre-wrap",
-                    bgcolor: "action.hover",
-                    p: 1.5,
-                    borderRadius: 1,
-                  }}
-                >
-                  {formData.items}
-                </Typography>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">
-                  Description
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    mt: 0.5,
-                    whiteSpace: "pre-wrap",
-                    bgcolor: "action.hover",
-                    p: 1.5,
-                    borderRadius: 1,
-                  }}
-                >
-                  {formData.description}
-                </Typography>
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </Stack>
         </DialogContent>
 
@@ -1349,7 +1434,9 @@ function ReceiptUpload() {
                           color="warning.main"
                           sx={{ display: "block", mt: 1, fontWeight: 600 }}
                         >
-                          ⚠️ Amount exceeds category limit. Only ₱
+                          ⚠️ Amount exceeds category limit.
+                          <br />
+                          Only ₱
                           {calculateReimbursableAmount(
                             formData.category,
                             formData.total,

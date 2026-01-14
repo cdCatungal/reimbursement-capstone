@@ -22,8 +22,14 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
+  TablePagination,
 } from "@mui/material";
-import { Download, Preview, Description, TrendingUp } from "@mui/icons-material";
+import {
+  Download,
+  Preview,
+  Description,
+  TrendingUp,
+} from "@mui/icons-material";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { useAdminStore } from "../store/useAdminStore";
@@ -34,7 +40,9 @@ function SalesDirectorReportExport() {
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [showPreview, setShowPreview] = useState(false);
-  
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
   // Role filters
   const [roleFilters, setRoleFilters] = useState({
     Employee: true,
@@ -52,6 +60,7 @@ function SalesDirectorReportExport() {
       ...roleFilters,
       [event.target.name]: event.target.checked,
     });
+    setPage(0); // Reset to first page when role filters change
   };
 
   const filterData = () => {
@@ -60,11 +69,11 @@ function SalesDirectorReportExport() {
     return reportData.filter((item) => {
       const statusMatch =
         statusFilter === "All" || item.status === statusFilter;
-      
+
       // Filter by role - check if user's role is selected
       const userRole = item.user?.role || "Employee";
       const roleMatch = roleFilters[userRole] === true;
-      
+
       return statusMatch && roleMatch;
     });
   };
@@ -100,9 +109,9 @@ function SalesDirectorReportExport() {
       let expenseDate = null;
       if (item.date) {
         const dateStr = item.date;
-        if (typeof dateStr === 'string') {
+        if (typeof dateStr === "string") {
           if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-            const [year, month, day] = dateStr.split('-').map(Number);
+            const [year, month, day] = dateStr.split("-").map(Number);
             expenseDate = new Date(year, month - 1, day);
           } else {
             expenseDate = new Date(dateStr);
@@ -113,9 +122,9 @@ function SalesDirectorReportExport() {
         }
       } else if (item.date_of_expense) {
         const dateStr = item.date_of_expense;
-        if (typeof dateStr === 'string') {
+        if (typeof dateStr === "string") {
           if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-            const [year, month, day] = dateStr.split('-').map(Number);
+            const [year, month, day] = dateStr.split("-").map(Number);
             expenseDate = new Date(year, month - 1, day);
           } else {
             expenseDate = new Date(dateStr);
@@ -169,12 +178,12 @@ function SalesDirectorReportExport() {
 
     // Format columns
     // Format Amount column as number with 2 decimals and peso sign
-    worksheet.getColumn('amount').numFmt = '₱#,##0.00';
-    worksheet.getColumn('amount').alignment = { horizontal: 'right' };
+    worksheet.getColumn("amount").numFmt = "₱#,##0.00";
+    worksheet.getColumn("amount").alignment = { horizontal: "right" };
 
     // Format date columns as short date (MM/DD/YYYY)
-    worksheet.getColumn('expenseDate').numFmt = 'mm/dd/yyyy';
-    worksheet.getColumn('dateSubmitted').numFmt = 'mm/dd/yyyy';
+    worksheet.getColumn("expenseDate").numFmt = "mm/dd/yyyy";
+    worksheet.getColumn("dateSubmitted").numFmt = "mm/dd/yyyy";
 
     // Add borders to all cells
     worksheet.eachRow((row, rowNumber) => {
@@ -221,10 +230,10 @@ function SalesDirectorReportExport() {
       "Rejected:",
       filteredData.filter((item) => item.status === "Rejected").length,
     ]);
-    
+
     // Add total amount with formatting
     const totalAmountRow = worksheet.addRow(["Total Amount:", totalAmount]);
-    totalAmountRow.getCell(2).numFmt = '₱#,##0.00';
+    totalAmountRow.getCell(2).numFmt = "₱#,##0.00";
 
     // Add role breakdown
     worksheet.addRow([]);
@@ -233,7 +242,9 @@ function SalesDirectorReportExport() {
     roleBreakdownRow.getCell(1).font = { bold: true, size: 12 };
     Object.keys(roleFilters).forEach((role) => {
       if (roleFilters[role]) {
-        const count = filteredData.filter((item) => item.user?.role === role).length;
+        const count = filteredData.filter(
+          (item) => item.user?.role === role
+        ).length;
         worksheet.addRow([`${role}:`, count]);
       }
     });
@@ -268,10 +279,21 @@ function SalesDirectorReportExport() {
     setStartDate(dataStart);
     setEndDate(dataEnd);
     getReport({ start: dataStart, end: dataEnd });
+    setPage(0); // Reset to first page when date filters change
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
   const selectedRoleCount = Object.values(roleFilters).filter(Boolean).length;
-  const allRolesSelected = selectedRoleCount === Object.keys(roleFilters).length;
+  const allRolesSelected =
+    selectedRoleCount === Object.keys(roleFilters).length;
   const someRolesSelected = selectedRoleCount > 0 && !allRolesSelected;
 
   const handleSelectAllRoles = (event) => {
@@ -282,6 +304,12 @@ function SalesDirectorReportExport() {
       "Invoice Specialist": newValue,
       "Account Manager": newValue,
     });
+    setPage(0); // Reset to first page when selecting all roles
+  };
+
+  const handleStatusFilterChange = (e) => {
+    setStatusFilter(e.target.value);
+    setPage(0); // Reset to first page when status filter changes
   };
 
   return (
@@ -327,7 +355,7 @@ function SalesDirectorReportExport() {
               select
               label="Status Filter"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={handleStatusFilterChange}
               fullWidth
             >
               <MenuItem value="All">All Statuses</MenuItem>
@@ -339,7 +367,10 @@ function SalesDirectorReportExport() {
 
           <Grid item xs={12}>
             <FormControl component="fieldset" variant="standard" fullWidth>
-              <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>
+              <FormLabel
+                component="legend"
+                sx={{ fontSize: "0.875rem", mb: 1 }}
+              >
                 Submitted By
               </FormLabel>
               <FormGroup row>
@@ -352,7 +383,11 @@ function SalesDirectorReportExport() {
                       size="small"
                     />
                   }
-                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>All Roles</Typography>}
+                  label={
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      All Roles
+                    </Typography>
+                  }
                 />
                 <FormControlLabel
                   control={
@@ -385,7 +420,9 @@ function SalesDirectorReportExport() {
                       size="small"
                     />
                   }
-                  label={<Typography variant="body2">Invoice Specialist</Typography>}
+                  label={
+                    <Typography variant="body2">Invoice Specialist</Typography>
+                  }
                 />
                 <FormControlLabel
                   control={
@@ -396,23 +433,24 @@ function SalesDirectorReportExport() {
                       size="small"
                     />
                   }
-                  label={<Typography variant="body2">Account Manager</Typography>}
+                  label={
+                    <Typography variant="body2">Account Manager</Typography>
+                  }
                 />
               </FormGroup>
             </FormControl>
           </Grid>
-          
         </Grid>
 
         {/* Summary Statistics */}
-        <Paper 
-          sx={{ 
-            p: 3, 
-            mt: 3, 
+        <Paper
+          sx={{
+            p: 3,
+            mt: 3,
             bgcolor: "background.paper",
             border: 1,
             borderColor: "divider",
-            borderRadius: 2
+            borderRadius: 2,
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
@@ -421,18 +459,18 @@ function SalesDirectorReportExport() {
               Report Summary
             </Typography>
           </Box>
-          
+
           <Grid container spacing={3}>
             {/* Status Cards */}
             <Grid item xs={6} sm={3}>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
                   textAlign: "center",
                   bgcolor: "primary.lighter",
                   border: 1,
-                  borderColor: "primary.light"
+                  borderColor: "primary.light",
                 }}
               >
                 <Typography
@@ -441,20 +479,24 @@ function SalesDirectorReportExport() {
                 >
                   {stats.total}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 500 }}
+                >
                   Total Records
                 </Typography>
               </Paper>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
                   textAlign: "center",
                   bgcolor: "warning.lighter",
                   border: 1,
-                  borderColor: "warning.light"
+                  borderColor: "warning.light",
                 }}
               >
                 <Typography
@@ -463,20 +505,24 @@ function SalesDirectorReportExport() {
                 >
                   {stats.pending}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 500 }}
+                >
                   Pending
                 </Typography>
               </Paper>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
                   textAlign: "center",
                   bgcolor: "success.lighter",
                   border: 1,
-                  borderColor: "success.light"
+                  borderColor: "success.light",
                 }}
               >
                 <Typography
@@ -485,20 +531,24 @@ function SalesDirectorReportExport() {
                 >
                   {stats.approved}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 500 }}
+                >
                   Approved
                 </Typography>
               </Paper>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Paper 
-                elevation={0} 
-                sx={{ 
-                  p: 2, 
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
                   textAlign: "center",
                   bgcolor: "error.lighter",
                   border: 1,
-                  borderColor: "error.light"
+                  borderColor: "error.light",
                 }}
               >
                 <Typography
@@ -507,7 +557,11 @@ function SalesDirectorReportExport() {
                 >
                   {stats.rejected}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 500 }}
+                >
                   Rejected
                 </Typography>
               </Paper>
@@ -523,9 +577,17 @@ function SalesDirectorReportExport() {
                   variant="h5"
                   sx={{ fontWeight: "bold", color: "secondary.main" }}
                 >
-                  ₱{stats.totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₱
+                  {stats.totalAmount.toLocaleString("en-PH", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 500 }}
+                >
                   Total Amount
                 </Typography>
               </Box>
@@ -559,7 +621,10 @@ function SalesDirectorReportExport() {
 
         {/* Preview Table */}
         {showPreview && filteredData.length > 0 && (
-          <TableContainer component={Paper} sx={{ mt: 3, maxHeight: 400, boxShadow: 2 }}>
+          <TableContainer
+            component={Paper}
+            sx={{ mt: 3, maxHeight: 400, boxShadow: 2 }}
+          >
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
@@ -630,53 +695,77 @@ function SalesDirectorReportExport() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredData.slice(0, 10).map((item, index) => (
-                  <TableRow 
-                    key={item.id} 
-                    hover
-                    sx={{ '&:nth-of-type(odd)': { bgcolor: 'action.hover' } }}
-                  >
-                    <TableCell sx={{ fontFamily: 'monospace' }}>{item.id}</TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {item.user?.name || "Unknown"}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.user?.role || "N/A"}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: 'monospace' }}>{item.sapCode || item.sap_code || "N/A"}</TableCell>
-                    <TableCell>{item.category || item.type || "N/A"}</TableCell>
-                    <TableCell>
-                      {item.items?.substring(0, 40) || "N/A"}
-                      {item.items?.length > 40 ? "..." : ""}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600 }}>
-                      ₱{parseFloat(item.total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="caption" display="block">
-                          Expense: {item.date || item.date_of_expense || "N/A"}
-                        </Typography>
-                        <Typography variant="caption" display="block" color="text.secondary">
-                          Submitted: {item.submittedAt ? new Date(item.submittedAt).toLocaleDateString() : item.submitted_at ? new Date(item.submitted_at).toLocaleDateString() : "N/A"}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredData
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((item, index) => (
+                    <TableRow
+                      key={item.id}
+                      hover
+                      sx={{ "&:nth-of-type(odd)": { bgcolor: "action.hover" } }}
+                    >
+                      <TableCell sx={{ fontFamily: "monospace" }}>
+                        {item.id}
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {item.user?.name || "Unknown"}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.user?.role || "N/A"}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: "monospace" }}>
+                        {item.sapCode || item.sap_code || "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        {item.category || item.type || "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        {item.items?.substring(0, 40) || "N/A"}
+                        {item.items?.length > 40 ? "..." : ""}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>
+                        ₱
+                        {parseFloat(item.total).toLocaleString("en-PH", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="caption" display="block">
+                            Expense:{" "}
+                            {item.date || item.date_of_expense || "N/A"}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            display="block"
+                            color="text.secondary"
+                          >
+                            Submitted:{" "}
+                            {item.submittedAt
+                              ? new Date(item.submittedAt).toLocaleDateString()
+                              : item.submitted_at
+                              ? new Date(item.submitted_at).toLocaleDateString()
+                              : "N/A"}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
-            {filteredData.length > 10 && (
-              <Box sx={{ p: 2, textAlign: "center", bgcolor: "action.hover" }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-                  Showing first 10 of {filteredData.length} records. Export to see all data.
-                </Typography>
-              </Box>
-            )}
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              component="div"
+              count={filteredData.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
           </TableContainer>
         )}
       </CardContent>

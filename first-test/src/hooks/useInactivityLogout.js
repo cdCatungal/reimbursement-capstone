@@ -57,7 +57,7 @@ const useInactivityLogout = (isAuthenticated) => {
     // Log the new logout time
     // const logoutTime = new Date(Date.now() + timeoutSeconds * 1000);
     // console.log(
-    //   `🔄 Timer reset - Will auto-logout at: ${logoutTime.toLocaleTimeString()}`
+    //   ` Timer reset - Will auto-logout at: ${logoutTime.toLocaleTimeString()}`
     // );
   }, [timeoutSeconds, isAuthenticated, performAutoLogout]);
 

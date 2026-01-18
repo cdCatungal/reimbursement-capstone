@@ -38,7 +38,7 @@ function SalesDirectorDashboard() {
   const { getUser, user: storeUser } = userUserStore();
 
   const [anchorEl, setAnchorEl] = useState(null);
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
 
   useEffect(() => {
@@ -99,7 +99,7 @@ function SalesDirectorDashboard() {
 
   const allTabs = [
     {
-      label: "Reimbursement List",
+      label: "Manage Requests",
       icon: <ListAltIcon />,
       component: <SalesDirectorReimbursementList />,
     },
@@ -141,7 +141,8 @@ function SalesDirectorDashboard() {
           flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: drawerOpen ? 240 : 64,
-            height: "100vh",
+            height: "100%", // Changed from "100vh" to "100%"
+            position: "fixed", // Add fixed positioning
             boxSizing: "border-box",
             transition: "width 0.3s ease-in-out",
             overflowX: "hidden",

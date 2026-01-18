@@ -33,7 +33,7 @@ function UserDashboard() {
     useAppContext();
   const navigate = useNavigate();
   const [tabValue, setTabValue] = useState(0);
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const handleTabChange = (newValue) => {
     setTabValue(newValue);
@@ -91,7 +91,7 @@ function UserDashboard() {
       icon: <ReceiptIcon />,
     },
     {
-      label: "Track Status",
+      label: "My Requests",
       component: <StatusTracker />,
       icon: <TrackChangesIcon />,
     },
@@ -115,7 +115,8 @@ function UserDashboard() {
           flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: drawerOpen ? 240 : 64,
-            height: "100vh",
+            height: "100%", // Changed from "100vh" to "100%"
+            position: "fixed", // Add fixed positioning
             boxSizing: "border-box",
             transition: "width 0.3s ease-in-out",
             overflowX: "hidden",

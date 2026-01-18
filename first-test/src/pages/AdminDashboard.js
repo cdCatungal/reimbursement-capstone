@@ -39,7 +39,8 @@ function AdminDashboard() {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [tabValue, setTabValue] = useState(0);
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   const handleProfileClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -94,7 +95,7 @@ function AdminDashboard() {
 
   const allTabs = [
     {
-      label: "Reimbursement Lists",
+      label: "Manage Requests",
       icon: <ListAltIcon />,
       component: <ReimbursementList />,
       visible: true,
@@ -112,7 +113,7 @@ function AdminDashboard() {
       visible: !isFinanceOfficer,
     },
     {
-      label: "Track Status",
+      label: "My Requests",
       icon: <TrackChangesIcon />,
       component: <StatusTracker />,
       visible: !isFinanceOfficer,
@@ -146,7 +147,8 @@ function AdminDashboard() {
           flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: drawerOpen ? 240 : 64,
-            height: "100vh", // ensure full height — no white corners
+            height: "100%", // Changed from "100vh" to "100%"
+            position: "fixed", // Add fixed positioning
             boxSizing: "border-box",
             transition: "width 0.3s ease-in-out",
             overflowX: "hidden",

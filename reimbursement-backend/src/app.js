@@ -20,6 +20,7 @@ import { verifyEmailConfig } from "./utils/sendEmail.js";
 import https from "https";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
+import timerRoutes from "./routes/timer.routes.js";
 
 dotenv.config();
 // Fix __dirname for ES modules
@@ -161,6 +162,7 @@ app.use((req, res, next) => {
 
 // ✅ Routes
 app.use("/auth", authRoutes);
+app.use("/timer", timerRoutes);
 app.use("/api/reimbursements", reimbursementRoutes);
 app.use("/api/approvals", approvalRoutes);
 app.use("/api/users", userRoutes);

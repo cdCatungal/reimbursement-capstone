@@ -2,7 +2,7 @@ import React, {
   useState,
   createContext,
   useContext,
-  useEffect,
+  // useEffect,
   useMemo,
 } from "react";
 import {
@@ -21,6 +21,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { Snackbar, Alert } from "@mui/material";
 import SalesDirectorReimbursementList from "./components/SalesDirectorReimbursementList";
 import { axiosInstance } from "./lib/axios";
+import useInactivityLogout from "./hooks/useInactivityLogout";
 
 // Global Context for State Management
 export const AppContext = createContext();
@@ -46,6 +47,7 @@ function App() {
   });
   const [darkMode, setDarkMode] = useState(false);
 
+  useInactivityLogout(isAuthenticated);
   // Create theme based on darkMode state
   const theme = useMemo(
     () =>

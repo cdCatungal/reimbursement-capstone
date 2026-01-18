@@ -48,7 +48,6 @@ function AdminDashboard() {
   const handleProfileClose = () => {
     setAnchorEl(null);
   };
-
   const handleLogoutClick = async () => {
     try {
       const response = await fetch(

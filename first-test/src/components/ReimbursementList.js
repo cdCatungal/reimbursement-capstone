@@ -1,3 +1,4 @@
+//first-test/src/components/ReimbursementList.js
 import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
@@ -95,7 +96,7 @@ function ReimbursementList() {
       setError(null);
 
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL}/api/reimbursements/pending-approvals`,
+        `${process.env.REACT_APP_API_URL}/api/reimbursements/pending-all-approvals`,
         {
           method: "GET",
           headers: {
@@ -216,10 +217,13 @@ function ReimbursementList() {
         throw new Error("Failed to approve reimbursement");
       }
 
-      setPendings(pendings.filter((p) => p.id !== id));
-      showNotification("Reimbursement approved successfully", "success");
-      handleCloseDialog();
-    } catch (err) {
+      //modified for bug#190423 
+      setPendings(pendings.map((p) => 
+        p.id === id
+          ? { ...p, status: 'Approved' }
+          : p)); 
+
+    }catch(err){
       showNotification(
         err.message || "Failed to approve reimbursement",
         "error"
@@ -253,7 +257,12 @@ function ReimbursementList() {
         throw new Error("Failed to reject reimbursement");
       }
 
-      setPendings(pendings.filter((p) => p.id !== id));
+      //modified bug#190423 - rejected missing entry
+      setPendings(pendings.map((p) => 
+        p.id === id
+          ? { ...p, status: 'Rejected'}
+          :p ));
+
       showNotification("Reimbursement rejected successfully", "success");
       handleCloseRejectDialog();
       handleCloseDialog();

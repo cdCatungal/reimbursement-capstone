@@ -202,16 +202,23 @@ const UserSettings = () => {
                 <Typography sx={{ color: "text.secondary" }}>
                   Member Since
                 </Typography>
-                <Typography
+
+                <Box
                   sx={{
-                    color: "text.primary",
-                    fontWeight: "medium",
-                    fontSize: 12,
+                    display: "flex",
+                    gap: 1,
+                    flexWrap: "wrap",
+                    justifyContent: "flex-end",
                   }}
                 >
-                  {/* {user?.created_at?.split("T")[0]} */}
-                  {dateFormat(user?.created_at)}
-                </Typography>
+                  <Chip
+                    label={dateFormat(user?.created_at)}
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Box>
               </Box>
 
               {/* SAP Code Section - Only show if user has SAP codes */}

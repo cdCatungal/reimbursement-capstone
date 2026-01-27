@@ -6,6 +6,20 @@ import { userUserStore } from "../store/userUserStore.js";
 const UserSettings = () => {
   const { getUser, user } = userUserStore();
 
+  console.log("User since: ", user);
+
+  const dateFormat = (data) => {
+    if (!data) return;
+    const date = new Date(data);
+    const formattedDate = date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+
+    return formattedDate;
+  };
+
   useEffect(() => {
     getUser();
   }, []);
@@ -189,9 +203,14 @@ const UserSettings = () => {
                   Member Since
                 </Typography>
                 <Typography
-                  sx={{ color: "text.primary", fontWeight: "medium" }}
+                  sx={{
+                    color: "text.primary",
+                    fontWeight: "medium",
+                    fontSize: 12,
+                  }}
                 >
-                  {user?.createdAt?.split("T")[0]}
+                  {/* {user?.created_at?.split("T")[0]} */}
+                  {dateFormat(user?.created_at)}
                 </Typography>
               </Box>
 

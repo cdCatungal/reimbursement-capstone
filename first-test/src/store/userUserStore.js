@@ -8,8 +8,6 @@ export const userUserStore = create((set, get) => ({
   getUser: async () => {
     try {
       const response = await axiosInstance.get("/users/settings");
-      console.log("Response:", response.data.data);
-      console.log("Response:", response);
       set({ user: response.data.data });
       console.log("User data fetched:", get().user);
     } catch (error) {

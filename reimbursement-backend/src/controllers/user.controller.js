@@ -27,6 +27,7 @@ export const userSettings = async (req, res) => {
         "role",
         "profilePicture",
         "authProvider",
+        "created_at",
         "isActive",
       ],
       include: [
@@ -175,7 +176,7 @@ export const updateUser = async (req, res) => {
       user.role === "Employee"
     ) {
       console.log(
-        `🔄 SUL assignment changing for ${user.name}: ${oldAssignedSulId} → ${assigned_sul_id}`
+        `🔄 SUL assignment changing for ${user.name}: ${oldAssignedSulId} → ${assigned_sul_id}`,
       );
 
       // Find all pending reimbursements at SUL level for this employee
@@ -198,7 +199,7 @@ export const updateUser = async (req, res) => {
 
       if (pendingSulApprovals.length > 0 && assigned_sul_id !== null) {
         console.log(
-          `📋 Found ${pendingSulApprovals.length} pending SUL approvals to reassign`
+          `📋 Found ${pendingSulApprovals.length} pending SUL approvals to reassign`,
         );
 
         // Get new SUL details
@@ -242,7 +243,7 @@ export const updateUser = async (req, res) => {
           await sendEmail(
             newSul.email,
             `🔔 New Reimbursement Approvals Assigned to You`,
-            emailHtml
+            emailHtml,
           );
 
           console.log(`📧 Notification sent to new SUL: ${newSul.email}`);

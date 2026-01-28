@@ -103,11 +103,37 @@ import genAI from "../config/gemini.js";
 
 const router = express.Router();
 
-// ✅ CHANGED: Use memory storage instead of disk storage
+// ✅ Use memory storage instead of disk storage
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
+
+// ----------------- Retry Helper -----------------
+/**
+ * Retry function with exponential backoff for handling rate limits
+ * @param {Function} fn - Async function to retry
+ * @param {number} maxRetries - Maximum number of retry attempts
+ * @param {number} baseDelay - Base delay in milliseconds
+ * @returns {Promise} Result of the function
+ */
+async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 2000) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error.status === 429 && i < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, i); // Exponential backoff: 2s, 4s, 8s
+        console.log(
+          `⏳ Rate limit hit. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
 
 // ----------------- Helpers -----------------
 function cleanOCR(text) {
@@ -195,7 +221,7 @@ function parseDateToDDMMYYYY(text) {
       }
       return `${String(day).padStart(2, "0")}/${String(month).padStart(
         2,
-        "0"
+        "0",
       )}/${year}`;
     }
 
@@ -205,7 +231,7 @@ function parseDateToDDMMYYYY(text) {
       if (!isNaN(monthIndex)) {
         return `${String(d).padStart(2, "0")}/${String(monthIndex).padStart(
           2,
-          "0"
+          "0",
         )}/${y}`;
       }
     }
@@ -285,7 +311,7 @@ function parseReceipt(text) {
 
   let payment_method = "";
   const pm = cleaned.match(
-    /\b(Metrobank|CASH|CREDIT|GCASH|PAYMAYA|VISA|MASTERCARD)\b/i
+    /\b(Metrobank|CASH|CREDIT|GCASH|PAYMAYA|VISA|MASTERCARD)\b/i,
   );
   if (pm) payment_method = pm[1].toUpperCase();
 
@@ -304,7 +330,7 @@ function parseReceipt(text) {
   for (let i = 1; i < Math.min(6, lines.length); i++) {
     if (
       /tin|tel|telephone|address|member|membership|owned|operated|birtacc|bir/i.test(
-        lines[i]
+        lines[i],
       )
     ) {
       startIndex = i + 1;
@@ -319,8 +345,8 @@ function parseReceipt(text) {
     .filter(
       (l) =>
         !/subtotal|total|amount due|grand total|member|tin|tel|telephone|address|b\.?i\.?r/i.test(
-          l
-        )
+          l,
+        ),
     )
     .filter((l) => l.length > 3);
 
@@ -350,7 +376,7 @@ function parseReceipt(text) {
       name
         .replace(/\s{2,}/g, " ")
         .replace(/[^\w\s'&-]/g, "")
-        .trim()
+        .trim(),
     );
 
     items.push({
@@ -394,8 +420,6 @@ function parseReceipt(text) {
 
 // ----------------- Routes -----------------
 
-// ✅ UPDATED: Tesseract OCR route - now uses memory buffer
-
 /**
  * @swagger
  * /api/ocr:
@@ -435,7 +459,7 @@ router.post("/", upload.single("receipt"), async (req, res) => {
         .status(400)
         .json({ error: "No file uploaded (field: receipt)" });
 
-    // ✅ Process image buffer directly, no file system needed
+    // Process image buffer directly, no file system needed
     const result = await Tesseract.recognize(req.file.buffer, "eng", {
       logger: (m) => console.log(m),
     });
@@ -466,8 +490,6 @@ router.post("/", upload.single("receipt"), async (req, res) => {
   }
 });
 
-// ✅ UPDATED: Gemini AI Vision OCR route - now uses memory buffer
-
 /**
  * @swagger
  * /api/ocr/structured:
@@ -497,6 +519,8 @@ router.post("/", upload.single("receipt"), async (req, res) => {
  *               $ref: '#/components/schemas/StructuredOCRResult'
  *       400:
  *         description: No file uploaded
+ *       429:
+ *         description: Rate limit exceeded
  *       500:
  *         description: Structured OCR failed
  */
@@ -505,48 +529,25 @@ router.post("/structured", upload.single("image"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    // ✅ Get image buffer directly from memory
+    console.log(
+      `📸 Processing receipt: ${req.file.originalname} (${(req.file.size / 1024).toFixed(2)} KB)`,
+    );
+
     const imageBuffer = req.file.buffer;
     const base64Image = imageBuffer.toString("base64");
     const mimeType = req.file.mimetype;
 
-    // 1) Extract raw text using Gemini Vision
-    const visionModel = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-    });
+    // ✅ OPTIMIZED: Single API call to extract both raw text and structured data
+    const combinedPrompt = `You are an expert receipt parser. Analyze this receipt image and extract both raw text AND structured data.
 
-    const textExtractionPrompt = `Extract ALL text from this receipt image EXACTLY as it appears.
-
-RULES:
+STEP 1 - Extract raw text exactly as it appears:
 - Preserve the EXACT layout and spacing
 - Include every line, even blank lines
 - Keep all numbers, symbols, and punctuation exactly as shown
 - Maintain the original order from top to bottom
-- Do NOT interpret, summarize, or format - just extract the raw text
 
-Return ONLY the extracted text, nothing else.`;
+STEP 2 - Parse structured data with EXTREME PRECISION:
 
-    const textResult = await visionModel.generateContent([
-      textExtractionPrompt,
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: mimeType,
-        },
-      },
-    ]);
-
-    const rawText = textResult.response.text();
-    const cleanedText = cleanOCR(rawText);
-
-    // 2) Extract structured data using Gemini Vision
-    const structuredModel = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-    });
-
-    const prompt = `You are an expert receipt parser. Analyze this receipt image with EXTREME PRECISION.
-
-CRITICAL EXTRACTION RULES:
 1. **MERCHANT**: Extract the EXACT store name from the TOP of the receipt (first 1-2 lines, usually in larger text)
 2. **DATE**: Find the transaction date and return in DD/MM/YYYY format
 3. **TOTAL**: Find the FINAL TOTAL amount - look for:
@@ -555,79 +556,99 @@ CRITICAL EXTRACTION RULES:
    - DO NOT use subtotal, tax amounts, or individual item prices
    - Be extremely careful with decimal points
 4. **ITEMS**: Extract ALL line items with individual prices
-5. **PAYMENT**: Look for payment method (Cash, Credit, Debit, etc.)
+5. **PAYMENT**: Look for payment method (Cash, Credit, Debit, GCash, etc.)
 
-IMPORTANT FOR TOTALS:
+CRITICAL FOR TOTALS:
 - If you see multiple totals (subtotal, tax, grand total), ALWAYS use the grand/final total
 - Double-check the number matches the largest amount on the receipt
 - Preserve exact decimal values (e.g., 1387.72, not 1387.7 or 1388)
 
-Return ONLY valid JSON with this EXACT structure:
+Return ONLY this JSON structure (NO markdown, NO explanations):
 {
-  "merchant": "EXACT STORE NAME",
-  "date": "DD/MM/YYYY",
-  "total": 1234.56,
-  "items": [
-    {"description": "Item Name", "price": 12.34},
-    {"description": "Item Name 2", "price": 56.78}
-  ],
-  "payment_method": "Cash/Card/etc or null"
-}
+  "rawText": "complete extracted text here preserving all formatting and line breaks",
+  "structured": {
+    "merchant": "EXACT STORE NAME",
+    "date": "DD/MM/YYYY",
+    "total": 1234.56,
+    "items": [
+      {"description": "Item Name", "price": 12.34},
+      {"description": "Item Name 2", "price": 56.78}
+    ],
+    "payment_method": "Cash/Card/GCash/etc or null"
+  }
+}`;
 
-NO markdown formatting, NO explanations, ONLY the JSON object.`;
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+    });
 
-    const aiResult = await structuredModel.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: mimeType,
-        },
+    // ✅ Use retry logic with exponential backoff
+    const aiText = await retryWithBackoff(
+      async () => {
+        const aiResult = await model.generateContent([
+          combinedPrompt,
+          {
+            inlineData: {
+              data: base64Image,
+              mimeType: mimeType,
+            },
+          },
+        ]);
+        return aiResult.response.text();
       },
-    ]);
+      3,
+      2000,
+    ); // 3 retries, starting with 2 second delay
 
-    const aiText = aiResult.response.text();
-
+    // Clean up markdown formatting if present
     const cleanedAIText = aiText
       .replace(/```json\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
 
-    let structured;
+    let parsed;
     try {
-      structured = JSON.parse(cleanedAIText);
-
-      // Validation: Ensure total is a number with 2 decimal places
-      if (structured.total) {
-        const totalNum =
-          typeof structured.total === "string"
-            ? parseFloat(structured.total.replace(/[^0-9.]/g, ""))
-            : structured.total;
-        structured.total = parseFloat(totalNum.toFixed(2));
-      }
-
-      // Validation: Ensure items prices are numbers
-      if (Array.isArray(structured.items)) {
-        structured.items = structured.items.map((item) => ({
-          ...item,
-          price: item.price
-            ? parseFloat(
-                typeof item.price === "string"
-                  ? item.price.replace(/[^0-9.]/g, "")
-                  : item.price
-              ).toFixed(2)
-            : null,
-        }));
-      }
+      parsed = JSON.parse(cleanedAIText);
     } catch (err) {
-      console.error("JSON parse error:", cleanedAIText);
+      console.error("❌ JSON parse error:", cleanedAIText);
       return res.status(500).json({
         error: "AI JSON parsing failed",
-        detail: cleanedAIText,
-        rawText,
-        cleanedText,
+        detail: "The AI returned invalid JSON format",
+        rawResponse: cleanedAIText.substring(0, 500), // First 500 chars for debugging
       });
     }
+
+    // Extract and clean the data
+    const rawText = parsed.rawText || "";
+    const cleanedText = cleanOCR(rawText);
+    const structured = parsed.structured || {};
+
+    // ✅ Validation: Ensure total is a number with 2 decimal places
+    if (structured.total) {
+      const totalNum =
+        typeof structured.total === "string"
+          ? parseFloat(structured.total.replace(/[^0-9.]/g, ""))
+          : structured.total;
+      structured.total = parseFloat(totalNum.toFixed(2));
+    }
+
+    // ✅ Validation: Ensure items prices are numbers with 2 decimal places
+    if (Array.isArray(structured.items)) {
+      structured.items = structured.items.map((item) => ({
+        ...item,
+        price: item.price
+          ? parseFloat(
+              typeof item.price === "string"
+                ? item.price.replace(/[^0-9.]/g, "")
+                : item.price,
+            )
+          : null,
+      }));
+    }
+
+    console.log(
+      `✅ OCR Success: ${structured.merchant || "Unknown"} | ${structured.date || "No date"} | ₱${structured.total || "0.00"}`,
+    );
 
     return res.json({
       success: true,
@@ -636,7 +657,20 @@ NO markdown formatting, NO explanations, ONLY the JSON object.`;
       structured,
     });
   } catch (error) {
-    console.error("Structured OCR error:", error);
+    console.error("❌ Structured OCR error:", error);
+
+    // ✅ Better error handling for rate limits
+    if (error.status === 429) {
+      return res.status(429).json({
+        error: "Rate limit exceeded",
+        message:
+          "The AI service is currently busy. Please wait a moment and try again.",
+        retryAfter: 60, // seconds
+        detail: error.message,
+      });
+    }
+
+    // Handle other errors
     res.status(500).json({
       error: "Structured OCR failed",
       detail: error.message,

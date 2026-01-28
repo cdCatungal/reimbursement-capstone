@@ -10,7 +10,7 @@ import {
 import { newSubmissionToApproverTemplate } from "../utils/emailTemplates.js";
 
 /**
- * ✅ UPDATED: Create new reimbursement with Cloudinary upload
+ * ✅ FIXED: Create new reimbursement with batch_code support
  */
 export async function createReimbursement(req, res) {
   try {
@@ -22,9 +22,10 @@ export async function createReimbursement(req, res) {
     const payload = req.body;
 
     console.log("📋 Creating reimbursement for user:", user.name, user.role);
+    console.log("📦 Batch code received:", payload.batch_code); // ✅ ADDED: Log batch_code
 
     const bypassSapValidation = ["Invoice Specialist", "SUL"].includes(
-      user.role
+      user.role,
     );
 
     // Validate SAP code
@@ -51,7 +52,7 @@ export async function createReimbursement(req, res) {
       }
 
       console.log(
-        `✅ ${user.role} ${user.name} validated for SAP code: ${payload.sap_code}`
+        `✅ ${user.role} ${user.name} validated for SAP code: ${payload.sap_code}`,
       );
     } else {
       if (!payload.sap_code) {
@@ -61,7 +62,7 @@ export async function createReimbursement(req, res) {
             : "SUL_DIRECT";
       }
       console.log(
-        `✅ ${user.role} submission - bypassing SAP code validation (using: ${payload.sap_code})`
+        `✅ ${user.role} submission - bypassing SAP code validation (using: ${payload.sap_code})`,
       );
     }
 
@@ -86,22 +87,22 @@ export async function createReimbursement(req, res) {
     if (payload.category === "Overtime Meal") {
       calculatedReimbursable = Math.min(
         totalAmount,
-        CATEGORY_LIMITS["Overtime Meal"]
+        CATEGORY_LIMITS["Overtime Meal"],
       );
     } else if (payload.category === "Meal with Client") {
       calculatedReimbursable = Math.min(
         totalAmount,
-        CATEGORY_LIMITS["Meal with Client"] * numPeople
+        CATEGORY_LIMITS["Meal with Client"] * numPeople,
       );
     } else if (payload.category === "Accomodation") {
       calculatedReimbursable = Math.min(
         totalAmount,
-        CATEGORY_LIMITS["Accomodation"] * numDays
+        CATEGORY_LIMITS["Accomodation"] * numDays,
       );
     }
 
     console.log(
-      `💰 Total: ₱${totalAmount}, Reimbursable: ₱${calculatedReimbursable}`
+      `💰 Total: ₱${totalAmount}, Reimbursable: ₱${calculatedReimbursable}`,
     );
 
     // Get approval flow
@@ -159,10 +160,10 @@ export async function createReimbursement(req, res) {
     }
 
     console.log(
-      `✅ First approver: ${firstApprover.name} (${firstApproverRole})`
+      `✅ First approver: ${firstApprover.name} (${firstApproverRole})`,
     );
 
-    // ✅ UPDATED: Upload receipt to Cloudinary
+    // ✅ Upload receipt to Cloudinary
     let receiptUrl = null;
     let receiptPublicId = null;
     let receiptMimetype = null;
@@ -171,7 +172,7 @@ export async function createReimbursement(req, res) {
     if (req.file) {
       try {
         console.log(
-          `📤 Uploading to Cloudinary: ${req.file.originalname} (${req.file.mimetype})`
+          `📤 Uploading to Cloudinary: ${req.file.originalname} (${req.file.mimetype})`,
         );
 
         // Determine resource type (image or raw for PDFs)
@@ -182,7 +183,7 @@ export async function createReimbursement(req, res) {
         const uploadResult = await uploadToCloudinary(
           req.file.buffer,
           process.env.CLOUDINARY_FOLDER || "reimbursement-receipts",
-          resourceType
+          resourceType,
         );
 
         receiptUrl = uploadResult.secure_url;
@@ -214,7 +215,7 @@ export async function createReimbursement(req, res) {
       }
     }
 
-    // ✅ UPDATED: Create reimbursement with Cloudinary fields
+    // ✅ FIXED: Create reimbursement WITH batch_code
     const reimbursement = await Reimbursement.create({
       user_id: user.id,
       category: payload.category,
@@ -235,10 +236,16 @@ export async function createReimbursement(req, res) {
       receipt_public_id: receiptPublicId,
       receipt_mimetype: receiptMimetype,
       receipt_filename: receiptFilename,
+      batch_code: payload.batch_code || null, // ✅ ADDED: Save batch_code from frontend
       submitted_at: new Date(),
     });
 
-    console.log("✅ Created reimbursement #", reimbursement.id);
+    console.log(
+      "✅ Created reimbursement #",
+      reimbursement.id,
+      "with batch_code:",
+      reimbursement.batch_code,
+    );
 
     // Create approval records
     const approvalRecords = [];
@@ -283,13 +290,13 @@ export async function createReimbursement(req, res) {
             name: user.name,
             role: user.role,
           },
-          firstApprover.name
+          firstApprover.name,
         );
 
         await sendEmail(
           firstApprover.email,
           `📢 New Reimbursement Request - ${reimbursement.sap_code}`,
-          emailHtml
+          emailHtml,
         );
 
         console.log(`📧 Notification sent to ${firstApprover.name}`);
@@ -306,7 +313,7 @@ export async function createReimbursement(req, res) {
 }
 
 /**
- * ✅ UPDATED: Get user reimbursements with Cloudinary URLs
+ * ✅ Get user reimbursements with Cloudinary URLs
  */
 export async function getUserReimbursements(req, res) {
   try {
@@ -362,7 +369,6 @@ export async function getUserReimbursements(req, res) {
       date: r.date_of_expense
         ? new Date(r.date_of_expense).toISOString().split("T")[0]
         : null,
-      // ✅ UPDATED: Return Cloudinary URL
       receipt: r.receipt_url
         ? {
             url: r.receipt_url,
@@ -376,6 +382,7 @@ export async function getUserReimbursements(req, res) {
       items: r.items,
       number_of_people: r.number_of_people,
       number_of_days: r.number_of_days,
+      batch_code: r.batch_code, // ✅ ADDED: Include batch_code in response
       approvals: r.approvals || [],
     }));
 
@@ -387,8 +394,7 @@ export async function getUserReimbursements(req, res) {
 }
 
 /**
- * ✅ Similar updates for getPendingApprovals and getPendingAllApprovals
- * (Replace receipt data structure with URL-based structure)
+ * ✅ Get pending approvals with batch_code
  */
 export async function getPendingApprovals(req, res) {
   try {
@@ -421,12 +427,12 @@ export async function getPendingApprovals(req, res) {
 
     let filteredReimbursements = allReimbursements.filter((r) => {
       const userApproval = r.approvals.find(
-        (a) => a.approver_role === user.role
+        (a) => a.approver_role === user.role,
       );
       if (!userApproval) return false;
 
       const previousApprovals = r.approvals.filter(
-        (a) => a.approval_level < userApproval.approval_level
+        (a) => a.approval_level < userApproval.approval_level,
       );
 
       if (userApproval.status === "Pending") {
@@ -436,10 +442,6 @@ export async function getPendingApprovals(req, res) {
       if (userApproval.status === "Approved") {
         return true;
       }
-
-      // if (userApproval.status === "Rejected") {
-      //   return true;
-      // }
 
       return false;
     });
@@ -451,7 +453,7 @@ export async function getPendingApprovals(req, res) {
             include: [{ model: User, as: "assignedSUL" }],
           });
           return employee?.assigned_sul_id === user.id ? r : null;
-        })
+        }),
       ).then((results) => results.filter(Boolean));
     } else if (user.role === "Account Manager") {
       const managedSapCodes = await SapCode.findAll({
@@ -466,7 +468,7 @@ export async function getPendingApprovals(req, res) {
       }
 
       filteredReimbursements = filteredReimbursements.filter((r) =>
-        managedCodes.includes(r.sap_code)
+        managedCodes.includes(r.sap_code),
       );
     }
 
@@ -493,7 +495,6 @@ export async function getPendingApprovals(req, res) {
       date: r.date_of_expense
         ? new Date(r.date_of_expense).toISOString().split("T")[0]
         : null,
-      // ✅ UPDATED: Return URL instead of base64
       receipt: r.receipt_url
         ? {
             url: r.receipt_url,
@@ -506,6 +507,7 @@ export async function getPendingApprovals(req, res) {
       items: r.items,
       number_of_people: r.number_of_people,
       number_of_days: r.number_of_days,
+      batch_code: r.batch_code, // ✅ ADDED
       approvals: r.approvals || [],
     }));
 
@@ -571,7 +573,6 @@ export async function getPendingAllApprovals(req, res) {
       date: r.date_of_expense
         ? new Date(r.date_of_expense).toISOString().split("T")[0]
         : null,
-      // ✅ UPDATED
       receipt: r.receipt_url
         ? {
             url: r.receipt_url,
@@ -584,6 +585,7 @@ export async function getPendingAllApprovals(req, res) {
       items: r.items,
       number_of_people: r.number_of_people,
       number_of_days: r.number_of_days,
+      batch_code: r.batch_code, // ✅ ADDED
       approvals: r.approvals || [],
     }));
 
@@ -608,7 +610,7 @@ export async function updateReimbursementStatus(req, res) {
     const { action, remarks } = req.body;
 
     console.log(
-      `🔄 User ${user.name} (${user.role}) attempting to ${action} reimbursement #${reimbursementId}`
+      `🔄 User ${user.name} (${user.role}) attempting to ${action} reimbursement #${reimbursementId}`,
     );
 
     const reimbursement = await Reimbursement.findByPk(reimbursementId, {
@@ -658,7 +660,6 @@ export async function updateReimbursementStatus(req, res) {
         });
       }
     } else if (user.role === "Account Manager") {
-      // Verify this AM MANAGES the SAP code (not just has it assigned)
       const sapCode = await SapCode.findOne({
         where: { code: reimbursement.sap_code },
       });
@@ -672,7 +673,7 @@ export async function updateReimbursementStatus(req, res) {
     }
 
     const currentApproval = reimbursement.approvals.find(
-      (a) => a.approver_role === user.role && a.status === "Pending"
+      (a) => a.approver_role === user.role && a.status === "Pending",
     );
 
     if (!currentApproval) {
@@ -695,7 +696,7 @@ export async function updateReimbursementStatus(req, res) {
       });
 
       console.log(
-        `❌ Reimbursement #${reimbursementId} rejected by ${user.name}`
+        `❌ Reimbursement #${reimbursementId} rejected by ${user.name}`,
       );
 
       return res.json({
@@ -732,26 +733,23 @@ export async function updateReimbursementStatus(req, res) {
       });
 
       console.log(
-        `✅ Approval level ${currentApproval.approval_level} completed by ${user.name}`
+        `✅ Approval level ${currentApproval.approval_level} completed by ${user.name}`,
       );
 
       const nextApproval = reimbursement.approvals.find(
-        (a) => a.approval_level === currentApproval.approval_level + 1
+        (a) => a.approval_level === currentApproval.approval_level + 1,
       );
 
       if (nextApproval) {
-        // ✅ Find next approver based on role
         let nextApprover = null;
 
         if (nextApproval.approver_role === "Account Manager") {
-          // Find AM who MANAGES this SAP code
           const sapCode = await SapCode.findOne({
             where: { code: reimbursement.sap_code },
             include: [{ model: User, as: "accountManager" }],
           });
           nextApprover = sapCode ? sapCode.accountManager : null;
         } else {
-          // Find any user with this role
           nextApprover = await User.findOne({
             where: { role: nextApproval.approver_role },
           });
@@ -769,7 +767,7 @@ export async function updateReimbursementStatus(req, res) {
           });
 
           console.log(
-            `➡️ Moving to next approver: ${nextApprover.name} (${nextApproval.approver_role})`
+            `➡️ Moving to next approver: ${nextApprover.name} (${nextApproval.approver_role})`,
           );
         } else {
           return res.status(500).json({

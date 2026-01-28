@@ -1,5 +1,5 @@
 // Updated to match ReimbursementList.js display format:
-// - Changed "Amount" to "Total Amount" 
+// - Changed "Amount" to "Total Amount"
 // - Display number of people/days BEFORE reimbursable amount
 // - Keep consistent ordering and formatting
 
@@ -48,6 +48,7 @@ import {
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useAppContext } from "../App";
+import BatchViewer from "./BatchViewer";
 
 // Helper function to check if receipt is PDF
 const isPDF = (receipt) => {
@@ -120,7 +121,7 @@ function SalesDirectorReimbursementList() {
             "Content-Type": "application/json",
           },
           credentials: "include",
-        }
+        },
       );
 
       if (!response.ok) {
@@ -144,14 +145,14 @@ function SalesDirectorReimbursementList() {
 
     // Apply role filter first
     const selectedRoles = Object.keys(roleFilters).filter(
-      (role) => roleFilters[role]
+      (role) => roleFilters[role],
     );
     if (
       selectedRoles.length > 0 &&
       selectedRoles.length < Object.keys(roleFilters).length
     ) {
       filtered = filtered.filter(
-        (item) => item.user?.role && selectedRoles.includes(item.user.role)
+        (item) => item.user?.role && selectedRoles.includes(item.user.role),
       );
     }
 
@@ -181,7 +182,7 @@ function SalesDirectorReimbursementList() {
             new Date(item.submittedAt)
               .toLocaleDateString("en-CA")
               .toLowerCase()
-              .includes(term))
+              .includes(term)),
       );
     }
 
@@ -262,7 +263,7 @@ function SalesDirectorReimbursementList() {
           },
           credentials: "include",
           body: JSON.stringify({ remarks: remarksText }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -275,7 +276,7 @@ function SalesDirectorReimbursementList() {
     } catch (err) {
       showNotification(
         err.message || "Failed to approve reimbursement",
-        "error"
+        "error",
       );
     } finally {
       setActionLoading(false);
@@ -299,7 +300,7 @@ function SalesDirectorReimbursementList() {
           },
           credentials: "include",
           body: JSON.stringify({ remarks: remarksText }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -313,7 +314,7 @@ function SalesDirectorReimbursementList() {
     } catch (err) {
       showNotification(
         err.message || "Failed to reject reimbursement",
-        "error"
+        "error",
       );
     } finally {
       setActionLoading(false);
@@ -348,22 +349,23 @@ function SalesDirectorReimbursementList() {
     setReceiptZoom((prev) => Math.max(prev - 0.25, 0.5));
 
   const handleDownloadReceipt = () => {
-  if (!selectedTicket?.receipt) return;
+    if (!selectedTicket?.receipt) return;
 
-  try {
-    const link = document.createElement("a");
-    link.href = selectedTicket.receipt.url;
-    link.download = selectedTicket.receipt.filename || `receipt-${selectedTicket.id}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showNotification("Receipt downloaded successfully", "success");
-  } catch (error) {
-    console.error("Download failed:", error);
-    showNotification("Failed to download receipt", "error");
-  }
-};
+    try {
+      const link = document.createElement("a");
+      link.href = selectedTicket.receipt.url;
+      link.download =
+        selectedTicket.receipt.filename || `receipt-${selectedTicket.id}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showNotification("Receipt downloaded successfully", "success");
+    } catch (error) {
+      console.error("Download failed:", error);
+      showNotification("Failed to download receipt", "error");
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -384,7 +386,7 @@ function SalesDirectorReimbursementList() {
     }
 
     const sortedApprovals = [...ticket.approvals].sort(
-      (a, b) => b.approval_level - a.approval_level
+      (a, b) => b.approval_level - a.approval_level,
     );
 
     return sortedApprovals.map((approval) => ({
@@ -403,7 +405,7 @@ function SalesDirectorReimbursementList() {
     if (!ticket.approvals || !user) return false;
 
     const sortedApprovals = [...ticket.approvals].sort(
-      (a, b) => a.approval_level - b.approval_level
+      (a, b) => a.approval_level - b.approval_level,
     );
     const nextPending = sortedApprovals.find((a) => a.status === "Pending");
 
@@ -607,10 +609,16 @@ function SalesDirectorReimbursementList() {
                 <TableRow>
                   <TableCell sx={{ fontWeight: "bold" }}>EMPLOYEE</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>REQUEST</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>REIMBURSABLE</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    REIMBURSABLE
+                  </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>DATE OF EXPENSE</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>SUBMITTED AT</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    DATE OF EXPENSE
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    SUBMITTED AT
+                  </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
                   <TableCell></TableCell>
                 </TableRow>
@@ -638,21 +646,29 @@ function SalesDirectorReimbursementList() {
                           sx={{ fontWeight: "medium" }}
                           title={item.items || `${item.category} Reimbursement`}
                         >
-                          {truncateText(item.items || `${item.category} Reimbursement`, 50)}
+                          {truncateText(
+                            item.items || `${item.category} Reimbursement`,
+                            50,
+                          )}
                         </Typography>
-                        <Typography 
-                          variant="caption" 
+                        <Typography
+                          variant="caption"
                           color="text.secondary"
                           title={item.description || "No description provided"}
                         >
-                          {truncateText(item.description || "No description provided", 50)}
+                          {truncateText(
+                            item.description || "No description provided",
+                            50,
+                          )}
                         </Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ fontWeight: "medium" }}>
                         ₱
-                        {parseFloat(item.reimbursable_amount || item.total).toLocaleString("en-PH", {
+                        {parseFloat(
+                          item.reimbursable_amount || item.total,
+                        ).toLocaleString("en-PH", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -668,7 +684,9 @@ function SalesDirectorReimbursementList() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {item.submittedAt ? formatDate(item.submittedAt) : "N/A"}
+                        {item.submittedAt
+                          ? formatDate(item.submittedAt)
+                          : "N/A"}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -808,6 +826,23 @@ function SalesDirectorReimbursementList() {
                 </Box>
               </Box>
 
+              {selectedTicket && selectedTicket.batch_code && (
+                <Box sx={{ p: 3, pt: 0 }}>
+                  <BatchViewer
+                    batchCode={selectedTicket.batch_code}
+                    currentReimbursementId={selectedTicket.id}
+                    onViewReceipt={(reimbursement) => {
+                      // Close current dialog
+                      handleCloseDialog();
+                      // Wait for animation, then open the selected one
+                      setTimeout(() => {
+                        handleOpenDetails(reimbursement);
+                      }, 300);
+                    }}
+                  />
+                </Box>
+              )}
+
               <Grid container spacing={3} wrap="nowrap" sx={{ p: 3 }}>
                 <Grid item sx={{ width: "650px", flexShrink: 0 }}>
                   <Box
@@ -848,7 +883,10 @@ function SalesDirectorReimbursementList() {
                         ₱
                         {parseFloat(selectedTicket.total).toLocaleString(
                           "en-PH",
-                          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          },
                         )}
                       </Typography>
                     </Box>
@@ -908,7 +946,7 @@ function SalesDirectorReimbursementList() {
                           >
                             ₱
                             {parseFloat(
-                              selectedTicket.reimbursable_amount
+                              selectedTicket.reimbursable_amount,
                             ).toLocaleString("en-PH", {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
@@ -957,7 +995,7 @@ function SalesDirectorReimbursementList() {
                       </Typography>
                       <Typography variant="body2">
                         {new Date(
-                          selectedTicket.date || selectedTicket.submittedAt
+                          selectedTicket.date || selectedTicket.submittedAt,
                         ).toLocaleDateString()}
                       </Typography>
                     </Box>
@@ -1086,64 +1124,75 @@ function SalesDirectorReimbursementList() {
                           )}
 
                           {isPDF(selectedTicket.receipt) ? (
-  <Box
-    component="iframe"
-    src={selectedTicket.receipt.url}
-    sx={{
-      width: "100%",
-      height: "480px",
-      border: "none",
-      borderRadius: 1,
-      display: receiptLoading ? "none" : "block",
-    }}
-    onLoad={() => setReceiptLoading(false)}
-    onLoadStart={() => setReceiptLoading(true)}
-    onError={(e) => {
-      console.error("Failed to load receipt PDF:", selectedTicket.receipt);
-      setReceiptLoading(false);
-      showNotification("Failed to load receipt PDF", "error");
-    }}
-    title="Receipt PDF"
-  />
-) : (
-  <Box
-    component="img"
-    src={selectedTicket.receipt.url}
-    alt="Receipt"
-    sx={{
-      maxWidth: "100%",
-      maxHeight: "480px",
-      objectFit: "contain",
-      transform: `scale(${receiptZoom})`,
-      transition: "transform 0.2s ease-in-out",
-      display: receiptLoading ? "none" : "block",
-    }}
-    onLoad={() => setReceiptLoading(false)}
-    onLoadStart={() => setReceiptLoading(true)}
-    onError={(e) => {
-      console.error("Failed to load receipt:", selectedTicket.receipt);
-      setReceiptLoading(false);
-      showNotification("Failed to load receipt image", "error");
-    }}
-  />
-)}
-
+                            <Box
+                              component="iframe"
+                              src={selectedTicket.receipt.url}
+                              sx={{
+                                width: "100%",
+                                height: "480px",
+                                border: "none",
+                                borderRadius: 1,
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error(
+                                  "Failed to load receipt PDF:",
+                                  selectedTicket.receipt,
+                                );
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt PDF",
+                                  "error",
+                                );
+                              }}
+                              title="Receipt PDF"
+                            />
+                          ) : (
+                            <Box
+                              component="img"
+                              src={selectedTicket.receipt.url}
+                              alt="Receipt"
+                              sx={{
+                                maxWidth: "100%",
+                                maxHeight: "480px",
+                                objectFit: "contain",
+                                transform: `scale(${receiptZoom})`,
+                                transition: "transform 0.2s ease-in-out",
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error(
+                                  "Failed to load receipt:",
+                                  selectedTicket.receipt,
+                                );
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt image",
+                                  "error",
+                                );
+                              }}
+                            />
+                          )}
                         </Box>
 
                         {selectedTicket.receipt.filename && (
-  <Typography
-    variant="caption"
-    color="text.secondary"
-    sx={{
-      display: "block",
-      mt: 1,
-      textAlign: "center",
-    }}
-  >
-    {selectedTicket.receipt.filename}
-    {isPDF(selectedTicket.receipt) && " (PDF)"}
-  </Typography>
-)}
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              display: "block",
+                              mt: 1,
+                              textAlign: "center",
+                            }}
+                          >
+                            {selectedTicket.receipt.filename}
+                            {isPDF(selectedTicket.receipt) && " (PDF)"}
+                          </Typography>
+                        )}
                       </Box>
                     )}
                   </Box>
@@ -1183,8 +1232,8 @@ function SalesDirectorReimbursementList() {
                                 step.status === "Pending"
                                   ? "grey.300"
                                   : step.status === "Rejected"
-                                  ? "error.main"
-                                  : "success.main",
+                                    ? "error.main"
+                                    : "success.main",
                             },
                           }}
                         >
@@ -1249,8 +1298,8 @@ function SalesDirectorReimbursementList() {
                                 {step.status === "Approved"
                                   ? "Approved"
                                   : step.status === "Rejected"
-                                  ? "Rejected"
-                                  : "Processed"}{" "}
+                                    ? "Rejected"
+                                    : "Processed"}{" "}
                                 at: {step.date}
                               </Typography>
                             )}

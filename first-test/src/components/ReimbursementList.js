@@ -39,6 +39,7 @@ import {
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useAppContext } from "../App";
+import BatchViewer from "./BatchViewer";
 
 const isPDF = (receipt) => {
   if (typeof receipt === "string") {
@@ -103,7 +104,7 @@ function ReimbursementList() {
             "Content-Type": "application/json",
           },
           credentials: "include",
-        }
+        },
       );
 
       if (!response.ok) {
@@ -153,7 +154,7 @@ function ReimbursementList() {
             new Date(item.submittedAt)
               .toLocaleDateString("en-CA")
               .toLowerCase()
-              .includes(term))
+              .includes(term)),
       );
     }
 
@@ -210,23 +211,21 @@ function ReimbursementList() {
           },
           credentials: "include",
           body: JSON.stringify({ remarks: remarksText }),
-        }
+        },
       );
 
       if (!response.ok) {
         throw new Error("Failed to approve reimbursement");
       }
 
-      //modified for bug#190423 
-      setPendings(pendings.map((p) => 
-        p.id === id
-          ? { ...p, status: 'Approved' }
-          : p)); 
-
-    }catch(err){
+      //modified for bug#190423
+      setPendings(
+        pendings.map((p) => (p.id === id ? { ...p, status: "Approved" } : p)),
+      );
+    } catch (err) {
       showNotification(
         err.message || "Failed to approve reimbursement",
-        "error"
+        "error",
       );
     } finally {
       setActionLoading(false);
@@ -250,7 +249,7 @@ function ReimbursementList() {
           },
           credentials: "include",
           body: JSON.stringify({ remarks: remarksText }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -258,10 +257,9 @@ function ReimbursementList() {
       }
 
       //modified bug#190423 - rejected missing entry
-      setPendings(pendings.map((p) => 
-        p.id === id
-          ? { ...p, status: 'Rejected'}
-          :p ));
+      setPendings(
+        pendings.map((p) => (p.id === id ? { ...p, status: "Rejected" } : p)),
+      );
 
       showNotification("Reimbursement rejected successfully", "success");
       handleCloseRejectDialog();
@@ -269,7 +267,7 @@ function ReimbursementList() {
     } catch (err) {
       showNotification(
         err.message || "Failed to reject reimbursement",
-        "error"
+        "error",
       );
     } finally {
       setActionLoading(false);
@@ -341,7 +339,7 @@ function ReimbursementList() {
     }
 
     const sortedApprovals = [...ticket.approvals].sort(
-      (a, b) => b.approval_level - a.approval_level
+      (a, b) => b.approval_level - a.approval_level,
     );
 
     return sortedApprovals.map((approval) => ({
@@ -360,7 +358,7 @@ function ReimbursementList() {
     if (!ticket.approvals || !user) return false;
 
     const sortedApprovals = [...ticket.approvals].sort(
-      (a, b) => a.approval_level - b.approval_level
+      (a, b) => a.approval_level - b.approval_level,
     );
     const nextPending = sortedApprovals.find((a) => a.status === "Pending");
 
@@ -525,7 +523,7 @@ function ReimbursementList() {
                         >
                           {truncateText(
                             item.items || `${item.category} Reimbursement`,
-                            50
+                            50,
                           )}
                         </Typography>
                         <Typography
@@ -535,7 +533,7 @@ function ReimbursementList() {
                         >
                           {truncateText(
                             item.description || "No description provided",
-                            50
+                            50,
                           )}
                         </Typography>
                       </Box>
@@ -544,7 +542,7 @@ function ReimbursementList() {
                       <Typography variant="body2" sx={{ fontWeight: "medium" }}>
                         ₱
                         {parseFloat(
-                          item.reimbursable_amount || item.total
+                          item.reimbursable_amount || item.total,
                         ).toLocaleString("en-PH", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
@@ -704,6 +702,23 @@ function ReimbursementList() {
                 </Box>
               </Box>
 
+              {selectedTicket && selectedTicket.batch_code && (
+                <Box sx={{ p: 3, pt: 0 }}>
+                  <BatchViewer
+                    batchCode={selectedTicket.batch_code}
+                    currentReimbursementId={selectedTicket.id}
+                    onViewReceipt={(reimbursement) => {
+                      // Close current dialog
+                      handleCloseDialog();
+                      // Wait for animation, then open the selected one
+                      setTimeout(() => {
+                        handleOpenDetails(reimbursement);
+                      }, 300);
+                    }}
+                  />
+                </Box>
+              )}
+
               <Grid container spacing={3} wrap="nowrap" sx={{ p: 3 }}>
                 <Grid item sx={{ width: "650px", flexShrink: 0 }}>
                   <Box
@@ -744,7 +759,10 @@ function ReimbursementList() {
                         ₱
                         {parseFloat(selectedTicket.total).toLocaleString(
                           "en-PH",
-                          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          },
                         )}
                       </Typography>
                     </Box>
@@ -766,7 +784,7 @@ function ReimbursementList() {
                           >
                             ₱
                             {parseFloat(
-                              selectedTicket.reimbursable_amount
+                              selectedTicket.reimbursable_amount,
                             ).toLocaleString("en-PH", {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
@@ -995,12 +1013,12 @@ function ReimbursementList() {
                               onError={(e) => {
                                 console.error(
                                   "Failed to load receipt PDF:",
-                                  selectedTicket.receipt
+                                  selectedTicket.receipt,
                                 );
                                 setReceiptLoading(false);
                                 showNotification(
                                   "Failed to load receipt PDF",
-                                  "error"
+                                  "error",
                                 );
                               }}
                               title="Receipt PDF"
@@ -1023,12 +1041,12 @@ function ReimbursementList() {
                               onError={(e) => {
                                 console.error(
                                   "Failed to load receipt:",
-                                  selectedTicket.receipt
+                                  selectedTicket.receipt,
                                 );
                                 setReceiptLoading(false);
                                 showNotification(
                                   "Failed to load receipt image",
-                                  "error"
+                                  "error",
                                 );
                               }}
                             />
@@ -1088,8 +1106,8 @@ function ReimbursementList() {
                                 step.status === "Pending"
                                   ? "grey.300"
                                   : step.status === "Rejected"
-                                  ? "error.main"
-                                  : "success.main",
+                                    ? "error.main"
+                                    : "success.main",
                             },
                           }}
                         >
@@ -1154,8 +1172,8 @@ function ReimbursementList() {
                                 {step.status === "Approved"
                                   ? "Approved"
                                   : step.status === "Rejected"
-                                  ? "Rejected"
-                                  : "Processed"}{" "}
+                                    ? "Rejected"
+                                    : "Processed"}{" "}
                                 at: {step.date}
                               </Typography>
                             )}

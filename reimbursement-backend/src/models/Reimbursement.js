@@ -52,7 +52,7 @@ const Reimbursement = sequelize.define(
           }
           if (!/^E-\d{5}-\d{4}$/i.test(value)) {
             throw new Error(
-              "SAP code must be in format E-XXXXX-YYYY, INVOICE_SPECIALIST, or SUL_DIRECT"
+              "SAP code must be in format E-XXXXX-YYYY, INVOICE_SPECIALIST, or SUL_DIRECT",
             );
           }
         },
@@ -119,6 +119,12 @@ const Reimbursement = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    batch_code: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      comment:
+        "Batch identifier for grouping multiple receipts submitted together",
+    },
   },
   {
     tableName: "reimbursements",
@@ -129,7 +135,7 @@ const Reimbursement = sequelize.define(
         return new Date(this.date_of_expense).toISOString().split("T")[0];
       },
     },
-  }
+  },
 );
 
 Reimbursement.associate = (models) => {

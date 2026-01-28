@@ -44,6 +44,7 @@ import {
 import { useAppContext } from "../App";
 import { useTheme } from "@mui/material/styles";
 import { userUserStore } from "../store/userUserStore";
+import BatchViewer from "./BatchViewer";
 
 const isPDF = (receipt) => {
   if (typeof receipt === "string") {
@@ -111,7 +112,7 @@ function StatusTracker() {
             "Content-Type": "application/json",
           },
           credentials: "include",
-        }
+        },
       );
 
       if (!response.ok) {
@@ -156,7 +157,7 @@ function StatusTracker() {
               .toLocaleDateString("en-CA")
               .toLowerCase()
               .includes(term)) ||
-          (item.status && item.status.toLowerCase().includes(term))
+          (item.status && item.status.toLowerCase().includes(term)),
       );
     }
 
@@ -213,22 +214,23 @@ function StatusTracker() {
     setReceiptZoom((prev) => Math.max(prev - 0.25, 0.5));
 
   const handleDownloadReceipt = () => {
-  if (!selectedTicket?.receipt) return;
+    if (!selectedTicket?.receipt) return;
 
-  try {
-    const link = document.createElement("a");
-    link.href = selectedTicket.receipt.url;
-    link.download = selectedTicket.receipt.filename || `receipt-${selectedTicket.id}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showNotification("Receipt downloaded successfully", "success");
-  } catch (error) {
-    console.error("Download failed:", error);
-    showNotification("Failed to download receipt", "error");
-  }
-};
+    try {
+      const link = document.createElement("a");
+      link.href = selectedTicket.receipt.url;
+      link.download =
+        selectedTicket.receipt.filename || `receipt-${selectedTicket.id}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showNotification("Receipt downloaded successfully", "success");
+    } catch (error) {
+      console.error("Download failed:", error);
+      showNotification("Failed to download receipt", "error");
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -249,7 +251,7 @@ function StatusTracker() {
     }
 
     const sortedApprovals = [...ticket.approvals].sort(
-      (a, b) => b.approval_level - a.approval_level
+      (a, b) => b.approval_level - a.approval_level,
     );
 
     return sortedApprovals.map((approval) => ({
@@ -268,10 +270,10 @@ function StatusTracker() {
     if (!approvals || approvals.length === 0) return 0;
 
     const sortedApprovals = [...approvals].sort(
-      (a, b) => a.approval_level - b.approval_level
+      (a, b) => a.approval_level - b.approval_level,
     );
     const pendingIndex = sortedApprovals.findIndex(
-      (a) => a.status === "Pending"
+      (a) => a.status === "Pending",
     );
 
     if (pendingIndex === -1) {
@@ -305,7 +307,7 @@ function StatusTracker() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedReimbursements = filteredReimbursements.slice(
     startIndex,
-    endIndex
+    endIndex,
   );
 
   const handlePageChange = (event, value) => {
@@ -416,8 +418,12 @@ function StatusTracker() {
                     REIMBURSABLE AMOUNT
                   </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>CATEGORY</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>DATE OF EXPENSE</TableCell>
-                  <TableCell sx={{ fontWeight: "bold" }}>REIMBURSEMENT SUBMISSION DATE</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    DATE OF EXPENSE
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    REIMBURSEMENT SUBMISSION DATE
+                  </TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>STATUS</TableCell>
                   <TableCell></TableCell>
                 </TableRow>
@@ -432,14 +438,20 @@ function StatusTracker() {
                           sx={{ fontWeight: "medium" }}
                           title={item.items || `${item.category} Reimbursement`}
                         >
-                          {truncateText(item.items || `${item.category} Reimbursement`, 50)}
+                          {truncateText(
+                            item.items || `${item.category} Reimbursement`,
+                            50,
+                          )}
                         </Typography>
-                        <Typography 
-                          variant="caption" 
+                        <Typography
+                          variant="caption"
                           color="text.secondary"
                           title={item.description || "No description provided"}
                         >
-                          {truncateText(item.description || "No description provided", 50)}
+                          {truncateText(
+                            item.description || "No description provided",
+                            50,
+                          )}
                         </Typography>
                       </Box>
                     </TableCell>
@@ -447,7 +459,7 @@ function StatusTracker() {
                       <Typography variant="body2" sx={{ fontWeight: "medium" }}>
                         ₱
                         {parseFloat(
-                          item.reimbursable_amount || item.total
+                          item.reimbursable_amount || item.total,
                         ).toLocaleString("en-PH", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
@@ -464,7 +476,9 @@ function StatusTracker() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {item.submittedAt ? formatDate(item.submittedAt) : "N/A"}
+                        {item.submittedAt
+                          ? formatDate(item.submittedAt)
+                          : "N/A"}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -586,6 +600,23 @@ function StatusTracker() {
                 </Box>
               </Box>
 
+              {selectedTicket && selectedTicket.batch_code && (
+                <Box sx={{ p: 3, pt: 0, mt: 2 }}>
+                  <BatchViewer
+                    batchCode={selectedTicket.batch_code}
+                    currentReimbursementId={selectedTicket.id}
+                    onViewReceipt={(reimbursement) => {
+                      // Close current dialog
+                      handleCloseDialog();
+                      // Wait for animation, then open the selected one
+                      setTimeout(() => {
+                        handleOpenDetails(reimbursement);
+                      }, 300);
+                    }}
+                  />
+                </Box>
+              )}
+
               {/* Two Column Content */}
               <Grid container spacing={3} wrap="nowrap" sx={{ p: 3 }}>
                 {/* Left Column - Details */}
@@ -619,7 +650,10 @@ function StatusTracker() {
                         ₱
                         {parseFloat(selectedTicket.total).toLocaleString(
                           "en-PH",
-                          { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          },
                         )}
                       </Typography>
                     </Box>
@@ -638,7 +672,7 @@ function StatusTracker() {
                       >
                         ₱
                         {parseFloat(
-                          selectedTicket.reimbursable_amount
+                          selectedTicket.reimbursable_amount,
                         ).toLocaleString("en-PH", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
@@ -745,7 +779,7 @@ function StatusTracker() {
                       </Typography>
                       <Typography variant="body2">
                         {new Date(
-                          selectedTicket.submittedAt
+                          selectedTicket.submittedAt,
                         ).toLocaleDateString()}
                       </Typography>
                     </Box>
@@ -878,63 +912,75 @@ function StatusTracker() {
                           )}
 
                           {isPDF(selectedTicket.receipt) ? (
-  <Box
-    component="iframe"
-    src={selectedTicket.receipt.url}
-    sx={{
-      width: "100%",
-      height: "480px",
-      border: "none",
-      borderRadius: 1,
-      display: receiptLoading ? "none" : "block",
-    }}
-    onLoad={() => setReceiptLoading(false)}
-    onLoadStart={() => setReceiptLoading(true)}
-    onError={(e) => {
-      console.error("Failed to load receipt PDF:", selectedTicket.receipt);
-      setReceiptLoading(false);
-      showNotification("Failed to load receipt PDF", "error");
-    }}
-    title="Receipt PDF"
-  />
-) : (
-  <Box
-    component="img"
-    src={selectedTicket.receipt.url}
-    alt="Receipt"
-    sx={{
-      maxWidth: "100%",
-      maxHeight: "480px",
-      objectFit: "contain",
-      transform: `scale(${receiptZoom})`,
-      transition: "transform 0.2s ease-in-out",
-      display: receiptLoading ? "none" : "block",
-    }}
-    onLoad={() => setReceiptLoading(false)}
-    onLoadStart={() => setReceiptLoading(true)}
-    onError={(e) => {
-      console.error("Failed to load receipt:", selectedTicket.receipt);
-      setReceiptLoading(false);
-      showNotification("Failed to load receipt image", "error");
-    }}
-  />
-)}
+                            <Box
+                              component="iframe"
+                              src={selectedTicket.receipt.url}
+                              sx={{
+                                width: "100%",
+                                height: "480px",
+                                border: "none",
+                                borderRadius: 1,
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error(
+                                  "Failed to load receipt PDF:",
+                                  selectedTicket.receipt,
+                                );
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt PDF",
+                                  "error",
+                                );
+                              }}
+                              title="Receipt PDF"
+                            />
+                          ) : (
+                            <Box
+                              component="img"
+                              src={selectedTicket.receipt.url}
+                              alt="Receipt"
+                              sx={{
+                                maxWidth: "100%",
+                                maxHeight: "480px",
+                                objectFit: "contain",
+                                transform: `scale(${receiptZoom})`,
+                                transition: "transform 0.2s ease-in-out",
+                                display: receiptLoading ? "none" : "block",
+                              }}
+                              onLoad={() => setReceiptLoading(false)}
+                              onLoadStart={() => setReceiptLoading(true)}
+                              onError={(e) => {
+                                console.error(
+                                  "Failed to load receipt:",
+                                  selectedTicket.receipt,
+                                );
+                                setReceiptLoading(false);
+                                showNotification(
+                                  "Failed to load receipt image",
+                                  "error",
+                                );
+                              }}
+                            />
+                          )}
                         </Box>
 
                         {selectedTicket.receipt.filename && (
-  <Typography
-    variant="caption"
-    color="text.secondary"
-    sx={{
-      display: "block",
-      mt: 1,
-      textAlign: "center",
-    }}
-  >
-    {selectedTicket.receipt.filename}
-    {isPDF(selectedTicket.receipt) && " (PDF)"}
-  </Typography>
-)}
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              display: "block",
+                              mt: 1,
+                              textAlign: "center",
+                            }}
+                          >
+                            {selectedTicket.receipt.filename}
+                            {isPDF(selectedTicket.receipt) && " (PDF)"}
+                          </Typography>
+                        )}
                       </Box>
                     )}
                   </Box>
@@ -1013,8 +1059,8 @@ function StatusTracker() {
                                   {step.status === "Approved"
                                     ? "Approved"
                                     : step.status === "Rejected"
-                                    ? "Rejected"
-                                    : "Processed"}{" "}
+                                      ? "Rejected"
+                                      : "Processed"}{" "}
                                   on: {step.date}
                                 </Typography>
                               )}
@@ -1089,7 +1135,7 @@ function StatusTracker() {
                           <Typography variant="caption" color="text.secondary">
                             Submitted on:{" "}
                             {new Date(
-                              selectedTicket.submittedAt
+                              selectedTicket.submittedAt,
                             ).toLocaleString()}
                           </Typography>
                         </StepContent>

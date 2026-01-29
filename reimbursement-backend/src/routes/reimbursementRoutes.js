@@ -69,6 +69,7 @@ import { upload } from "../middlewares/upload.js";
 import Reimbursement from "../models/Reimbursement.js"; // ← MUST HAVE THIS
 import { Op } from "sequelize"; // ← MUST HAVE THIS
 import Approval from "../models/Approval.js";
+import User from "../models/User.js"; // ✅ ADDED: Import User model
 
 const router = express.Router();
 
@@ -126,7 +127,7 @@ router.post(
   "/",
   isAuthenticated,
   upload.single("receipt"),
-  createReimbursement
+  createReimbursement,
 );
 
 /**
@@ -213,7 +214,7 @@ router.get("/monthly-stats", isAuthenticated, async (req, res) => {
           (r) =>
             r.status === "Pending" ||
             r.status === "Manager Approved" ||
-            r.status === "Michelle Approved"
+            r.status === "Michelle Approved",
         ).length,
         rejected: reimbursements.filter((r) => r.status === "Rejected").length,
         total: reimbursements.length,
@@ -240,7 +241,7 @@ router.get("/monthly-stats", isAuthenticated, async (req, res) => {
           (r) =>
             r.status === "Pending" ||
             r.status === "Manager Approved" ||
-            r.status === "Michelle Approved"
+            r.status === "Michelle Approved",
         ).length,
         rejected: approval.filter((r) => r.status === "Rejected").length,
         total: approval.length,
@@ -249,22 +250,6 @@ router.get("/monthly-stats", isAuthenticated, async (req, res) => {
       console.log("Calculated stats:", stats);
       return res.json(stats);
     }
-
-    // const stats = {
-    //   submitted: reimbursements.length,
-    //   approved: reimbursements.filter((r) => r.status === "Approved").length,
-    //   pending: reimbursements.filter(
-    //     (r) =>
-    //       r.status === "Pending" ||
-    //       r.status === "Manager Approved" ||
-    //       r.status === "Michelle Approved"
-    //   ).length,
-    //   rejected: reimbursements.filter((r) => r.status === "Rejected").length,
-    //   total: reimbursements.length,
-    // };
-
-    // console.log("Calculated stats:", stats);
-    // res.json(stats);
   } catch (error) {
     console.error("Error fetching monthly stats:", error);
     res.status(500).json({ message: "Error fetching monthly statistics" });
@@ -319,6 +304,109 @@ router.get("/pending-approvals", isAuthenticated, getPendingApprovals);
  */
 
 router.get("/pending-all-approvals", isAuthenticated, getPendingAllApprovals);
+
+/**
+ * @swagger
+ * /api/reimbursements/batch/{batchCode}:
+ *   get:
+ *     summary: Get all reimbursements in a specific batch
+ *     tags: [Reimbursements]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchCode
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Batch code to retrieve
+ *     responses:
+ *       200:
+ *         description: List of reimbursements in the batch
+ *       401:
+ *         description: Not authenticated
+ *       500:
+ *         description: Server error
+ */
+
+// ✅ FIXED: Get all reimbursements in a batch - using proper ES6 imports
+router.get("/batch/:batchCode", isAuthenticated, async (req, res) => {
+  try {
+    const { batchCode } = req.params;
+
+    console.log(`📦 Fetching batch: ${batchCode}`);
+
+    const reimbursements = await Reimbursement.findAll({
+      where: { batch_code: batchCode },
+      include: [
+        {
+          model: User, // ✅ Using imported User model
+          as: "user",
+          attributes: ["id", "name", "email", "role"],
+        },
+        {
+          model: Approval, // ✅ Using imported Approval model
+          as: "approvals",
+          include: [
+            {
+              model: User, // ✅ Using imported User model
+              as: "approver",
+              attributes: ["id", "name", "email", "role"],
+            },
+          ],
+        },
+      ],
+      order: [["id", "ASC"]],
+    });
+
+    console.log(`✅ Found ${reimbursements.length} reimbursements in batch`);
+
+    // Format receipts for response
+    const formattedReimbursements = reimbursements.map((r) => ({
+      id: r.id,
+      user_id: r.user_id,
+      category: r.category,
+      type: r.type,
+      description: r.description,
+      items: r.items,
+      merchant: r.merchant,
+      total: r.total,
+      reimbursable_amount: r.reimbursable_amount,
+      status: r.status,
+      batch_code: r.batch_code,
+      date: r.date_of_expense,
+      sapCode: r.sap_code,
+      submittedAt: r.submitted_at,
+      approved_at: r.approved_at,
+      number_of_people: r.number_of_people,
+      number_of_days: r.number_of_days,
+      receipt: r.receipt_url
+        ? {
+            url: r.receipt_url,
+            mimetype: r.receipt_mimetype,
+            filename: r.receipt_filename,
+          }
+        : null,
+      user: r.user
+        ? {
+            id: r.user.id,
+            name: r.user.name,
+            email: r.user.email,
+            role: r.user.role,
+          }
+        : null,
+      approvals: r.approvals || [],
+    }));
+
+    res.json(formattedReimbursements);
+  } catch (error) {
+    console.error("❌ Error fetching batch reimbursements:", error);
+    res.status(500).json({
+      error: "Failed to fetch batch reimbursements",
+      details: error.message,
+    });
+  }
+});
 
 /**
  * @swagger

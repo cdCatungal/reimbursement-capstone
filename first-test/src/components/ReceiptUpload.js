@@ -22,6 +22,7 @@ import {
   DialogActions,
   Divider,
   Stack,
+  Chip,
 } from "@mui/material";
 import {
   CloudUpload,
@@ -33,31 +34,45 @@ import {
   Edit,
   Send,
   Close,
+  Add,
+  Visibility,
 } from "@mui/icons-material";
 
 function ReceiptUpload() {
   const theme = useTheme();
   const { showNotification, user } = useAppContext();
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [extractedText, setExtractedText] = useState("");
+
+  // Multi-receipt state
+  const [receipts, setReceipts] = useState([
+    {
+      id: Date.now(),
+      file: null,
+      preview: null,
+      extractedText: "",
+      merchant: "",
+      total: "",
+      description: "",
+      items: "",
+      category: "Meal with Client",
+      date: new Date().toISOString().split("T")[0],
+      number_of_people: 1,
+      number_of_days: 1,
+      isProcessing: false,
+    },
+  ]);
+
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
-    items: "",
-    total: "",
-    description: "",
-    category: "Meal with Client",
-    merchant: "",
     sap_code: "",
-    number_of_people: 1,
-    number_of_days: 1,
   });
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
-  const [errors, setErrors] = useState({});
   const [availableSapCodes, setAvailableSapCodes] = useState([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [editingReceiptId, setEditingReceiptId] = useState(null);
+  const [previewReceiptId, setPreviewReceiptId] = useState(null);
+
+  // ✅ Rate limiting state
+  const [lastOCRCall, setLastOCRCall] = useState(0);
+  const OCR_COOLDOWN_MS = 3000; // 3 seconds between OCR calls
 
   const categories = [
     "Transportation (Commute)",
@@ -78,7 +93,7 @@ function ReceiptUpload() {
     category,
     total,
     numPeople = 1,
-    numDays = 1
+    numDays = 1,
   ) => {
     const totalAmount = parseFloat(total) || 0;
 
@@ -99,7 +114,7 @@ function ReceiptUpload() {
       case "Accommodation":
         maxReimbursable = Math.min(
           totalAmount,
-          limit.maxPerUnit * numPeople * numDays
+          limit.maxPerUnit * numPeople * numDays,
         );
         break;
       default:
@@ -132,7 +147,7 @@ function ReceiptUpload() {
             Maximum reimbursable: ₱
             {(limit.maxPerUnit * numPeople * numDays).toFixed(2)}
             <br />
-            (₱{limit.maxPerUnit}/person/day × {numPeople}
+            (₱{limit.maxPerUnit}/person/day × {numPeople}{" "}
             {numPeople === 1 ? "person" : "people"})
             <br />× {numDays} {numDays === 1 ? "day" : "days"}
           </>
@@ -149,7 +164,7 @@ function ReceiptUpload() {
       fetchUserSapCodes();
 
       if (user.role === "Invoice Specialist") {
-        setFormData((prev) => ({ ...prev, sap_code: "INVOICE_SPECIALIST" }));
+        setFormData({ sap_code: "INVOICE_SPECIALIST" });
       }
     }
   }, [user]);
@@ -160,7 +175,7 @@ function ReceiptUpload() {
         `${process.env.REACT_APP_API_URL}/api/users/settings`,
         {
           credentials: "include",
-        }
+        },
       );
       const data = await response.json();
 
@@ -169,12 +184,12 @@ function ReceiptUpload() {
         setAvailableSapCodes(codes);
 
         if (codes.length === 1 && !bypassesSapValidation) {
-          setFormData((prev) => ({ ...prev, sap_code: codes[0] }));
+          setFormData({ sap_code: codes[0] });
         }
 
         console.log(
           `✅ ${user.role} has ${codes.length} assigned SAP codes:`,
-          codes
+          codes,
         );
       }
     } catch (error) {
@@ -185,63 +200,130 @@ function ReceiptUpload() {
     }
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-      const allowedExtensions = ["jpg", "jpeg", "png", "pdf"];
+  // Add new receipt
+  const handleAddReceipt = () => {
+    setReceipts([
+      ...receipts,
+      {
+        id: Date.now(),
+        file: null,
+        preview: null,
+        extractedText: "",
+        merchant: "",
+        total: "",
+        description: "",
+        items: "",
+        category: "Meal with Client",
+        date: new Date().toISOString().split("T")[0],
+        number_of_people: 1,
+        number_of_days: 1,
+        isProcessing: false,
+      },
+    ]);
+  };
 
-      const fileExtension = file.name.split(".").pop().toLowerCase();
+  // Remove receipt
+  const handleRemoveReceipt = (id) => {
+    if (receipts.length === 1) {
+      showNotification("Must have at least one receipt", "warning");
+      return;
+    }
 
-      if (
-        !allowedTypes.includes(file.type) ||
-        !allowedExtensions.includes(fileExtension)
-      ) {
-        showNotification(
-          "Only JPG, JPEG, PNG, or PDF files are allowed",
-          "error"
-        );
-        return;
-      }
+    setReceipts(receipts.filter((r) => r.id !== id));
 
-      if (file.size > 5 * 1024 * 1024) {
-        showNotification("File size must be less than 5MB", "error");
-        return;
-      }
-
-      setImage(file);
-      setExtractedText("");
-      setErrors((prev) => ({ ...prev, image: "" }));
-
-      if (file.type !== "application/pdf") {
-        const reader = new FileReader();
-        reader.onload = (event) => setImagePreview(event.target.result);
-        reader.readAsDataURL(file);
-      } else {
-        setImagePreview("pdf");
-      }
+    if (editingReceiptId === id) {
+      setEditingReceiptId(null);
     }
   };
 
-  const handleOCR = async () => {
-    if (!image) {
+  // Update receipt data
+  const updateReceipt = (id, updates) => {
+    setReceipts(receipts.map((r) => (r.id === id ? { ...r, ...updates } : r)));
+  };
+
+  // Handle file upload for a specific receipt
+  const handleFileUpload = (receiptId, file) => {
+    console.log("📎 handleFileUpload called", { receiptId, file: file?.name });
+
+    if (!file) {
+      console.log("❌ No file provided");
+      return;
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+    const allowedExtensions = ["jpg", "jpeg", "png", "pdf"];
+    const fileExtension = file.name.split(".").pop().toLowerCase();
+
+    if (
+      !allowedTypes.includes(file.type) ||
+      !allowedExtensions.includes(fileExtension)
+    ) {
+      showNotification(
+        "Only JPG, JPEG, PNG, or PDF files are allowed",
+        "error",
+      );
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification("File size must be less than 5MB", "error");
+      return;
+    }
+
+    console.log("✅ File validation passed, type:", file.type);
+
+    if (file.type !== "application/pdf") {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        console.log("📸 Image loaded, updating receipt");
+        updateReceipt(receiptId, {
+          file,
+          preview: event.target.result,
+        });
+      };
+      reader.onerror = (error) => {
+        console.error("❌ FileReader error:", error);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      console.log("📄 PDF file, updating receipt");
+      updateReceipt(receiptId, {
+        file,
+        preview: "pdf",
+      });
+    }
+  };
+
+  // ✅ UPDATED: Handle OCR with rate limiting, retry logic, and global lock
+  const handleOCR = async (receiptId) => {
+    const receipt = receipts.find((r) => r.id === receiptId);
+    if (!receipt || !receipt.file) {
       showNotification("Please select a file first", "warning");
       return;
     }
 
-    setLoading(true);
-    setOcrProgress(0);
+    // ✅ Check rate limiting
+    const now = Date.now();
+    const timeSinceLastCall = now - lastOCRCall;
+
+    if (timeSinceLastCall < OCR_COOLDOWN_MS) {
+      const waitTime = Math.ceil((OCR_COOLDOWN_MS - timeSinceLastCall) / 1000);
+      showNotification(
+        `⏳ Please wait ${waitTime} seconds before processing another receipt`,
+        "info",
+      );
+      return;
+    }
+
+    updateReceipt(receiptId, { isProcessing: true });
+    setLastOCRCall(now);
+    setShowOcrLoading(true); // ✅ ADDED: Block all UI interactions
 
     try {
-      const progressInterval = setInterval(() => {
-        setOcrProgress((prev) => {
-          if (prev >= 90) return 90;
-          return prev + 10;
-        });
-      }, 200);
-
       const formDataToSend = new FormData();
-      formDataToSend.append("image", image);
+      formDataToSend.append("image", receipt.file);
+
+      console.log(`📤 Sending OCR request for receipt ${receiptId}`);
 
       const res = await fetch(
         `${process.env.REACT_APP_API_URL}/api/ocr/structured`,
@@ -249,39 +331,44 @@ function ReceiptUpload() {
           method: "POST",
           body: formDataToSend,
           credentials: "include",
-        }
+        },
       );
-
-      clearInterval(progressInterval);
-      setOcrProgress(100);
 
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "OCR failed");
+      // ✅ Handle rate limit error specifically
+      if (res.status === 429) {
+        showNotification(
+          `⏳ ${data.message || "Rate limit reached. Please wait a moment and try again."}`,
+          "warning",
+        );
+        updateReceipt(receiptId, { isProcessing: false });
+        return;
+      }
 
-      setExtractedText(data.cleanedText || data.rawText);
+      if (!res.ok) {
+        throw new Error(data.error || `OCR failed with status ${res.status}`);
+      }
+
+      const extractedText = data.cleanedText || data.rawText;
 
       if (data.structured) {
         const structured = data.structured;
 
         console.log("🤖 AI Extracted Data:", structured);
 
-        let formattedDate = formData.date;
+        let formattedDate = receipt.date;
         if (structured.date) {
           try {
             const parts = structured.date.split(/[/-]/);
             if (parts.length === 3) {
               let [day, month, year] = parts;
-
               day = day.padStart(2, "0");
               month = month.padStart(2, "0");
-
               if (year.length === 2) {
                 year = "20" + year;
               }
-
               formattedDate = `${year}-${month}-${day}`;
-              console.log("📅 Date:", structured.date, "→", formattedDate);
             }
           } catch (e) {
             console.error("❌ Date parse error:", e);
@@ -294,32 +381,28 @@ function ReceiptUpload() {
             .map((item) => {
               if (typeof item === "object" && item.description) {
                 return item.price && item.price > 0
-                  ? `${item.description} - ₱${parseFloat(item.price).toFixed(
-                      2
-                    )}`
+                  ? `${item.description} - ₱${parseFloat(item.price).toFixed(2)}`
                   : item.description;
               }
               return "";
             })
             .filter((line) => line.trim())
             .join("\n");
-
-          console.log("📦 Items:", structured.items.length, "extracted");
         }
 
         let formattedTotal = "";
         if (structured.total) {
           formattedTotal = String(parseFloat(structured.total).toFixed(2));
-          console.log("💰 Total: ₱", formattedTotal);
         }
 
-        setFormData((prev) => ({
-          ...prev,
+        updateReceipt(receiptId, {
+          extractedText,
           date: formattedDate,
-          merchant: structured.merchant || prev.merchant,
-          total: formattedTotal || prev.total,
-          description: itemsText || prev.description,
-        }));
+          merchant: structured.merchant || receipt.merchant,
+          total: formattedTotal || receipt.total,
+          description: itemsText || receipt.description,
+          isProcessing: false,
+        });
 
         const details = [
           structured.merchant ? `${structured.merchant}` : null,
@@ -331,17 +414,21 @@ function ReceiptUpload() {
 
         showNotification(`✅ Receipt extracted! ${details}`, "success");
       } else {
+        updateReceipt(receiptId, {
+          extractedText,
+          isProcessing: false,
+        });
         showNotification(
           "⚠️ OCR completed but no structured data found",
-          "warning"
+          "warning",
         );
       }
     } catch (error) {
       console.error("❌ OCR Error:", error);
       showNotification(`OCR failed: ${error.message}`, "error");
+      updateReceipt(receiptId, { isProcessing: false });
     } finally {
-      setLoading(false);
-      setTimeout(() => setOcrProgress(0), 500);
+      setShowOcrLoading(false); // ✅ ADDED: Always unblock UI
     }
   };
 
@@ -356,111 +443,71 @@ function ReceiptUpload() {
     return "";
   };
 
-  const handleNumericInput = (e) => {
-    const { name, value } = e.target;
+  const validateReceipt = (receipt) => {
+    const errors = {};
 
-    // Remove non-numeric characters (except decimal point for total)
-    let cleanValue = value;
-    if (name === "total") {
-      // Allow only numbers and one decimal point
-      cleanValue = value.replace(/[^0-9.]/g, "");
-      // Ensure only one decimal point
-      const parts = cleanValue.split(".");
-      if (parts.length > 2) {
-        cleanValue = parts[0] + "." + parts.slice(1).join("");
+    const dateError = validateDate(receipt.date);
+    if (dateError) errors.date = dateError;
+
+    if (!receipt.date) errors.date = "Date is required";
+    if (!receipt.total || parseFloat(receipt.total) <= 0) {
+      errors.total = "Valid total amount is required";
+    }
+    if (!receipt.category) errors.category = "Category is required";
+    if (!receipt.items.trim()) errors.items = "Purpose is required";
+    if (!receipt.description.trim())
+      errors.description = "Description is required";
+
+    if (receipt.category === "Meal with Client") {
+      const numPeople = parseInt(receipt.number_of_people);
+      if (!numPeople || numPeople < 1) {
+        errors.number_of_people = "Number of people must be at least 1";
       }
-    } else {
-      // For number_of_people and number_of_days, only allow integers
-      cleanValue = value.replace(/[^0-9]/g, "");
     }
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: cleanValue,
-    }));
-
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
+    if (receipt.category === "Accommodation") {
+      const numDays = parseInt(receipt.number_of_days);
+      if (!numDays || numDays < 1) {
+        errors.number_of_days = "Number of days must be at least 1";
+      }
+      const numPeople = parseInt(receipt.number_of_people);
+      if (!numPeople || numPeople < 1) {
+        errors.number_of_people = "Number of people must be at least 1";
+      }
     }
+
+    if (!receipt.file) errors.file = "Receipt file is required";
+
+    return errors;
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData((prev) => {
-      let processedValue = value;
-
-      // ✅ Convert number fields to actual numbers
-      if (name === "total") {
-        if (value === "") {
-          processedValue = ""; // Allow empty
-        } else {
-          // Convert to number and immediately round to avoid floating point
-          processedValue = Math.round(parseFloat(value) * 100) / 100;
-        }
+  const validateAllReceipts = () => {
+    let allValid = true;
+    const updatedReceipts = receipts.map((receipt) => {
+      const errors = validateReceipt(receipt);
+      if (Object.keys(errors).length > 0) {
+        allValid = false;
+        return { ...receipt, errors };
       }
-
-      // ✅ Also fix other number fields
-      if (name === "number_of_people" || name === "number_of_days") {
-        processedValue = value === "" ? "" : parseInt(value) || 1;
-      }
-
-      const updated = { ...prev, [name]: processedValue };
-      // const updated = { ...prev, [name]: value };
-      return updated;
+      return { ...receipt, errors: {} };
     });
 
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    const dateError = validateDate(formData.date);
-    if (dateError) newErrors.date = dateError;
-
-    if (!formData.date) newErrors.date = "Date is required";
-    if (!formData.total || parseFloat(formData.total) <= 0) {
-      newErrors.total = "Valid total amount is required";
-    }
-    if (!formData.category) newErrors.category = "Category is required";
-    if (!formData.items.trim()) newErrors.items = "Purpose is required";
-    if (!formData.description.trim())
-      newErrors.description = "Description is required";
-
-    if (formData.category === "Meal with Client") {
-      const numPeople = parseInt(formData.number_of_people);
-      if (!numPeople || numPeople < 1) {
-        newErrors.number_of_people = "Number of people must be at least 1";
-      }
-    }
-
-    if (formData.category === "Accommodation") {
-      const numDays = parseInt(formData.number_of_days);
-      if (!numDays || numDays < 1) {
-        newErrors.number_of_days = "Number of days must be at least 1";
-      }
-      const numPeople = parseInt(formData.number_of_people);
-      if (!numPeople || numPeople < 1) {
-        newErrors.number_of_people = "Number of people must be at least 1";
-      }
-    }
+    setReceipts(updatedReceipts);
 
     if (!bypassesSapValidation && !formData.sap_code) {
-      newErrors.sap_code = "SAP code is required";
+      showNotification("Please select a SAP code", "error");
+      return false;
     }
 
-    if (!image) newErrors.image = "Receipt file is required";
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return allValid;
   };
 
   const handleSubmitClick = () => {
-    if (!validateForm()) {
-      showNotification("Please fill in all required fields", "error");
+    if (!validateAllReceipts()) {
+      showNotification(
+        "Please complete all required fields for all receipts",
+        "error",
+      );
       return;
     }
 
@@ -477,137 +524,1046 @@ function ReceiptUpload() {
     setSubmitting(true);
 
     try {
-      const reimbursableAmount = calculateReimbursableAmount(
-        formData.category,
-        formData.total,
-        parseInt(formData.number_of_people) || 1,
-        parseInt(formData.number_of_days) || 1
-      );
+      // Generate batch code ONCE for all receipts
+      const batchCode = `BATCH_${Date.now()}_${user.id}`;
+      console.log("📦 Submitting batch:", batchCode);
 
-      const formDataToSend = new FormData();
-      formDataToSend.append("category", formData.category);
-      formDataToSend.append("type", formData.category);
-      formDataToSend.append("description", formData.description);
-      formDataToSend.append("items", formData.items);
-      formDataToSend.append("total", parseFloat(formData.total));
-      formDataToSend.append("reimbursable_amount", reimbursableAmount);
-      formDataToSend.append("merchant", formData.merchant);
-      formDataToSend.append("date_of_expense", formData.date);
-      formDataToSend.append("sap_code", formData.sap_code);
-
-      if (formData.category === "Meal with Client") {
-        formDataToSend.append(
-          "number_of_people",
-          parseInt(formData.number_of_people)
+      // Submit all receipts with the same batch code
+      const promises = receipts.map(async (receipt, index) => {
+        const reimbursableAmount = calculateReimbursableAmount(
+          receipt.category,
+          receipt.total,
+          parseInt(receipt.number_of_people) || 1,
+          parseInt(receipt.number_of_days) || 1,
         );
-      }
-      if (formData.category === "Accommodation") {
-        formDataToSend.append(
-          "number_of_days",
-          parseInt(formData.number_of_days)
-        );
-        formDataToSend.append(
-          "number_of_people",
-          parseInt(formData.number_of_people)
-        );
-      }
 
-      if (image) {
-        formDataToSend.append("receipt", image);
-      }
+        const formDataToSend = new FormData();
+        formDataToSend.append("category", receipt.category);
+        formDataToSend.append("type", receipt.category);
+        formDataToSend.append("description", receipt.description);
+        formDataToSend.append("items", receipt.items);
+        formDataToSend.append("total", parseFloat(receipt.total));
+        formDataToSend.append("reimbursable_amount", reimbursableAmount);
+        formDataToSend.append("merchant", receipt.merchant);
+        formDataToSend.append("date_of_expense", receipt.date);
+        formDataToSend.append("sap_code", formData.sap_code);
+        formDataToSend.append("batch_code", batchCode);
 
-      const res = await fetch(
-        `${process.env.REACT_APP_API_URL}/api/reimbursements`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-          body: formDataToSend,
-          credentials: "include",
+        if (receipt.category === "Meal with Client") {
+          formDataToSend.append(
+            "number_of_people",
+            parseInt(receipt.number_of_people),
+          );
         }
+        if (receipt.category === "Accommodation") {
+          formDataToSend.append(
+            "number_of_days",
+            parseInt(receipt.number_of_days),
+          );
+          formDataToSend.append(
+            "number_of_people",
+            parseInt(receipt.number_of_people),
+          );
+        }
+
+        if (receipt.file) {
+          formDataToSend.append("receipt", receipt.file);
+        }
+
+        console.log(`📄 Submitting receipt ${index + 1}/${receipts.length}`);
+
+        const res = await fetch(
+          `${process.env.REACT_APP_API_URL}/api/reimbursements`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${user.token}`,
+            },
+            body: formDataToSend,
+            credentials: "include",
+          },
+        );
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(
+            `Receipt ${index + 1} failed: ${errorData.error || res.status}`,
+          );
+        }
+
+        const data = await res.json();
+        console.log(`✅ Receipt ${index + 1} submitted:`, data.id);
+        return data;
+      });
+
+      // Wait for ALL receipts to submit
+      const results = await Promise.all(promises);
+
+      console.log(
+        `✅ All ${results.length} receipts submitted successfully in batch ${batchCode}`,
       );
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(
-          errorData.error || `Server responded with ${res.status}`
-        );
-      }
+      showNotification(
+        `✅ Successfully submitted ${receipts.length} reimbursement${receipts.length > 1 ? "s" : ""} in batch ${batchCode}`,
+        "success",
+      );
 
-      const data = await res.json();
-
-      showNotification("Reimbursement submitted successfully!", "success");
-      console.log("Created reimbursement:", data);
-
+      // Reset form
       const defaultSapCode = bypassesSapValidation
         ? "INVOICE_SPECIALIST"
         : availableSapCodes.length === 1
-        ? availableSapCodes[0]
-        : "";
+          ? availableSapCodes[0]
+          : "";
 
-      setFormData({
-        date: new Date().toISOString().split("T")[0],
-        items: "",
-        total: "",
-        description: "",
-        category: "Meal with Client",
-        merchant: "",
-        sap_code: defaultSapCode,
-        number_of_people: 1,
-        number_of_days: 1,
-      });
-      setImage(null);
-      setImagePreview(null);
-      setExtractedText("");
-      setErrors({});
+      setFormData({ sap_code: defaultSapCode });
+      setReceipts([
+        {
+          id: Date.now(),
+          file: null,
+          preview: null,
+          extractedText: "",
+          merchant: "",
+          total: "",
+          description: "",
+          items: "",
+          category: "Meal with Client",
+          date: new Date().toISOString().split("T")[0],
+          number_of_people: 1,
+          number_of_days: 1,
+          isProcessing: false,
+        },
+      ]);
     } catch (err) {
-      console.error("Error submitting reimbursement:", err);
+      console.error("❌ Batch submission error:", err);
       showNotification(
-        err.message || "Failed to submit reimbursement",
-        "error"
+        err.message || "Failed to submit reimbursements",
+        "error",
       );
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleClearImage = () => {
-    setImage(null);
-    setImagePreview(null);
-    setExtractedText("");
-    setErrors({});
+  // Receipt Card Component
+  // ✅ UPDATED: Receipt Card Component - disable interactions during OCR
+  const ReceiptCard = ({ receipt, index }) => {
+    const isComplete =
+      receipt.file &&
+      receipt.merchant &&
+      receipt.total &&
+      receipt.items &&
+      receipt.description;
 
-    const defaultSapCode = bypassesSapValidation
-      ? "INVOICE_SPECIALIST"
-      : availableSapCodes.length === 1
-      ? availableSapCodes[0]
-      : "";
-
-    setFormData({
-      date: new Date().toISOString().split("T")[0],
-      items: "",
-      total: "",
-      description: "",
-      category: "Meal with Client",
-      merchant: "",
-      sap_code: defaultSapCode,
-      number_of_people: 1,
-      number_of_days: 1,
-    });
-  };
-
-  const ConfirmationModal = () => {
     const reimbursableAmount = calculateReimbursableAmount(
-      formData.category,
-      formData.total,
-      parseInt(formData.number_of_people) || 1,
-      parseInt(formData.number_of_days) || 1
+      receipt.category,
+      receipt.total,
+      parseInt(receipt.number_of_people) || 1,
+      parseInt(receipt.number_of_days) || 1,
     );
 
-    const totalAmount = parseFloat(formData.total) || 0;
-    const hasLimit = CATEGORY_LIMITS[formData.category];
-    const isOverLimit = hasLimit && reimbursableAmount < totalAmount;
+    return (
+      <Card
+        sx={{
+          position: "relative",
+          border: 2,
+          borderColor: isComplete ? "success.main" : "divider",
+          transition: "all 0.3s",
+          "&:hover": {
+            boxShadow: 6,
+            borderColor: "primary.main",
+          },
+        }}
+      >
+        <CardContent sx={{ p: 2 }}>
+          {/* Header */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {receipt.file ? (
+                receipt.preview === "pdf" ? (
+                  <PictureAsPdf color="primary" />
+                ) : (
+                  <ImageIcon color="primary" />
+                )
+              ) : (
+                <CloudUpload color="disabled" />
+              )}
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Receipt #{index + 1}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", gap: 0.5 }}>
+              <IconButton
+                size="small"
+                onClick={() => setPreviewReceiptId(receipt.id)}
+                disabled={!receipt.file || showOcrLoading} // ✅ UPDATED
+              >
+                <Visibility fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => setEditingReceiptId(receipt.id)}
+                disabled={showOcrLoading} // ✅ UPDATED
+              >
+                <Edit fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleRemoveReceipt(receipt.id)}
+                disabled={receipts.length === 1 || showOcrLoading} // ✅ UPDATED
+              >
+                <Delete fontSize="small" color="error" />
+              </IconButton>
+            </Box>
+          </Box>
+
+          {/* Status Chip */}
+          <Chip
+            label={isComplete ? "Complete" : "Incomplete"}
+            size="small"
+            color={isComplete ? "success" : "warning"}
+            sx={{ mb: 2 }}
+          />
+
+          {/* Receipt Info */}
+          <Stack spacing={1}>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Date:
+              </Typography>
+              <Typography variant="body2">
+                {receipt.date
+                  ? new Date(receipt.date).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })
+                  : "Not set"}
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Category:
+              </Typography>
+              <Typography variant="body2">{receipt.category}</Typography>
+            </Box>
+
+            {receipt.merchant && (
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Merchant:
+                </Typography>
+                <Typography variant="body2">{receipt.merchant}</Typography>
+              </Box>
+            )}
+
+            {receipt.total && (
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Total Amount:
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  ₱{parseFloat(receipt.total).toFixed(2)}
+                </Typography>
+              </Box>
+            )}
+
+            {receipt.total && CATEGORY_LIMITS[receipt.category] && (
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Reimbursable:
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontWeight: 600,
+                    color:
+                      reimbursableAmount < parseFloat(receipt.total)
+                        ? "warning.main"
+                        : "success.main",
+                  }}
+                >
+                  ₱{reimbursableAmount.toFixed(2)}
+                </Typography>
+              </Box>
+            )}
+          </Stack>
+
+          {/* File Upload Area */}
+          {!receipt.file && (
+            <Box sx={{ mt: 2 }}>
+              <input
+                type="file"
+                hidden
+                accept=".jpg, .jpeg, .png, .pdf"
+                id={`file-upload-${receipt.id}`}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  console.log("📎 File selected:", file?.name);
+                  if (file) {
+                    handleFileUpload(receipt.id, file);
+                  }
+                  e.target.value = "";
+                }}
+              />
+              <label htmlFor={`file-upload-${receipt.id}`}>
+                <Button
+                  component="span"
+                  variant="outlined"
+                  startIcon={<CloudUpload />}
+                  fullWidth
+                  size="small"
+                  disabled={showOcrLoading}
+                >
+                  Upload Receipt
+                </Button>
+              </label>
+            </Box>
+          )}
+
+          {/* OCR Button */}
+          {receipt.file && !receipt.extractedText && (
+            <Box sx={{ mt: 2 }}>
+              <Button
+                variant="contained"
+                startIcon={receipt.isProcessing ? <Refresh /> : <ImageIcon />}
+                onClick={() => handleOCR(receipt.id)}
+                disabled={receipt.isProcessing || showOcrLoading} // ✅ UPDATED
+                fullWidth
+                size="small"
+              >
+                {receipt.isProcessing ? "Processing..." : "Extract Data (OCR)"}
+              </Button>
+            </Box>
+          )}
+
+          {/* ✅ REMOVED: Local progress bar - shown globally now */}
+
+          {/* Validation Errors */}
+          {receipt.errors && Object.keys(receipt.errors).length > 0 && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              Please complete all required fields
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // ✅ OCR Loading state at component level (outside dialog)
+  const [showOcrLoading, setShowOcrLoading] = useState(false);
+
+  // ✅ FIXED: Edit Receipt Dialog - NO MORE FLICKERING
+  // ✅ FIXED: Edit Receipt Dialog - NO MORE FLICKERING
+  // Solution 1: Remove receipts from useEffect dependencies
+  // Solution 2: Don't update parent state during OCR, only on dialog close
+
+  // ✅ FIXED: Edit Receipt Dialog - NO MORE FLICKERING
+  // Solution 1: Remove receipts from useEffect dependencies
+  // Solution 2: Don't update parent state during OCR, only on dialog close
+
+  // ✅ FIXED: Edit Receipt Dialog - NO MORE FLICKERING
+  // Solution 1: Remove receipts from useEffect dependencies
+  // Solution 2: Don't update parent state during OCR, only on dialog close
+
+  // ✅ UPDATED: Edit Receipt Dialog with global processing lock
+  const EditReceiptDialog = () => {
+    // Local state to buffer changes
+    const [localReceipt, setLocalReceipt] = useState(null);
+    // ✅ Track if we've initialized to prevent re-syncing
+    const [hasInitialized, setHasInitialized] = useState(false);
+
+    // ✅ SOLUTION 1: Initialize ONCE when dialog opens, never re-sync from receipts array
+    useEffect(() => {
+      if (editingReceiptId !== null && !hasInitialized) {
+        const receipt = receipts.find((r) => r.id === editingReceiptId);
+        if (receipt) {
+          setLocalReceipt({ ...receipt });
+          setHasInitialized(true);
+        }
+      }
+      // Reset initialization flag when dialog closes
+      if (editingReceiptId === null) {
+        setHasInitialized(false);
+        setLocalReceipt(null);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editingReceiptId, hasInitialized]); // ✅ REMOVED 'receipts' from dependencies
+
+    if (!editingReceiptId || !localReceipt) return null;
+
+    const handleChange = (field, value) => {
+      setLocalReceipt((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleNumericInput = (field, value) => {
+      let cleanValue = value;
+      if (field === "total") {
+        cleanValue = value.replace(/[^0-9.]/g, "");
+        const parts = cleanValue.split(".");
+        if (parts.length > 2) {
+          cleanValue = parts[0] + "." + parts.slice(1).join("");
+        }
+        // ✅ Prevent entering value that exceeds 50,000
+        const numericValue = parseFloat(cleanValue);
+        if (!isNaN(numericValue) && numericValue > 50000) {
+          return; // Don't update the state if it would exceed 50,000
+        }
+      } else {
+        cleanValue = value.replace(/[^0-9]/g, "");
+      }
+      handleChange(field, cleanValue);
+    };
+
+    const handleClose = () => {
+      // Save changes back to main state when closing
+      updateReceipt(editingReceiptId, localReceipt);
+      setEditingReceiptId(null);
+    };
+
+    const handleFileUploadLocal = (file) => {
+      if (!file) return;
+
+      const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+      const allowedExtensions = ["jpg", "jpeg", "png", "pdf"];
+      const fileExtension = file.name.split(".").pop().toLowerCase();
+
+      if (
+        !allowedTypes.includes(file.type) ||
+        !allowedExtensions.includes(fileExtension)
+      ) {
+        showNotification(
+          "Only JPG, JPEG, PNG, or PDF files are allowed",
+          "error",
+        );
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        showNotification("File size must be less than 5MB", "error");
+        return;
+      }
+
+      if (file.type !== "application/pdf") {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setLocalReceipt((prev) => ({
+            ...prev,
+            file,
+            preview: event.target.result,
+          }));
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setLocalReceipt((prev) => ({
+          ...prev,
+          file,
+          preview: "pdf",
+        }));
+      }
+    };
+
+    const handleOCRLocal = async () => {
+      if (!localReceipt.file) {
+        showNotification("Please select a file first", "warning");
+        return;
+      }
+
+      // ✅ Check rate limiting
+      const now = Date.now();
+      const timeSinceLastCall = now - lastOCRCall;
+
+      if (timeSinceLastCall < OCR_COOLDOWN_MS) {
+        const waitTime = Math.ceil(
+          (OCR_COOLDOWN_MS - timeSinceLastCall) / 1000,
+        );
+        showNotification(
+          `⏳ Please wait ${waitTime} seconds before processing another receipt`,
+          "info",
+        );
+        return;
+      }
+
+      // Close the dialog first
+      const receiptToProcess = { ...localReceipt };
+      const receiptIdToProcess = editingReceiptId;
+      setEditingReceiptId(null);
+      setShowOcrLoading(true); // ✅ ADDED: Block all UI interactions
+
+      // Update parent state to show processing in the card
+      setLastOCRCall(now);
+      updateReceipt(receiptIdToProcess, {
+        ...receiptToProcess,
+        isProcessing: true,
+      });
+
+      try {
+        const formDataToSend = new FormData();
+        formDataToSend.append("image", receiptToProcess.file);
+
+        const res = await fetch(
+          `${process.env.REACT_APP_API_URL}/api/ocr/structured`,
+          {
+            method: "POST",
+            body: formDataToSend,
+            credentials: "include",
+          },
+        );
+
+        const data = await res.json();
+
+        // ✅ Handle rate limit error
+        if (res.status === 429) {
+          showNotification(
+            `⏳ ${data.message || "Rate limit reached. Please wait a moment and try again."}`,
+            "warning",
+          );
+          updateReceipt(receiptIdToProcess, {
+            ...receiptToProcess,
+            isProcessing: false,
+          });
+          return;
+        }
+
+        if (!res.ok) throw new Error(data.error || "OCR failed");
+
+        const extractedText = data.cleanedText || data.rawText;
+
+        if (data.structured) {
+          const structured = data.structured;
+
+          let formattedDate = receiptToProcess.date;
+          if (structured.date) {
+            try {
+              const parts = structured.date.split(/[/-]/);
+              if (parts.length === 3) {
+                let [day, month, year] = parts;
+                day = day.padStart(2, "0");
+                month = month.padStart(2, "0");
+                if (year.length === 2) {
+                  year = "20" + year;
+                }
+                formattedDate = `${year}-${month}-${day}`;
+              }
+            } catch (e) {
+              console.error("❌ Date parse error:", e);
+            }
+          }
+
+          let itemsText = "";
+          if (Array.isArray(structured.items) && structured.items.length > 0) {
+            itemsText = structured.items
+              .map((item) => {
+                if (typeof item === "object" && item.description) {
+                  return item.price && item.price > 0
+                    ? `${item.description} - ₱${parseFloat(item.price).toFixed(2)}`
+                    : item.description;
+                }
+                return "";
+              })
+              .filter((line) => line.trim())
+              .join("\n");
+          }
+
+          let formattedTotal = "";
+          if (structured.total) {
+            formattedTotal = String(parseFloat(structured.total).toFixed(2));
+          }
+
+          const updatedData = {
+            ...receiptToProcess,
+            extractedText,
+            date: formattedDate,
+            merchant: structured.merchant || receiptToProcess.merchant,
+            total: formattedTotal || receiptToProcess.total,
+            description: itemsText || receiptToProcess.description,
+            isProcessing: false,
+          };
+
+          const details = [
+            structured.merchant ? `${structured.merchant}` : null,
+            structured.date ? `${structured.date}` : null,
+            structured.total ? `₱${structured.total}` : null,
+          ]
+            .filter(Boolean)
+            .join(" | ");
+
+          updateReceipt(receiptIdToProcess, updatedData);
+          showNotification(`✅ Receipt extracted! ${details}`, "success");
+        } else {
+          const updatedData = {
+            ...receiptToProcess,
+            extractedText,
+            isProcessing: false,
+          };
+
+          updateReceipt(receiptIdToProcess, updatedData);
+          showNotification(
+            "⚠️ OCR completed but no structured data found",
+            "warning",
+          );
+        }
+      } catch (error) {
+        console.error("❌ OCR Error:", error);
+        updateReceipt(receiptIdToProcess, {
+          ...receiptToProcess,
+          isProcessing: false,
+        });
+        showNotification(`OCR failed: ${error.message}`, "error");
+      } finally {
+        setShowOcrLoading(false); // ✅ ADDED: Always unblock UI
+      }
+    };
+
+    return (
+      <Dialog
+        open={editingReceiptId !== null}
+        onClose={handleClose}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Edit Receipt Details
+          </Typography>
+          <IconButton
+            onClick={handleClose}
+            sx={{ color: "primary.contrastText" }}
+            disabled={showOcrLoading} // ✅ ADDED: Disable close during OCR
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ mt: 2 }}>
+          {/* ✅ REMOVED: Box with opacity transition - no longer needed */}
+          <Stack spacing={2.5}>
+            {/* File Preview */}
+            {localReceipt.preview && (
+              <Paper
+                sx={{
+                  p: 2,
+                  bgcolor: "action.hover",
+                  textAlign: "center",
+                }}
+              >
+                {localReceipt.preview === "pdf" ? (
+                  <Box>
+                    <PictureAsPdf
+                      sx={{ fontSize: 64, color: "primary.main" }}
+                    />
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      {localReceipt.file?.name}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <img
+                    src={localReceipt.preview}
+                    alt="Receipt"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "300px",
+                      borderRadius: "8px",
+                    }}
+                  />
+                )}
+              </Paper>
+            )}
+
+            {/* Upload New File */}
+            <Button
+              component="label"
+              variant="outlined"
+              startIcon={<CloudUpload />}
+              disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+            >
+              {localReceipt.file ? "Change File" : "Upload File"}
+              <input
+                type="file"
+                hidden
+                accept=".jpg, .jpeg, .png, .pdf"
+                onChange={(e) => {
+                  if (e.target.files[0]) {
+                    handleFileUploadLocal(e.target.files[0]);
+                  }
+                }}
+              />
+            </Button>
+
+            {/* OCR Button */}
+            {localReceipt.file && (
+              <Button
+                variant="contained"
+                startIcon={
+                  localReceipt.isProcessing ? <Refresh /> : <ImageIcon />
+                }
+                onClick={handleOCRLocal}
+                disabled={localReceipt.isProcessing || showOcrLoading} // ✅ UPDATED: Disable during OCR
+              >
+                {localReceipt.isProcessing
+                  ? "Processing..."
+                  : "Extract Data (OCR)"}
+              </Button>
+            )}
+
+            {/* ✅ REMOVED: Progress bar - shown globally now */}
+
+            <Divider />
+
+            <TextField
+              select
+              label="Category *"
+              value={localReceipt.category}
+              onChange={(e) => handleChange("category", e.target.value)}
+              fullWidth
+              disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+            >
+              {categories.map((cat) => (
+                <MenuItem key={cat} value={cat}>
+                  {cat}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              label="Date *"
+              type="date"
+              value={localReceipt.date}
+              onChange={(e) => handleChange("date", e.target.value)}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              InputProps={{
+                sx: {
+                  '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                    filter:
+                      theme.palette.mode === "dark" ? "invert(1)" : "none",
+                  },
+                },
+              }}
+              disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+            />
+
+            <TextField
+              label="Merchant/Vendor"
+              value={localReceipt.merchant}
+              onChange={(e) => handleChange("merchant", e.target.value)}
+              fullWidth
+              placeholder="e.g., Grab, Jollibee, Office Depot"
+              disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+            />
+
+            <TextField
+              label="Total Amount (₱) *"
+              type="text"
+              value={localReceipt.total}
+              onChange={(e) => handleNumericInput("total", e.target.value)}
+              onKeyDown={(e) => {
+                if (["e", "E", "+", "-"].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              fullWidth
+              inputProps={{ inputMode: "decimal" }}
+              disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+              helperText="Maximum: ₱50,000"
+            />
+
+            {localReceipt.category === "Meal with Client" && (
+              <TextField
+                label="Number of People *"
+                type="text"
+                value={localReceipt.number_of_people}
+                onChange={(e) =>
+                  handleNumericInput("number_of_people", e.target.value)
+                }
+                onKeyDown={(e) => {
+                  if (["e", "E", "+", "-", "."].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
+                fullWidth
+                inputProps={{ inputMode: "numeric" }}
+                helperText="How many people attended the client meal?"
+                disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+              />
+            )}
+
+            {localReceipt.category === "Accommodation" && (
+              <>
+                <TextField
+                  label="Number of Days *"
+                  type="text"
+                  value={localReceipt.number_of_days}
+                  onChange={(e) =>
+                    handleNumericInput("number_of_days", e.target.value)
+                  }
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-", "."].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  fullWidth
+                  inputProps={{ inputMode: "numeric" }}
+                  helperText="How many days of accommodation?"
+                  disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+                />
+                <TextField
+                  label="Number of People *"
+                  type="text"
+                  value={localReceipt.number_of_people}
+                  onChange={(e) =>
+                    handleNumericInput("number_of_people", e.target.value)
+                  }
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-", "."].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  fullWidth
+                  inputProps={{ inputMode: "numeric" }}
+                  helperText="How many people will use the accommodation?"
+                  disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+                />
+              </>
+            )}
+
+            {["Overtime Meal", "Meal with Client", "Accommodation"].includes(
+              localReceipt.category,
+            ) &&
+              localReceipt.total && (
+                <Box
+                  sx={{
+                    p: 2,
+                    bgcolor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(76, 175, 80, 0.15)"
+                        : "grey.100",
+                    borderRadius: 1,
+                    border: 1,
+                    borderColor:
+                      theme.palette.mode === "dark"
+                        ? "#4caf50"
+                        : "success.main",
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 0.5 }}
+                  >
+                    Reimbursable Amount:
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 700,
+                      color:
+                        theme.palette.mode === "dark" ? "#4caf50" : "#1b5e20",
+                    }}
+                  >
+                    ₱
+                    {calculateReimbursableAmount(
+                      localReceipt.category,
+                      localReceipt.total,
+                      parseInt(localReceipt.number_of_people) || 1,
+                      parseInt(localReceipt.number_of_days) || 1,
+                    ).toFixed(2)}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mt: 0.5 }}
+                  >
+                    {getReimbursableAmountHelper(
+                      localReceipt.category,
+                      parseInt(localReceipt.number_of_people) || 1,
+                      parseInt(localReceipt.number_of_days) || 1,
+                    )}
+                  </Typography>
+                  {calculateReimbursableAmount(
+                    localReceipt.category,
+                    localReceipt.total,
+                    parseInt(localReceipt.number_of_people) || 1,
+                    parseInt(localReceipt.number_of_days) || 1,
+                  ) < parseFloat(localReceipt.total) && (
+                    <Typography
+                      variant="caption"
+                      color="warning.main"
+                      sx={{ display: "block", mt: 1, fontWeight: 600 }}
+                    >
+                      ⚠️ Amount exceeds category limit.
+                      <br />
+                      Only ₱
+                      {calculateReimbursableAmount(
+                        localReceipt.category,
+                        localReceipt.total,
+                        parseInt(localReceipt.number_of_people) || 1,
+                        parseInt(localReceipt.number_of_days) || 1,
+                      ).toFixed(2)}{" "}
+                      will be reimbursed.
+                    </Typography>
+                  )}
+                </Box>
+              )}
+
+            <TextField
+              label="Purpose *"
+              value={localReceipt.items}
+              onChange={(e) => handleChange("items", e.target.value)}
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Purpose of the expense..."
+              helperText="Explain the business purpose of this expense"
+              disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+            />
+
+            <TextField
+              label="Description *"
+              value={localReceipt.description}
+              onChange={(e) => handleChange("description", e.target.value)}
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Description of this reimbursement application..."
+              disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+            />
+
+            {/* Extracted Text */}
+            {localReceipt.extractedText && (
+              <Paper sx={{ p: 2, bgcolor: "action.hover" }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Extracted Text:
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    maxHeight: 150,
+                    overflow: "auto",
+                    whiteSpace: "pre-wrap",
+                    fontFamily: "monospace",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  {localReceipt.extractedText}
+                </Typography>
+              </Paper>
+            )}
+          </Stack>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3 }}>
+          <Button
+            onClick={handleClose}
+            variant="outlined"
+            disabled={showOcrLoading} // ✅ UPDATED: Disable during OCR
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
+  // Preview Receipt Dialog
+  const PreviewReceiptDialog = () => {
+    const previewReceipt = receipts.find((r) => r.id === previewReceiptId);
+
+    if (!previewReceipt) return null;
+
+    return (
+      <Dialog
+        open={previewReceiptId !== null}
+        onClose={() => setPreviewReceiptId(null)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Receipt Preview
+          </Typography>
+          <IconButton
+            onClick={() => setPreviewReceiptId(null)}
+            sx={{ color: "primary.contrastText" }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ mt: 2, textAlign: "center" }}>
+          {previewReceipt.preview === "pdf" ? (
+            <Box>
+              <PictureAsPdf sx={{ fontSize: 100, color: "primary.main" }} />
+              <Typography variant="h6" sx={{ mt: 2 }}>
+                PDF Receipt
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {previewReceipt.file?.name}
+              </Typography>
+            </Box>
+          ) : (
+            <img
+              src={previewReceipt.preview}
+              alt="Receipt"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "70vh",
+                borderRadius: "8px",
+              }}
+            />
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3 }}>
+          <Button onClick={() => setPreviewReceiptId(null)} variant="contained">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
+  // Confirmation Modal
+  const ConfirmationModal = () => {
+    const totalAmount = receipts.reduce(
+      (sum, r) => sum + (parseFloat(r.total) || 0),
+      0,
+    );
+    const totalReimbursable = receipts.reduce((sum, r) => {
+      return (
+        sum +
+        calculateReimbursableAmount(
+          r.category,
+          r.total,
+          parseInt(r.number_of_people) || 1,
+          parseInt(r.number_of_days) || 1,
+        )
+      );
+    }, 0);
 
     return (
       <Dialog
@@ -638,345 +1594,136 @@ function ReceiptUpload() {
 
         <DialogContent sx={{ mt: 2 }}>
           <Alert severity="info" sx={{ mb: 3 }}>
-            Please review all details carefully before submitting. Once
-            submitted, your request will be sent to the approval workflow.
+            You are submitting {receipts.length} receipt
+            {receipts.length > 1 ? "s" : ""}. Please review all details
+            carefully.
           </Alert>
 
-          <Stack spacing={2}>
-            <Box>
-              <Typography
-                variant="subtitle2"
-                color="text.secondary"
-                sx={{ mb: 1 }}
-              >
-                Receipt Attachment:
-              </Typography>
-              <Paper
-                sx={{
-                  p: 2,
-                  bgcolor: "action.hover",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                }}
-              >
-                {image?.type === "application/pdf" ? (
-                  <>
-                    <PictureAsPdf color="primary" sx={{ fontSize: 40 }} />
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {image.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        PDF • {(image.size / 1024 / 1024).toFixed(2)} MB
-                      </Typography>
-                    </Box>
-                  </>
-                ) : imagePreview ? (
-                  <>
-                    <img
-                      src={imagePreview}
-                      alt="Receipt"
-                      style={{
-                        width: 60,
-                        height: 60,
-                        objectFit: "cover",
-                        borderRadius: 4,
-                      }}
-                    />
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {image?.name || "Receipt Image"}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Image •{" "}
-                        {image ? (image.size / 1024 / 1024).toFixed(2) : "0"} MB
-                      </Typography>
-                    </Box>
-                  </>
-                ) : null}
-              </Paper>
-            </Box>
-
-            <Divider />
-
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {/* SAP Code - conditionally shown */}
+          {/* Summary */}
+          <Paper sx={{ p: 2, mb: 3, bgcolor: "action.hover" }}>
+            <Grid container spacing={2}>
               {!bypassesSapValidation && (
-                <Box>
-                  <Typography
-                    sx={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "text.secondary",
-                      mb: 0.5,
-                    }}
-                  >
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">
                     SAP Code:
                   </Typography>
-                  <Typography sx={{ fontSize: 12 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
                     {formData.sap_code}
                   </Typography>
-                </Box>
+                </Grid>
               )}
-
-              {/* Category */}
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "text.secondary",
-                    mb: 0.5,
-                  }}
-                >
-                  Category:
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Total Receipts:
                 </Typography>
-                <Typography sx={{ fontSize: 12 }}>
-                  {formData.category}
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  {receipts.length}
                 </Typography>
-              </Box>
-
-              {/* Date of Expense */}
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "text.secondary",
-                    mb: 0.5,
-                  }}
-                >
-                  Date of Expense:
-                </Typography>
-                <Typography sx={{ fontSize: 12 }}>
-                  {new Date(formData.date).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </Typography>
-              </Box>
-
-              {/* Merchant/Vendor - conditionally shown */}
-              {formData.merchant && (
-                <Box>
-                  <Typography
-                    sx={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "text.secondary",
-                      mb: 0.5,
-                    }}
-                  >
-                    Merchant/Vendor:
-                  </Typography>
-                  <Typography sx={{ fontSize: 12 }}>
-                    {formData.merchant}
-                  </Typography>
-                </Box>
-              )}
-
-              {/* Number of People for Meal with Client */}
-              {formData.category === "Meal with Client" && (
-                <Box>
-                  <Typography
-                    sx={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "text.secondary",
-                      mb: 0.5,
-                    }}
-                  >
-                    Number of People:
-                  </Typography>
-                  <Typography sx={{ fontSize: 12 }}>
-                    {formData.number_of_people}{" "}
-                    {parseInt(formData.number_of_people) === 1
-                      ? "person"
-                      : "people"}
-                  </Typography>
-                </Box>
-              )}
-
-              {/* Accommodation fields */}
-              {formData.category === "Accommodation" && (
-                <>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: "text.secondary",
-                        mb: 0.5,
-                      }}
-                    >
-                      Number of Days:
-                    </Typography>
-                    <Typography sx={{ fontSize: 12 }}>
-                      {formData.number_of_days}{" "}
-                      {parseInt(formData.number_of_days) === 1 ? "day" : "days"}
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: "text.secondary",
-                        mb: 0.5,
-                      }}
-                    >
-                      Number of People:
-                    </Typography>
-                    <Typography sx={{ fontSize: 12 }}>
-                      {formData.number_of_people}{" "}
-                      {parseInt(formData.number_of_people) === 1
-                        ? "person"
-                        : "people"}
-                    </Typography>
-                  </Box>
-                </>
-              )}
-
-              {/* Purpose */}
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "text.secondary",
-                    mb: 0.5,
-                  }}
-                >
-                  Purpose:
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: 12,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {formData.items}
-                </Typography>
-              </Box>
-
-              {/* Description */}
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "text.secondary",
-                    mb: 0.5,
-                  }}
-                >
-                  Description:
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: 12,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {formData.description}
-                </Typography>
-              </Box>
-
-              {/* Total Amount */}
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "text.secondary",
-                    mb: 0.5,
-                  }}
-                >
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary">
                   Total Amount:
                 </Typography>
                 <Typography
-                  variant="h5"
-                  sx={{
-                    fontWeight: 700,
-                    color: "#1565c0",
-                  }}
+                  variant="h6"
+                  sx={{ fontWeight: 700, color: "primary.main" }}
                 >
-                  ₱{parseFloat(formData.total).toFixed(2)}
+                  ₱{totalAmount.toFixed(2)}
                 </Typography>
-              </Box>
-
-              {/* Reimbursable Amount */}
-              <Box>
-                <Paper
-                  sx={{
-                    p: 2,
-                    bgcolor: isOverLimit
-                      ? theme.palette.mode === "dark"
-                        ? "rgba(255, 152, 0, 0.15)"
-                        : "#fff3e0"
-                      : theme.palette.mode === "dark"
-                      ? "rgba(76, 175, 80, 0.15)"
-                      : "#e8f5e9",
-                    border: 1,
-                    borderColor: isOverLimit
-                      ? theme.palette.mode === "dark"
-                        ? "#ff9800"
-                        : "#f57c00"
-                      : theme.palette.mode === "dark"
-                      ? "#4caf50"
-                      : "#2e7d32",
-                  }}
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="caption" color="text.secondary">
+                  Total Reimbursable:
+                </Typography>
+                <Typography
+                  variant="h5"
+                  sx={{ fontWeight: 700, color: "success.main" }}
                 >
-                  <Typography
-                    sx={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "text.secondary",
-                      mb: 0.5,
-                    }}
-                  >
-                    Reimbursable Amount:
+                  ₱{totalReimbursable.toFixed(2)}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Paper>
+
+          {/* Individual Receipts */}
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+            Receipt Details:
+          </Typography>
+          <Stack spacing={2}>
+            {receipts.map((receipt, index) => {
+              const reimbursable = calculateReimbursableAmount(
+                receipt.category,
+                receipt.total,
+                parseInt(receipt.number_of_people) || 1,
+                parseInt(receipt.number_of_days) || 1,
+              );
+
+              return (
+                <Paper key={receipt.id} sx={{ p: 2, bgcolor: "action.hover" }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Receipt #{index + 1}
                   </Typography>
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      fontWeight: 700,
-                      color: isOverLimit
-                        ? theme.palette.mode === "dark"
-                          ? "#ff9800"
-                          : "#d84315"
-                        : theme.palette.mode === "dark"
-                        ? "#4caf50"
-                        : "#1b5e20",
-                      mt: 0.5,
-                    }}
-                  >
-                    ₱{reimbursableAmount.toFixed(2)}
-                  </Typography>
-                  {hasLimit && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: "block", mt: 1 }}
-                    >
-                      {getReimbursableAmountHelper(
-                        formData.category,
-                        parseInt(formData.number_of_people) || 1,
-                        parseInt(formData.number_of_days) || 1
-                      )}
-                    </Typography>
-                  )}
-                  {isOverLimit && (
-                    <Alert severity="warning" sx={{ mt: 1 }}>
-                      Your total amount exceeds the category limit.
-                      <br />
-                      Only ₱{reimbursableAmount.toFixed(2)} will be reimbursed.
-                    </Alert>
-                  )}
+                  <Divider sx={{ my: 1 }} />
+                  <Grid container spacing={1}>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Date:
+                      </Typography>
+                      <Typography variant="body2">
+                        {new Date(receipt.date).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Category:
+                      </Typography>
+                      <Typography variant="body2">
+                        {receipt.category}
+                      </Typography>
+                    </Grid>
+                    {receipt.merchant && (
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="text.secondary">
+                          Merchant:
+                        </Typography>
+                        <Typography variant="body2">
+                          {receipt.merchant}
+                        </Typography>
+                      </Grid>
+                    )}
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Total:
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        ₱{parseFloat(receipt.total).toFixed(2)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Reimbursable:
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontWeight: 600,
+                          color:
+                            reimbursable < parseFloat(receipt.total)
+                              ? "warning.main"
+                              : "success.main",
+                        }}
+                      >
+                        ₱{reimbursable.toFixed(2)}
+                      </Typography>
+                    </Grid>
+                  </Grid>
                 </Paper>
-              </Box>
-            </Box>
+              );
+            })}
           </Stack>
         </DialogContent>
 
@@ -1001,7 +1748,7 @@ function ReceiptUpload() {
               },
             }}
           >
-            Submit Request
+            Submit {receipts.length} Receipt{receipts.length > 1 ? "s" : ""}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1012,9 +1759,25 @@ function ReceiptUpload() {
     <>
       <Card>
         <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: "bold", mb: 3 }}>
-            Upload Receipt for Reimbursement
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 3,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+              Upload Receipts for Reimbursement
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={handleAddReceipt}
+            >
+              Add Receipt
+            </Button>
+          </Box>
 
           {!bypassesSapValidation && availableSapCodes.length === 0 && (
             <Alert severity="warning" sx={{ mb: 3 }}>
@@ -1023,496 +1786,152 @@ function ReceiptUpload() {
             </Alert>
           )}
 
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Paper
-                sx={{
-                  p: 3,
-                  border: 2,
-                  borderStyle: "dashed",
-                  borderColor: errors.image ? "error.main" : "divider",
-                  borderRadius: 2,
-                  textAlign: "center",
-                  bgcolor: "action.hover",
-                  cursor: "pointer",
-                  transition: "all 0.3s",
-                  "&:hover": {
-                    borderColor: "primary.main",
-                    bgcolor: "action.selected",
-                  },
-                }}
-              >
-                {imagePreview ? (
-                  <Box>
-                    <Box sx={{ position: "relative", mb: 2 }}>
-                      {image && image.type === "application/pdf" ? (
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            minHeight: "200px",
-                            bgcolor: "background.paper",
-                            borderRadius: "8px",
-                            border: "2px solid",
-                            borderColor: "primary.main",
-                            p: 3,
-                          }}
-                        >
-                          <PictureAsPdf
-                            sx={{ fontSize: 64, color: "primary.main", mb: 2 }}
-                          />
-                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                            PDF Receipt Uploaded
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mt: 1 }}
-                          >
-                            {image.name}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ mt: 0.5 }}
-                          >
-                            {(image.size / 1024 / 1024).toFixed(2)} MB
-                          </Typography>
-                        </Box>
-                      ) : (
-                        <img
-                          src={imagePreview}
-                          alt="Receipt preview"
-                          style={{
-                            maxWidth: "100%",
-                            maxHeight: "400px",
-                            borderRadius: "8px",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                          }}
-                          onError={() =>
-                            showNotification(
-                              "Failed to load image preview",
-                              "error"
-                            )
-                          }
-                        />
-                      )}
-                      <IconButton
-                        onClick={handleClearImage}
-                        sx={{
-                          position: "absolute",
-                          top: 8,
-                          right: 8,
-                          bgcolor: "background.paper",
-                          "&:hover": { bgcolor: "background.default" },
-                        }}
-                      >
-                        <Delete color="error" />
-                      </IconButton>
-                    </Box>
-                    <Box
-                      sx={{ display: "flex", gap: 2, justifyContent: "center" }}
-                    >
-                      <Button
-                        variant="contained"
-                        startIcon={loading ? <Refresh /> : <ImageIcon />}
-                        onClick={handleOCR}
-                        disabled={loading}
-                        color="primary"
-                      >
-                        {loading ? "Processing..." : "Extract Text (OCR)"}
-                      </Button>
-                    </Box>
-                    {loading && (
-                      <Box sx={{ mt: 2 }}>
-                        <LinearProgress
-                          variant="determinate"
-                          value={ocrProgress}
-                        />
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ mt: 1 }}
-                        >
-                          {ocrProgress}% Complete
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                ) : (
-                  <label
-                    htmlFor="receipt-upload"
-                    style={{ cursor: "pointer", display: "block" }}
-                  >
-                    <input
-                      id="receipt-upload"
-                      type="file"
-                      accept=".jpg, .jpeg, .png, .pdf"
-                      onChange={handleImageChange}
-                      style={{ display: "none" }}
-                    />
-                    <CloudUpload
-                      sx={{
-                        fontSize: 64,
-                        color:
-                          theme.palette.mode === "dark"
-                            ? theme.palette.primary.light
-                            : "#00387e",
-                        mb: 2,
-                      }}
-                    />
-                    <Typography variant="h6" sx={{ mb: 1 }}>
-                      Click to Upload Receipt
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Supported formats: JPG, PNG, JPEG, PDF (Max 5MB)
-                    </Typography>
-                  </label>
-                )}
-                {errors.image && (
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "error.main", mt: 1, display: "block" }}
-                  >
-                    {errors.image}
-                  </Typography>
-                )}
-              </Paper>
+          {/* SAP Code Selection */}
+          {!bypassesSapValidation && (
+            <TextField
+              select
+              label="SAP Code *"
+              value={formData.sap_code}
+              onChange={(e) => setFormData({ sap_code: e.target.value })}
+              fullWidth
+              sx={{ mb: 3 }}
+              helperText="Select the department/project for all receipts"
+              disabled={availableSapCodes.length === 0}
+            >
+              {availableSapCodes.map((code) => (
+                <MenuItem key={code} value={code}>
+                  {code}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
 
-              {extractedText && (
-                <Paper sx={{ mt: 2, p: 2, bgcolor: "action.hover" }}>
-                  <Typography
-                    variant="subtitle2"
-                    sx={{ fontWeight: 600, mb: 1 }}
-                  >
-                    Extracted Text:
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      maxHeight: 150,
-                      overflow: "auto",
-                      whiteSpace: "pre-wrap",
-                      fontFamily: "monospace",
-                      fontSize: "0.75rem",
-                    }}
-                  >
-                    {extractedText}
-                  </Typography>
-                </Paper>
-              )}
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-                {!bypassesSapValidation && (
-                  <TextField
-                    select
-                    label="SAP Code *"
-                    name="sap_code"
-                    value={formData.sap_code}
-                    onChange={handleChange}
-                    fullWidth
-                    error={!!errors.sap_code}
-                    helperText={
-                      errors.sap_code ||
-                      (user?.role === "Account Manager"
-                        ? "Select SAP code for your reimbursement submission"
-                        : user?.role === "SUL"
-                        ? "Select SAP code for your reimbursement submission"
-                        : "Select the department/project for this expense")
-                    }
-                    disabled={availableSapCodes.length === 0}
-                  >
-                    {availableSapCodes.map((code) => (
-                      <MenuItem key={code} value={code}>
-                        {code}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
-
-                <TextField
-                  select
-                  label="Category *"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  fullWidth
-                  error={!!errors.category}
-                  helperText={errors.category}
-                >
-                  {categories.map((cat) => (
-                    <MenuItem key={cat} value={cat}>
-                      {cat}
-                    </MenuItem>
-                  ))}
-                </TextField>
-
-                <TextField
-                  label="Date *"
-                  name="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  error={!!errors.date}
-                  helperText={errors.date}
-                  InputProps={{
-                    sx: {
-                      '& input[type="date"]::-webkit-calendar-picker-indicator':
-                        {
-                          filter:
-                            theme.palette.mode === "dark"
-                              ? "invert(1)"
-                              : "none",
-                        },
-                    },
-                  }}
-                />
-
-                <TextField
-                  label="Merchant/Vendor"
-                  name="merchant"
-                  value={formData.merchant}
-                  onChange={handleChange}
-                  fullWidth
-                  placeholder="e.g., Grab, Jollibee, Office Depot"
-                />
-
-                <TextField
-                  label="Total Amount (₱) *"
-                  name="total"
-                  type="text" // Changed from "number"
-                  value={formData.total}
-                  onChange={handleNumericInput} // Use new handler
-                  onKeyDown={(e) => {
-                    if (["e", "E", "+", "-"].includes(e.key)) {
-                      e.preventDefault();
-                    }
-                  }}
-                  fullWidth
-                  inputProps={{ inputMode: "decimal" }}
-                  error={!!errors.total}
-                  helperText={errors.total}
-                />
-
-                {formData.category === "Meal with Client" && (
-                  <TextField
-                    label="Number of People *"
-                    name="number_of_people"
-                    type="text"
-                    value={formData.number_of_people}
-                    onChange={handleNumericInput}
-                    onKeyDown={(e) => {
-                      if (["e", "E", "+", "-", "."].includes(e.key)) {
-                        e.preventDefault();
-                      }
-                    }}
-                    fullWidth
-                    inputProps={{ inputMode: "numeric" }}
-                    error={!!errors.number_of_people}
-                    helperText={
-                      errors.number_of_people ||
-                      "How many people attended the client meal?"
-                    }
-                  />
-                )}
-
-                {formData.category === "Accommodation" && (
-                  <>
-                    <TextField
-                      label="Number of Days *"
-                      name="number_of_days"
-                      type="text"
-                      value={formData.number_of_days}
-                      onChange={handleNumericInput}
-                      onKeyDown={(e) => {
-                        if (["e", "E", "+", "-", "."].includes(e.key)) {
-                          e.preventDefault();
-                        }
-                      }}
-                      fullWidth
-                      inputProps={{ inputMode: "numeric" }}
-                      error={!!errors.number_of_days}
-                      helperText={
-                        errors.number_of_days ||
-                        "How many days of accommodation?"
-                      }
-                    />
-                    <TextField
-                      label="Number of People *"
-                      name="number_of_people"
-                      type="text"
-                      value={formData.number_of_people}
-                      onChange={handleNumericInput}
-                      onKeyDown={(e) => {
-                        if (["e", "E", "+", "-", "."].includes(e.key)) {
-                          e.preventDefault();
-                        }
-                      }}
-                      fullWidth
-                      inputProps={{ inputMode: "numeric" }}
-                      error={!!errors.number_of_people}
-                      helperText={
-                        errors.number_of_people ||
-                        "How many people will use the accommodation?"
-                      }
-                    />
-                  </>
-                )}
-
-                {[
-                  "Overtime Meal",
-                  "Meal with Client",
-                  "Accommodation",
-                ].includes(formData.category) &&
-                  formData.total && (
-                    <Box
-                      sx={{
-                        p: 2,
-                        bgcolor:
-                          theme.palette.mode === "dark"
-                            ? "rgba(76, 175, 80, 0.15)"
-                            : "grey.100",
-                        borderRadius: 1,
-                        border: 1,
-                        borderColor:
-                          theme.palette.mode === "dark"
-                            ? "#4caf50"
-                            : "success.main",
-                      }}
-                    >
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mb: 0.5 }}
-                      >
-                        Reimbursable Amount:
-                      </Typography>
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          fontWeight: 700,
-                          color:
-                            theme.palette.mode === "dark"
-                              ? "#4caf50"
-                              : "#1b5e20",
-                        }}
-                      >
-                        ₱
-                        {calculateReimbursableAmount(
-                          formData.category,
-                          formData.total,
-                          parseInt(formData.number_of_people) || 1,
-                          parseInt(formData.number_of_days) || 1
-                        ).toFixed(2)}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: "block", mt: 0.5 }}
-                      >
-                        {getReimbursableAmountHelper(
-                          formData.category,
-                          parseInt(formData.number_of_people) || 1,
-                          parseInt(formData.number_of_days) || 1
-                        )}
-                      </Typography>
-                      {calculateReimbursableAmount(
-                        formData.category,
-                        formData.total,
-                        parseInt(formData.number_of_people) || 1,
-                        parseInt(formData.number_of_days) || 1
-                      ) < parseFloat(formData.total) && (
-                        <Typography
-                          variant="caption"
-                          color="warning.main"
-                          sx={{ display: "block", mt: 1, fontWeight: 600 }}
-                        >
-                          ⚠️ Amount exceeds category limit.
-                          <br />
-                          Only ₱
-                          {calculateReimbursableAmount(
-                            formData.category,
-                            formData.total,
-                            parseInt(formData.number_of_people) || 1,
-                            parseInt(formData.number_of_days) || 1
-                          ).toFixed(2)}{" "}
-                          will be reimbursed.
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-
-                <TextField
-                  label="Purpose *"
-                  name="items"
-                  value={formData.items}
-                  onChange={handleChange}
-                  fullWidth
-                  multiline
-                  rows={3}
-                  placeholder="Purpose of the expense..."
-                  error={!!errors.items}
-                  helperText={
-                    errors.items ||
-                    "Explain the business purpose of this expense"
-                  }
-                />
-
-                <TextField
-                  label="Description *"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  fullWidth
-                  multiline
-                  rows={3}
-                  placeholder="Description of this reimbursement application..."
-                  error={!!errors.description}
-                  helperText={errors.description}
-                />
-
-                <Button
-                  variant="contained"
-                  onClick={handleSubmitClick}
-                  size="large"
-                  startIcon={<CheckCircle />}
-                  sx={{
-                    py: 1.5,
-                    fontWeight: 600,
-                    bgcolor: "#2e7d32",
-                    color: "#fafafa",
-                    "&:hover": {
-                      bgcolor: "#1b5e20",
-                    },
-                    "&:disabled": {
-                      bgcolor: "action.disabledBackground",
-                      color: "action.disabled",
-                    },
-                  }}
-                  disabled={
-                    loading ||
-                    (!bypassesSapValidation &&
-                      availableSapCodes.length === 0) ||
-                    submitting
-                  }
-                >
-                  {submitting ? "Submitting..." : "Submit for Approval"}
-                </Button>
-              </Box>
-            </Grid>
+          {/* Receipt Cards Grid */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {receipts.map((receipt, index) => (
+              <Grid item xs={12} sm={6} md={4} key={receipt.id}>
+                <ReceiptCard receipt={receipt} index={index} />
+              </Grid>
+            ))}
           </Grid>
+
+          {/* Summary and Submit */}
+          <Paper sx={{ p: 3, bgcolor: "action.hover" }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+              Summary
+            </Typography>
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={4}>
+                <Typography variant="caption" color="text.secondary">
+                  Total Receipts:
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  {receipts.length}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Typography variant="caption" color="text.secondary">
+                  Total Amount:
+                </Typography>
+                <Typography
+                  variant="h5"
+                  sx={{ fontWeight: 700, color: "primary.main" }}
+                >
+                  ₱
+                  {receipts
+                    .reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0)
+                    .toFixed(2)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Typography variant="caption" color="text.secondary">
+                  Reimbursable:
+                </Typography>
+                <Typography
+                  variant="h5"
+                  sx={{ fontWeight: 700, color: "success.main" }}
+                >
+                  ₱
+                  {receipts
+                    .reduce((sum, r) => {
+                      return (
+                        sum +
+                        calculateReimbursableAmount(
+                          r.category,
+                          r.total,
+                          parseInt(r.number_of_people) || 1,
+                          parseInt(r.number_of_days) || 1,
+                        )
+                      );
+                    }, 0)
+                    .toFixed(2)}
+                </Typography>
+              </Grid>
+            </Grid>
+
+            <Button
+              variant="contained"
+              onClick={handleSubmitClick}
+              size="large"
+              startIcon={<Send />}
+              fullWidth
+              sx={{
+                py: 1.5,
+                fontWeight: 600,
+                bgcolor: "#2e7d32",
+                color: "#fafafa",
+                "&:hover": {
+                  bgcolor: "#1b5e20",
+                },
+                "&:disabled": {
+                  bgcolor: "action.disabledBackground",
+                  color: "action.disabled",
+                },
+              }}
+              disabled={
+                submitting ||
+                (!bypassesSapValidation && availableSapCodes.length === 0) ||
+                (!bypassesSapValidation && !formData.sap_code)
+              }
+            >
+              {submitting
+                ? "Submitting..."
+                : `Submit ${receipts.length} Receipt${receipts.length > 1 ? "s" : ""} for Approval`}
+            </Button>
+          </Paper>
         </CardContent>
       </Card>
 
+      {/* Modals */}
+      <EditReceiptDialog />
+      <PreviewReceiptDialog />
       <ConfirmationModal />
 
+      {/* ✅ OCR Loading Overlay - Outside all dialogs */}
+      <Backdrop
+        sx={{
+          color: "#fff",
+          zIndex: (theme) => theme.zIndex.modal + 1,
+          backdropFilter: "blur(10px)",
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+        }}
+        open={showOcrLoading}
+      >
+        <Box sx={{ textAlign: "center" }}>
+          <CircularProgress color="inherit" size={80} thickness={4} />
+          <Typography variant="h5" sx={{ mt: 4, fontWeight: 600 }}>
+            Extracting Receipt Data...
+          </Typography>
+          <Typography variant="body1" sx={{ mt: 2, opacity: 0.9 }}>
+            Please wait while we process your receipt
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
+            This may take a few seconds
+          </Typography>
+        </Box>
+      </Backdrop>
+
+      {/* Loading Backdrop */}
       <Backdrop
         sx={{
           color: "#fff",
@@ -1525,10 +1944,11 @@ function ReceiptUpload() {
         <Box sx={{ textAlign: "center" }}>
           <CircularProgress color="inherit" size={60} thickness={4} />
           <Typography variant="h6" sx={{ mt: 3, fontWeight: 600 }}>
-            Submitting Receipt...
+            Submitting Receipts...
           </Typography>
           <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>
-            Please wait while we process your reimbursement
+            Please wait while we process your {receipts.length} reimbursement
+            {receipts.length > 1 ? "s" : ""}
           </Typography>
         </Box>
       </Backdrop>

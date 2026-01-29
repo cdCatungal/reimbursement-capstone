@@ -12,7 +12,7 @@ export const cleanExtractedText = async (req, res) => {
     }
 
     // Use the latest Gemini 2.0 Flash Exp model
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `
 You are an OCR text cleaner. 

@@ -2,6 +2,7 @@
 // - Changed "Amount" to "Total Amount"
 // - Display number of people/days BEFORE reimbursable amount
 // - Keep consistent ordering and formatting
+// ✅ FIXED: Proper data refresh after approve/reject actions
 
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -106,8 +107,9 @@ function SalesDirectorReimbursementList() {
     setPage(1);
   }, [pendings, searchTerm, statusFilter, categoryFilter, roleFilters]);
 
+  // ✅ FIXED: Remove guard that prevented re-fetching
   const fetchReimbursements = async () => {
-    if (!user || hasFetched.current) return;
+    if (!user) return;
 
     try {
       setLoading(true);
@@ -129,9 +131,11 @@ function SalesDirectorReimbursementList() {
       }
 
       const data = await response.json();
+      console.log("Fetched reimbursements:", data);
       setPendings(data);
       hasFetched.current = true;
     } catch (err) {
+      console.error("Error fetching reimbursements:", err);
       setError(err.message);
       showNotification("Failed to load reimbursements", "error");
     } finally {
@@ -251,9 +255,13 @@ function SalesDirectorReimbursementList() {
     ];
   };
 
+  // ✅ FIXED: Approve handler with proper state update and error handling
   const handleApprove = async (id, remarksText = "") => {
     try {
       setActionLoading(true);
+
+      console.log(`Approving reimbursement #${id}...`);
+
       const response = await fetch(
         `${process.env.REACT_APP_API_URL}/api/approvals/${id}/approve`,
         {
@@ -266,14 +274,30 @@ function SalesDirectorReimbursementList() {
         },
       );
 
+      // ✅ Parse response body to get detailed error message
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to approve reimbursement");
+        throw new Error(
+          data.error || data.message || "Failed to approve reimbursement",
+        );
       }
 
-      setPendings(pendings.filter((p) => p.id !== id));
-      showNotification("Reimbursement approved successfully", "success");
+      console.log("Approval response:", data);
+
+      // ✅ Show success notification
+      showNotification(
+        data.message || "Reimbursement approved successfully",
+        "success",
+      );
+
+      // ✅ Close dialog BEFORE refreshing
       handleCloseDialog();
+
+      // ✅ Refresh the data to get updated approvals
+      await fetchReimbursements();
     } catch (err) {
+      console.error("Approval error:", err);
       showNotification(
         err.message || "Failed to approve reimbursement",
         "error",
@@ -283,6 +307,7 @@ function SalesDirectorReimbursementList() {
     }
   };
 
+  // ✅ FIXED: Reject handler with proper state update and error handling
   const handleReject = async (id, remarksText) => {
     if (!remarksText || remarksText.trim() === "") {
       showNotification("Please provide remarks for rejection", "warning");
@@ -291,6 +316,9 @@ function SalesDirectorReimbursementList() {
 
     try {
       setActionLoading(true);
+
+      console.log(`Rejecting reimbursement #${id}...`);
+
       const response = await fetch(
         `${process.env.REACT_APP_API_URL}/api/approvals/${id}/reject`,
         {
@@ -303,15 +331,31 @@ function SalesDirectorReimbursementList() {
         },
       );
 
+      // ✅ Parse response body to get detailed error message
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to reject reimbursement");
+        throw new Error(
+          data.error || data.message || "Failed to reject reimbursement",
+        );
       }
 
-      setPendings(pendings.filter((p) => p.id !== id));
-      showNotification("Reimbursement rejected successfully", "success");
+      console.log("Rejection response:", data);
+
+      // ✅ Show success notification
+      showNotification(
+        data.message || "Reimbursement rejected successfully",
+        "success",
+      );
+
+      // ✅ Close dialogs BEFORE refreshing
       handleCloseRejectDialog();
       handleCloseDialog();
+
+      // ✅ Refresh the data to get updated approvals
+      await fetchReimbursements();
     } catch (err) {
+      console.error("Rejection error:", err);
       showNotification(
         err.message || "Failed to reject reimbursement",
         "error",
@@ -827,7 +871,7 @@ function SalesDirectorReimbursementList() {
               </Box>
 
               {selectedTicket && selectedTicket.batch_code && (
-                <Box sx={{ p: 3, pt: 0 }}>
+                <Box sx={{ p: 3, pt: 0, mt: 2 }}>
                   <BatchViewer
                     batchCode={selectedTicket.batch_code}
                     currentReimbursementId={selectedTicket.id}

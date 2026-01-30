@@ -524,11 +524,11 @@ function ReceiptUpload() {
     setSubmitting(true);
 
     try {
-      // Generate batch code ONCE for all receipts
-      const batchCode = `BATCH_${Date.now()}_${user.id}`;
-      console.log("📦 Submitting batch:", batchCode);
+      // ✅ Generate timestamp once for entire batch
+      const timestamp = Date.now();
 
-      // Submit all receipts with the same batch code
+      console.log("📦 Submitting batch with timestamp:", timestamp);
+
       const promises = receipts.map(async (receipt, index) => {
         const reimbursableAmount = calculateReimbursableAmount(
           receipt.category,
@@ -547,7 +547,9 @@ function ReceiptUpload() {
         formDataToSend.append("merchant", receipt.merchant);
         formDataToSend.append("date_of_expense", receipt.date);
         formDataToSend.append("sap_code", formData.sap_code);
-        formDataToSend.append("batch_code", batchCode);
+
+        // ✅ Send timestamp - backend will create full batch_code
+        formDataToSend.append("batch_timestamp", timestamp);
 
         if (receipt.category === "Meal with Client") {
           formDataToSend.append(
@@ -592,12 +594,18 @@ function ReceiptUpload() {
         }
 
         const data = await res.json();
-        console.log(`✅ Receipt ${index + 1} submitted:`, data.id);
+        console.log(
+          `✅ Receipt ${index + 1} submitted:`,
+          data.reimbursement?.id,
+        );
         return data;
       });
 
-      // Wait for ALL receipts to submit
+      // Wait for all receipts to submit
       const results = await Promise.all(promises);
+
+      // ✅ Get batch_code from first response
+      const batchCode = results[0]?.reimbursement?.batch_code;
 
       console.log(
         `✅ All ${results.length} receipts submitted successfully in batch ${batchCode}`,

@@ -1,4 +1,10 @@
-//first-test/src/components/ReimbursementList.js
+// Key changes:
+// 1. Refresh reimbursements after approve/reject
+// 2. Better error handling
+// 3. Update local state immediately for better UX
+// 4. Filter requests to only show those relevant to current approver
+// 5. Display status based on user's approval level
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
@@ -86,11 +92,11 @@ function ReimbursementList() {
   // Apply all filters whenever any filter changes
   useEffect(() => {
     applyAllFilters();
-    setPage(1); // Reset to first page when filters change
+    setPage(1);
   }, [pendings, searchTerm, statusFilter, categoryFilter]);
 
   const fetchReimbursements = async () => {
-    if (!user || hasFetched.current) return;
+    if (!user) return;
 
     try {
       setLoading(true);
@@ -112,10 +118,11 @@ function ReimbursementList() {
       }
 
       const data = await response.json();
-      console.log("data:", data);
+      console.log("Fetched reimbursements:", data);
       setPendings(data);
       hasFetched.current = true;
     } catch (err) {
+      console.error("Error fetching reimbursements:", err);
       setError(err.message);
       showNotification("Failed to load reimbursements", "error");
     } finally {
@@ -123,16 +130,74 @@ function ReimbursementList() {
     }
   };
 
+  // Get user's approval status for a specific reimbursement
+  const getUserApprovalStatus = (item) => {
+    if (!item.approvals || !user) return null;
+
+    const userApproval = item.approvals.find(
+      (approval) => approval.approver_role === user.role,
+    );
+
+    return userApproval ? userApproval.status : null;
+  };
+
+  // Check if user should see this request (either current approver or already processed)
+  const shouldShowRequest = (item) => {
+    if (!item.approvals || !user) return false;
+
+    const userApproval = item.approvals.find(
+      (approval) => approval.approver_role === user.role,
+    );
+
+    // Don't show if user's role is not in the approval flow
+    if (!userApproval) return false;
+
+    // Show if user has already approved/rejected
+    if (
+      userApproval.status === "Approved" ||
+      userApproval.status === "Rejected"
+    ) {
+      return true;
+    }
+
+    // Show if user is the current pending approver (check if all previous levels are approved)
+    if (userApproval.status === "Pending") {
+      const sortedApprovals = [...item.approvals].sort(
+        (a, b) => a.approval_level - b.approval_level,
+      );
+
+      // Get all approvals before user's level
+      const previousApprovals = sortedApprovals.filter(
+        (a) => a.approval_level < userApproval.approval_level,
+      );
+
+      // User is current approver if all previous approvals are approved
+      const allPreviousApproved = previousApprovals.every(
+        (a) => a.status === "Approved",
+      );
+
+      return allPreviousApproved;
+    }
+
+    return false;
+  };
+
   // Enhanced filter logic that combines all filters
   const applyAllFilters = () => {
     let filtered = [...pendings];
 
-    // Apply status filter first
+    // FIRST: Filter by approval flow - only show requests user should see
+    filtered = filtered.filter((item) => shouldShowRequest(item));
+
+    // Apply status filter (based on user's approval status)
     if (statusFilter !== "All Status") {
-      filtered = filtered.filter((item) => item.status === statusFilter);
+      filtered = filtered.filter((item) => {
+        const userStatus = getUserApprovalStatus(item);
+        return userStatus === statusFilter;
+      });
     }
 
-    // Apply category filter second
+    // Apply category filter
     if (categoryFilter !== "All Categories") {
       filtered = filtered.filter((item) => item.category === categoryFilter);
     }
@@ -149,7 +214,6 @@ function ReimbursementList() {
           (item.sapCode && item.sapCode.toLowerCase().includes(term)) ||
           (item.user?.name && item.user.name.toLowerCase().includes(term)) ||
           (item.user?.role && item.user.role.toLowerCase().includes(term)) ||
-          (item.status && item.status.toLowerCase().includes(term)) ||
           (item.submittedAt &&
             new Date(item.submittedAt)
               .toLocaleDateString("en-CA")
@@ -199,9 +263,13 @@ function ReimbursementList() {
     ];
   };
 
+  // ✅ FIXED: Approve handler with proper state update and error handling
   const handleApprove = async (id, remarksText = "") => {
     try {
       setActionLoading(true);
+
+      console.log(`Approving reimbursement #${id}...`);
+
       const response = await fetch(
         `${process.env.REACT_APP_API_URL}/api/approvals/${id}/approve`,
         {
@@ -214,15 +282,30 @@ function ReimbursementList() {
         },
       );
 
+      // ✅ Parse response body to get detailed error message
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to approve reimbursement");
+        throw new Error(
+          data.error || data.message || "Failed to approve reimbursement",
+        );
       }
 
-      //modified for bug#190423
-      setPendings(
-        pendings.map((p) => (p.id === id ? { ...p, status: "Approved" } : p)),
+      console.log("Approval response:", data);
+
+      // ✅ Show success notification
+      showNotification(
+        data.message || "Reimbursement approved successfully",
+        "success",
       );
+
+      // ✅ Close dialogs BEFORE refreshing
+      handleCloseDialog();
+
+      // ✅ Refresh the data to get updated approvals
+      await fetchReimbursements();
     } catch (err) {
+      console.error("Approval error:", err);
       showNotification(
         err.message || "Failed to approve reimbursement",
         "error",
@@ -232,6 +315,7 @@ function ReimbursementList() {
     }
   };
 
+  // ✅ FIXED: Reject handler with proper state update and error handling
   const handleReject = async (id, remarksText) => {
     if (!remarksText || remarksText.trim() === "") {
       showNotification("Please provide remarks for rejection", "warning");
@@ -240,6 +324,9 @@ function ReimbursementList() {
 
     try {
       setActionLoading(true);
+
+      console.log(`Rejecting reimbursement #${id}...`);
+
       const response = await fetch(
         `${process.env.REACT_APP_API_URL}/api/approvals/${id}/reject`,
         {
@@ -252,19 +339,31 @@ function ReimbursementList() {
         },
       );
 
+      // ✅ Parse response body to get detailed error message
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to reject reimbursement");
+        throw new Error(
+          data.error || data.message || "Failed to reject reimbursement",
+        );
       }
 
-      //modified bug#190423 - rejected missing entry
-      setPendings(
-        pendings.map((p) => (p.id === id ? { ...p, status: "Rejected" } : p)),
+      console.log("Rejection response:", data);
+
+      // ✅ Show success notification
+      showNotification(
+        data.message || "Reimbursement rejected successfully",
+        "success",
       );
 
-      showNotification("Reimbursement rejected successfully", "success");
+      // ✅ Close dialogs BEFORE refreshing
       handleCloseRejectDialog();
       handleCloseDialog();
+
+      // ✅ Refresh the data to get updated approvals
+      await fetchReimbursements();
     } catch (err) {
+      console.error("Rejection error:", err);
       showNotification(
         err.message || "Failed to reject reimbursement",
         "error",
@@ -499,92 +598,102 @@ function ReimbursementList() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {paginatedPendings.map((item) => (
-                  <TableRow key={item.id} hover>
-                    <TableCell>
-                      <Box>
+                {paginatedPendings.map((item) => {
+                  const userStatus = getUserApprovalStatus(item);
+                  return (
+                    <TableRow key={item.id} hover>
+                      <TableCell>
+                        <Box>
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: "medium" }}
+                          >
+                            {item.user?.name || "Unknown"}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.user?.role || "Unknown Role"}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: "medium" }}
+                            title={
+                              item.items || `${item.category} Reimbursement`
+                            }
+                          >
+                            {truncateText(
+                              item.items || `${item.category} Reimbursement`,
+                              50,
+                            )}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            title={
+                              item.description || "No description provided"
+                            }
+                          >
+                            {truncateText(
+                              item.description || "No description provided",
+                              50,
+                            )}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
                         <Typography
                           variant="body2"
                           sx={{ fontWeight: "medium" }}
                         >
-                          {item.user?.name || "Unknown"}
+                          ₱
+                          {parseFloat(
+                            item.reimbursable_amount || item.total,
+                          ).toLocaleString("en-PH", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.user?.role || "Unknown Role"}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{item.category}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {item.date ? formatDate(item.date) : "N/A"}
                         </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          sx={{ fontWeight: "medium" }}
-                          title={item.items || `${item.category} Reimbursement`}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {item.submittedAt
+                            ? formatDate(item.submittedAt)
+                            : "N/A"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={userStatus || "Unknown"}
+                          size="small"
+                          color={getStatusColor(userStatus)}
+                          sx={{
+                            fontWeight: 600,
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenDetails(item)}
+                          title="View Details"
                         >
-                          {truncateText(
-                            item.items || `${item.category} Reimbursement`,
-                            50,
-                          )}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          title={item.description || "No description provided"}
-                        >
-                          {truncateText(
-                            item.description || "No description provided",
-                            50,
-                          )}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: "medium" }}>
-                        ₱
-                        {parseFloat(
-                          item.reimbursable_amount || item.total,
-                        ).toLocaleString("en-PH", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">{item.category}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {item.date ? formatDate(item.date) : "N/A"}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {item.submittedAt
-                          ? formatDate(item.submittedAt)
-                          : "N/A"}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={item.status}
-                        size="small"
-                        color={getStatusColor(item.status)}
-                        sx={{
-                          fontWeight: 600,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDetails(item)}
-                        title="View Details"
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          <VisibilityIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
@@ -703,7 +812,7 @@ function ReimbursementList() {
               </Box>
 
               {selectedTicket && selectedTicket.batch_code && (
-                <Box sx={{ p: 3, pt: 0 }}>
+                <Box sx={{ p: 3, pt: 0, mt: 2 }}>
                   <BatchViewer
                     batchCode={selectedTicket.batch_code}
                     currentReimbursementId={selectedTicket.id}

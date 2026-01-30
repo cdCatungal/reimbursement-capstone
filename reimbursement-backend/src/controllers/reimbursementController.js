@@ -22,7 +22,32 @@ export async function createReimbursement(req, res) {
     const payload = req.body;
 
     console.log("📋 Creating reimbursement for user:", user.name, user.role);
-    console.log("📦 Batch code received:", payload.batch_code); // ✅ ADDED: Log batch_code
+
+    // ✅ ADDED: Generate or enhance batch_code
+    let batchCode = null;
+
+    if (payload.batch_timestamp) {
+      // Frontend sent timestamp, create full batch code
+      batchCode = `BATCH_${payload.batch_timestamp}_${user.id}`;
+      console.log("📦 Generated batch_code from timestamp:", batchCode);
+    } else if (payload.batch_code) {
+      // Frontend sent full batch code, verify/enhance it
+      const parts = payload.batch_code.split("_");
+
+      // If batch_code is "BATCH_timestamp", add user ID
+      if (parts.length === 2 && parts[0] === "BATCH") {
+        batchCode = `${payload.batch_code}_${user.id}`;
+        console.log("📦 Enhanced batch_code:", batchCode);
+      } else {
+        // Already has user ID, use as-is
+        batchCode = payload.batch_code;
+        console.log("📦 Using existing batch_code:", batchCode);
+      }
+    } else {
+      // No batch code - single receipt submission
+      batchCode = null;
+      console.log("📦 No batch_code (single receipt)");
+    }
 
     const bypassSapValidation = ["Invoice Specialist", "SUL"].includes(
       user.role,
@@ -236,7 +261,7 @@ export async function createReimbursement(req, res) {
       receipt_public_id: receiptPublicId,
       receipt_mimetype: receiptMimetype,
       receipt_filename: receiptFilename,
-      batch_code: payload.batch_code || null, // ✅ ADDED: Save batch_code from frontend
+      batch_code: batchCode, // ✅ Use generated/enhanced batch_code
       submitted_at: new Date(),
     });
 
@@ -304,8 +329,14 @@ export async function createReimbursement(req, res) {
         console.error("❌ Failed to send email:", emailError);
       }
     }
-
-    res.json({ reimbursement });
+    res.json({
+      reimbursement: {
+        id: reimbursement.id,
+        batch_code: reimbursement.batch_code,
+        status: reimbursement.status,
+        total: reimbursement.total,
+      },
+    });
   } catch (err) {
     console.error("❌ Error creating reimbursement:", err);
     res.status(500).json({ error: "Server error", details: err.message });

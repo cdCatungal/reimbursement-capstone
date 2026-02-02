@@ -46,9 +46,9 @@ function ReportExport() {
   const getReimbursableAmount = (item) => {
     return parseFloat(
       item.reimbursable_amount ||
-        item.maxReimbursable ||
-        item.reimbursableAmount ||
-        0
+      item.maxReimbursable ||
+      item.reimbursableAmount ||
+      0
     );
   };
 
@@ -80,7 +80,7 @@ function ReportExport() {
       { header: "Employee Role", key: "employeeRole", width: 20 },
       { header: "SAP Code", key: "sapCode", width: 15 },
       { header: "Category", key: "category", width: 25 },
-      { header: "Subject/Title", key: "subject", width: 30 },
+      { header: "Purpose", key: "purpose", width: 30 },
       { header: "Description", key: "description", width: 40 },
       { header: "Reimbursable Amount", key: "reimbursableAmount", width: 30 },
       { header: "Date of Expense", key: "expenseDate", width: 18 },
@@ -139,10 +139,10 @@ function ReportExport() {
       // Get reimbursable amount - check multiple possible fields
       const reimbursableAmount = parseFloat(
         item.reimbursableAmount ||
-          item.reimbursable_amount ||
-          item.reimbursable ||
-          item.total ||
-          0
+        item.reimbursable_amount ||
+        item.reimbursable ||
+        item.total ||
+        0
       );
 
       worksheet.addRow({
@@ -151,7 +151,7 @@ function ReportExport() {
         employeeRole: item.user?.role || "N/A",
         sapCode: item.sapCode || item.sap_code || "N/A",
         category: item.category || item.type || "N/A",
-        subject: item.items || "N/A",
+        purpose: item.items || "N/A",
         description: item.description || "N/A",
         reimbursableAmount:
           parseFloat(item.reimbursable_amount || item.maxReimbursable) || 0,
@@ -242,9 +242,8 @@ function ReportExport() {
     const blob = new Blob([buffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    const filename = `reimbursement_report_${
-      new Date().toISOString().split("T")[0]
-    }.xlsx`;
+    const filename = `reimbursement_report_${new Date().toISOString().split("T")[0]
+      }.xlsx`;
     saveAs(blob, filename);
   };
 
@@ -581,7 +580,7 @@ function ReportExport() {
                       color: "primary.contrastText",
                     }}
                   >
-                    Subject
+                    Purpose
                   </TableCell>
                   <TableCell
                     sx={{
@@ -658,8 +657,8 @@ function ReportExport() {
                             {item.submittedAt
                               ? new Date(item.submittedAt).toLocaleDateString()
                               : item.submitted_at
-                              ? new Date(item.submitted_at).toLocaleDateString()
-                              : "N/A"}
+                                ? new Date(item.submitted_at).toLocaleDateString()
+                                : "N/A"}
                           </Typography>
                         </Box>
                       </TableCell>

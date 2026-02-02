@@ -96,7 +96,7 @@ function SalesDirectorReportExport() {
       { header: "Employee Role", key: "employeeRole", width: 20 },
       { header: "SAP Code", key: "sapCode", width: 15 },
       { header: "Category", key: "category", width: 25 },
-      { header: "Subject/Title", key: "subject", width: 30 },
+      { header: "Purpose/Title", key: "purpose", width: 30 },
       { header: "Description", key: "description", width: 40 },
       { header: "Amount", key: "amount", width: 15 },
       { header: "Date of Expense", key: "expenseDate", width: 18 },
@@ -155,7 +155,7 @@ function SalesDirectorReportExport() {
         employeeRole: item.user?.role || "N/A",
         sapCode: item.sapCode || item.sap_code || "N/A",
         category: item.category || item.type || "N/A",
-        subject: item.items || "N/A",
+        purpose: item.items || "N/A",
         description: item.description || "N/A",
         amount: parseFloat(item.total) || 0,
         expenseDate: expenseDate,
@@ -671,7 +671,7 @@ function SalesDirectorReportExport() {
                       color: "primary.contrastText",
                     }}
                   >
-                    Subject
+                    Purpose
                   </TableCell>
                   <TableCell
                     sx={{

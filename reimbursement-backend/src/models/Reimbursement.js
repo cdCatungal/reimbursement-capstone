@@ -125,6 +125,11 @@ const Reimbursement = sequelize.define(
       comment:
         "Batch identifier for grouping multiple receipts submitted together",
     },
+    marketing_unit: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      defaultValue: "EPH",
+    },
   },
   {
     tableName: "reimbursements",

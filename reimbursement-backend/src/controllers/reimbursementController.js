@@ -59,6 +59,10 @@ export async function createReimbursement(req, res) {
         return res.status(400).json({ error: "SAP code is required" });
       }
 
+      if (!payload.marketing_unit) {
+        return res.status(400).json({ error: "Marketing unit is required" });
+      }
+
       const userWithSapCodes = await User.findByPk(user.id, {
         include: [
           {
@@ -256,6 +260,7 @@ export async function createReimbursement(req, res) {
       status: "Pending",
       current_approver: firstApproverRole,
       sap_code: payload.sap_code,
+      marketing_unit: payload.marketing_unit,
       date_of_expense: dateOfExpense,
       receipt_url: receiptUrl,
       receipt_public_id: receiptPublicId,
@@ -263,6 +268,7 @@ export async function createReimbursement(req, res) {
       receipt_filename: receiptFilename,
       batch_code: batchCode, // ✅ Use generated/enhanced batch_code
       submitted_at: new Date(),
+     
     });
 
     console.log(
@@ -397,6 +403,7 @@ export async function getUserReimbursements(req, res) {
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
+      marketing_unit: r.marketing_unit,
       date: r.date_of_expense
         ? new Date(r.date_of_expense).toISOString().split("T")[0]
         : null,
@@ -601,6 +608,7 @@ export async function getPendingAllApprovals(req, res) {
       status: r.status,
       currentApprover: r.current_approver,
       sapCode: r.sap_code,
+      marketing_unit: r.marketing_unit,
       date: r.date_of_expense
         ? new Date(r.date_of_expense).toISOString().split("T")[0]
         : null,

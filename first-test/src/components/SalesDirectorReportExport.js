@@ -95,8 +95,9 @@ function SalesDirectorReportExport() {
       { header: "Employee Name", key: "employeeName", width: 25 },
       { header: "Employee Role", key: "employeeRole", width: 20 },
       { header: "SAP Code", key: "sapCode", width: 15 },
+      { header: "Marketing Unit", key: "marketing_unit", width: 15 },
       { header: "Category", key: "category", width: 25 },
-      { header: "Purpose/Title", key: "purpose", width: 30 },
+      { header: "Purpose", key: "purpose", width: 30 },
       { header: "Description", key: "description", width: 40 },
       { header: "Amount", key: "amount", width: 15 },
       { header: "Date of Expense", key: "expenseDate", width: 18 },
@@ -154,6 +155,7 @@ function SalesDirectorReportExport() {
         employeeName: item.user?.name || "Unknown",
         employeeRole: item.user?.role || "N/A",
         sapCode: item.sapCode || item.sap_code || "N/A",
+        marketing_unit: item.marketing_unit || item.marketing_unit || "N/A",
         category: item.category || item.type || "N/A",
         purpose: item.items || "N/A",
         description: item.description || "N/A",
@@ -662,6 +664,15 @@ function SalesDirectorReportExport() {
                       color: "primary.contrastText",
                     }}
                   >
+                    Marketing Unit
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: "bold",
+                      bgcolor: "primary.main",
+                      color: "primary.contrastText",
+                    }}
+                  >  
                     Category
                   </TableCell>
                   <TableCell
@@ -719,6 +730,11 @@ function SalesDirectorReportExport() {
                       <TableCell sx={{ fontFamily: "monospace" }}>
                         {item.sapCode || item.sap_code || "N/A"}
                       </TableCell>
+
+                      <TableCell sx={{ fontFamily: "monospace" }}>
+                        {item.marketing_unit || item.marketing_unit || "N/A"}
+                      </TableCell>
+
                       <TableCell>
                         {item.category || item.type || "N/A"}
                       </TableCell>

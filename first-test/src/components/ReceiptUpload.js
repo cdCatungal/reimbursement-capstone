@@ -63,7 +63,7 @@ function ReceiptUpload() {
 
   const [formData, setFormData] = useState({
     sap_code: "",
-    entity: "",
+    marketing_unit: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [availableSapCodes, setAvailableSapCodes] = useState([]);
@@ -549,7 +549,7 @@ function ReceiptUpload() {
         formDataToSend.append("merchant", receipt.merchant);
         formDataToSend.append("date_of_expense", receipt.date);
         formDataToSend.append("sap_code", formData.sap_code);
-        formDataToSend.append("entity", formData.entity);
+        formDataToSend.append("marketing_unit", formData.marketing_unit);
 
         // ✅ Send timestamp - backend will create full batch_code
         formDataToSend.append("batch_timestamp", timestamp);
@@ -626,7 +626,10 @@ function ReceiptUpload() {
           ? availableSapCodes[0]
           : "";
 
+
       setFormData({ sap_code: defaultSapCode });
+
+      
       setReceipts([
         {
           id: Date.now(),
@@ -1622,7 +1625,17 @@ function ReceiptUpload() {
                     {formData.sap_code}
                   </Typography>
                 </Grid>
+                
               )}
+              <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">
+                    Marketing Unit:
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    {formData.marketing_unit}
+                  </Typography>
+                </Grid>
+
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">
                   Total Receipts:
@@ -1818,11 +1831,11 @@ function ReceiptUpload() {
 
     <TextField
       select
-      label="Entity *"
-      value={formData.entity}
-      onChange={(e) => setFormData({ ...formData, entity: e.target.value })}
+      label="Marketing Unit *"
+      value={formData.marketing_unit}
+      onChange={(e) => setFormData({ ...formData, marketing_unit: e.target.value })}
       fullWidth
-      helperText="Select entity"
+      helperText="Select marketing unit"
       disabled={availableSapCodes.length === 0}
     >
      <MenuItem value="EPH">EPH</MenuItem>

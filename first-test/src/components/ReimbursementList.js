@@ -793,6 +793,8 @@ function ReimbursementList() {
                   </Box>
 
                   {/* SAP Code Display - Right side */}
+                  <Box sx={{ display: "flex", gap: 3, alignItems: "center"}}>
+                    {}
                   <Box sx={{ textAlign: "right" }}>
                     <Typography
                       variant="caption"
@@ -808,8 +810,28 @@ function ReimbursementList() {
                       sx={{ fontWeight: 600, fontSize: "0.875rem" }}
                     />
                   </Box>
+                
+                  {/* Marketing Unit */}
+                  <Box sx={{ textAlign: "right" }}>
+                    {console.log('Selected Ticket:', selectedTicket)}
+                    {console.log('Marketing Unit:', selectedTicket.marketing_unit)}
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mb: 0.5 }}
+                    >
+                      Marketing Unit
+                    </Typography>
+                    <Chip
+                      label={selectedTicket.marketing_unit || "N/A"}
+                      color="primary"
+                      variant="outlined"
+                      sx={{ fontWeight: 600, fontSize: "0.875rem" }}
+                      />
                 </Box>
               </Box>
+            </Box>
+          </Box>
 
               {selectedTicket && selectedTicket.batch_code && (
                 <Box sx={{ p: 3, pt: 0, mt: 2 }}>

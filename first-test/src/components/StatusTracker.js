@@ -801,6 +801,23 @@ function StatusTracker() {
                       />
                     </Box>
 
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        Marketing Unit:
+                      </Typography>
+                      <Chip
+                        label={selectedTicket.marketing_unit || "N/A"}
+                        color="primary"
+                        variant="outlined"
+                        size="small"
+                        sx={{ fontWeight: 600, mt: 0.5 }}
+                      />
+                    </Box>
+
                     {selectedTicket.merchant && (
                       <Box sx={{ mb: 2 }}>
                         <Typography

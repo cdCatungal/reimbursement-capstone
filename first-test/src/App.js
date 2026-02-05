@@ -197,6 +197,7 @@ function App() {
       const saved = res.data;
 
       setReimbursements([...reimbursements, saved]);
+      console.log("this is the entity " + reimbursement.entity)
       showNotification("Reimbursement submitted successfully!", "success");
       return saved;
     } catch (error) {

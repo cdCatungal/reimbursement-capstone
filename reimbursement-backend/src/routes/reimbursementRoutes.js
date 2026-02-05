@@ -376,6 +376,7 @@ router.get("/batch/:batchCode", isAuthenticated, async (req, res) => {
       batch_code: r.batch_code,
       date: r.date_of_expense,
       sapCode: r.sap_code,
+      marketing_unit: r.marketing_unit,
       submittedAt: r.submitted_at,
       approved_at: r.approved_at,
       number_of_people: r.number_of_people,

@@ -63,6 +63,7 @@ function ReceiptUpload() {
 
   const [formData, setFormData] = useState({
     sap_code: "",
+    marketing_unit: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [availableSapCodes, setAvailableSapCodes] = useState([]);
@@ -503,6 +504,7 @@ function ReceiptUpload() {
   };
 
   const handleSubmitClick = () => {
+
     if (!validateAllReceipts()) {
       showNotification(
         "Please complete all required fields for all receipts",
@@ -547,6 +549,7 @@ function ReceiptUpload() {
         formDataToSend.append("merchant", receipt.merchant);
         formDataToSend.append("date_of_expense", receipt.date);
         formDataToSend.append("sap_code", formData.sap_code);
+        formDataToSend.append("marketing_unit", formData.marketing_unit);
 
         // ✅ Send timestamp - backend will create full batch_code
         formDataToSend.append("batch_timestamp", timestamp);
@@ -623,7 +626,10 @@ function ReceiptUpload() {
           ? availableSapCodes[0]
           : "";
 
+
       setFormData({ sap_code: defaultSapCode });
+
+      
       setReceipts([
         {
           id: Date.now(),
@@ -1619,7 +1625,17 @@ function ReceiptUpload() {
                     {formData.sap_code}
                   </Typography>
                 </Grid>
+                
               )}
+              <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">
+                    Marketing Unit:
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    {formData.marketing_unit}
+                  </Typography>
+                </Grid>
+
               <Grid item xs={6}>
                 <Typography variant="caption" color="text.secondary">
                   Total Receipts:
@@ -1795,24 +1811,38 @@ function ReceiptUpload() {
           )}
 
           {/* SAP Code Selection */}
-          {!bypassesSapValidation && (
-            <TextField
-              select
-              label="SAP Code *"
-              value={formData.sap_code}
-              onChange={(e) => setFormData({ sap_code: e.target.value })}
-              fullWidth
-              sx={{ mb: 3 }}
-              helperText="Select the department/project for all receipts"
-              disabled={availableSapCodes.length === 0}
-            >
-              {availableSapCodes.map((code) => (
-                <MenuItem key={code} value={code}>
-                  {code}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
+         {!bypassesSapValidation && (
+  <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+    <TextField
+      select
+      label="SAP Code *"
+      value={formData.sap_code}
+      onChange={(e) => setFormData({ ...formData, sap_code: e.target.value })}
+      fullWidth
+      helperText="Select the department/project for all receipts"
+      disabled={availableSapCodes.length === 0}
+    >
+      {availableSapCodes.map((code) => (
+        <MenuItem key={code} value={code}>
+          {code}
+        </MenuItem>
+      ))}
+    </TextField>
+
+    <TextField
+      select
+      label="Marketing Unit *"
+      value={formData.marketing_unit}
+      onChange={(e) => setFormData({ ...formData, marketing_unit: e.target.value })}
+      fullWidth
+      helperText="Select marketing unit"
+      disabled={availableSapCodes.length === 0}
+    >
+     <MenuItem value="EPH">EPH</MenuItem>
+      <MenuItem value="EPM">EPM</MenuItem>
+    </TextField>
+  </Box>
+)}
 
           {/* Receipt Cards Grid */}
           <Grid container spacing={2} sx={{ mb: 3 }}>

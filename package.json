@@ -1,0 +1,27 @@
+{
+  "name": "reimbursement-capstone",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm install --prefix reimbursement-backend && npm install --prefix first-test && npm run build --prefix first-test",
+    "start": "npm run start --prefix reimbursement-backend",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cdCatungal/reimbursement-capstone.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cdCatungal/reimbursement-capstone/issues"
+  },
+  "homepage": "https://github.com/cdCatungal/reimbursement-capstone#readme",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  }
+}

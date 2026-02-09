@@ -1,0 +1,87 @@
+import { DataTypes } from 'sequelize';
+import sequelize from '../config/db.js';
+
+const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+    validate: {
+      isEmail: true,
+    },
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  password: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  role: {
+    type: DataTypes.ENUM(
+      'Employee',
+      'SUL',
+      'Account Manager',
+      'Invoice Specialist',
+      'Finance Officer',
+      'Sales Director',
+      'Admin'
+    ),
+    defaultValue: 'Employee',
+  },
+  authProvider: {
+    type: DataTypes.ENUM('local', 'microsoft'),
+    defaultValue: 'local',
+    allowNull: false,
+  },
+  microsoftId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+  },
+  profilePicture: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+profilePictureHash: {
+  type: DataTypes.STRING(32), // MD5 hash is 32 characters
+  allowNull: true,
+  comment: 'MD5 hash of the profile picture for change detection'
+},
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    allowNull: false,
+    comment: 'Whether the user account is active or inactive'
+  },
+  
+  // ✅ NEW: Manual SUL assignment (for Employees only)
+  assigned_sul_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'SUL manually assigned to this Employee by Sales Director'
+  },
+});
+
+// ✅ NEW: Self-referencing relationship for SUL assignment
+User.belongsTo(User, {
+  foreignKey: 'assigned_sul_id',
+  as: 'assignedSUL'
+});
+
+User.hasMany(User, {
+  foreignKey: 'assigned_sul_id',
+  as: 'managedEmployees'
+});
+
+export default User;
